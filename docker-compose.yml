@@ -1,0 +1,18 @@
+services:
+  dashadminDB:
+    image: postgres:15
+
+  frontendadmin.web:
+    image: ${DOCKER_REGISTRY-}frontendadminweb
+    build:
+      context: .
+      dockerfile: FrontendAdmin/FrontendAdmin.Web/Dockerfile
+
+  backendadmin.api:
+    image: ${DOCKER_REGISTRY-}backendadminapi
+    build:
+      context: .
+      dockerfile: BackendAdmin/BackendAdmin.Api/Dockerfile
+            
+volumes:
+  pgdata_dashadmin:
