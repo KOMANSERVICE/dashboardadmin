@@ -1,0 +1,10 @@
+﻿global using Carter;
+global using Mapster;
+global using MediatR;
+global using IDR.Library.BuildingBlocks.Responses;
+global using FluentValidation;
+global using Microsoft.AspNetCore.Authorization;
+global using Microsoft.Extensions.Configuration;
+global using IDR.Library.BuildingBlocks.Exceptions.Handler;
+global using Microsoft.AspNetCore.Authentication.JwtBearer;
+global using Microsoft.OpenApi.Models;

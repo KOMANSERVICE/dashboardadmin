@@ -1,0 +1,14 @@
+﻿global using BackendAdmin.Domain.Models;
+global using BackendAdmin.Application.Interfaces;
+global using BackendAdmin.Infrastructure.Data;
+global using BackendAdmin.Infrastructure.Middlewares;
+global using BackendAdmin.Infrastructure.Services;
+global using IDR.Library.BuildingBlocks.Security;
+global using IDR.Library.BuildingBlocks.Security.Interfaces;
+global using Microsoft.AspNetCore.Builder;
+global using Microsoft.EntityFrameworkCore.Diagnostics;
+global using Microsoft.Extensions.Configuration;
+global using Microsoft.Extensions.DependencyInjection;
+global using IDR.Library.BuildingBlocks.Exceptions;
+global using Microsoft.AspNetCore.Http;
+global using Microsoft.EntityFrameworkCore;

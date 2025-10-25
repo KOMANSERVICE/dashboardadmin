@@ -1,0 +1,13 @@
+﻿global using IDR.Library.BuildingBlocks.CQRS;
+global using FluentValidation;
+global using Microsoft.AspNetCore.Identity;
+global using Microsoft.Extensions.Configuration;
+global using Microsoft.EntityFrameworkCore;
+global using IDR.Library.BuildingBlocks.Exceptions;
+global using IDR.Library.BuildingBlocks.Security.Interfaces;
+global using IDR.Library.BuildingBlocks.Behaviors;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.FeatureManagement;
+global using System.Reflection;
+global using Microsoft.IdentityModel.Tokens;
+global using System.Text;
