@@ -1,0 +1,84 @@
+@page "/list-app"
+
+<PageTitleComponent Title="Liste des applications" />
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+           
+            <div>
+                <h2 class="text-3xl font-bold text-primary-700 text-gray-900 sm:text-2xl dark:text-white">Mes Entreprises</h2>
+                <p class="text-gray-600">Gérez toutes vos entreprises en un seul endroit</p>
+            </div>
+         
+            <Button type="button" @onclick="onShowModal" id="addBusinessBtn" 
+                IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left" >
+                <span>Nouvelle entreprise</span>
+            </Button>
+        </div>
+
+
+       
+            @if(LoadinData){
+                <LoadingData />
+            }else{
+                 <!-- Business List -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Business Card 1 -->
+                     @*    @foreach(var boutique in boutiques)
+                        {
+                            <CardBoutique Boutique="@boutique" />
+                        } *@
+
+                        <!-- Business Card 3 (Add new) -->
+                        <div @onclick="onShowModal" class="border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center p-8 cursor-pointer hover:border-primary-700 hover:bg-amber-50 transition">
+                            <div class="w-14 h-14 rounded-full bg-primary-700 bg-opacity-10 flex items-center justify-center mb-4">
+                                <i class="fas fa-plus text-primary-700 text-2xl"></i>
+                            </div>
+                            <h3 class="text-lg font-medium text-gray-700">Ajouter une entreprise</h3>
+                            <p class="text-sm text-gray-500 mt-1 text-center">Créez une nouvelle entreprise pour commencer à gérer vos activités</p>
+                        </div>
+            
+                </div>
+            }
+
+    </div>
+
+<Modal     
+    OnCloseModal="()=>{
+        onShowModal();
+    }"
+    ShowModal="showModal"   
+    ModalTitle="Nouvelle entreprise"
+>
+   
+</Modal>
+
+@code {
+
+    private bool showModal = false;
+    private bool LoadinData = true;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        LoadinData = true;
+        await GetBoutiquesAsync();
+       
+        
+        LoadinData = false;
+
+    }
+
+    private async Task GetBoutiquesAsync()
+    {
+       
+    }
+
+    
+    private void onShowModal()
+    {
+        showModal = !showModal;
+    }
+
+}
