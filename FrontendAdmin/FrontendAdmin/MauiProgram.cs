@@ -1,4 +1,5 @@
 ﻿using FrontendAdmin.Services;
+using FrontendAdmin.Shared;
 using FrontendAdmin.Shared.Services;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +17,7 @@ namespace FrontendAdmin
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 });
 
+            builder.Services.AddSharedServices(builder.Configuration);
             // Add device-specific services used by the FrontendAdmin.Shared project
             builder.Services.AddSingleton<IFormFactor, FormFactor>();
 

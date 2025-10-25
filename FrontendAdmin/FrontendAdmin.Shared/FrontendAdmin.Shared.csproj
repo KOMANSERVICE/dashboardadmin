@@ -7,11 +7,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="C:\Users\koman\.nuget\packages\idr.library.blazor\1.10.0\contentFiles\any\net9.0\package-lock.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <SupportedPlatform Include="browser" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.5" />
+    <PackageReference Include="Refit.HttpClientFactory" Version="8.0.0" />
+    <PackageReference Include="IDR.Library.Blazor" Version="1.10.0" />
   </ItemGroup>
 
 </Project>

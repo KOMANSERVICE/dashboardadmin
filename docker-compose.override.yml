@@ -30,6 +30,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
+      - ApiSettings__Uri=${API_SETTINGS_URL}
     ports:
       - "9011:8080"
     volumes:
