@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 namespace BackendAdmin.Infrastructure.Data;
 
-internal class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplicationDbContext
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplicationDbContext
 {
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
