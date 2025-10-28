@@ -1,4 +1,6 @@
-﻿namespace BackendAdmin.Api;
+﻿using IDR.Library.BuildingBlocks.Security.Interfaces;
+
+namespace BackendAdmin.Api;
 
 public static class DependencyInjection
 {
@@ -21,12 +23,17 @@ public static class DependencyInjection
 
         //Add cors
         var Allow_origin = configuration["Allow:Origins"]!;
+
+        var tempProvider = services.BuildServiceProvider();
+        var vaultSecretProvider = tempProvider.GetRequiredService<ISecureSecretProvider>();
+        var origin = vaultSecretProvider.GetSecretAsync(Allow_origin).Result;
+
         services.AddCors(options =>
         {
             options.AddPolicy(name: MyAllowSpecificOrigins,
                 policy =>
                 {
-                    policy.WithOrigins(Allow_origin)
+                    policy.WithOrigins(origin)
                     .AllowAnyMethod()
                     .AllowAnyHeader();
                 });
