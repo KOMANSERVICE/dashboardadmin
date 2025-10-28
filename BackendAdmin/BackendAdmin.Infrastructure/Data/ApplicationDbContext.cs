@@ -1,10 +1,11 @@
-﻿using BackendAdmin.Domain.Models;
+﻿using BackendAdmin.Application.Data;
+using BackendAdmin.Domain.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 namespace BackendAdmin.Infrastructure.Data;
 
-internal class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+internal class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplicationDbContext
 {
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)

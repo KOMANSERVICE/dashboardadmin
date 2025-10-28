@@ -14,3 +14,4 @@ global using Microsoft.AspNetCore.Http;
 global using Microsoft.EntityFrameworkCore;
 global using BackendAdmin.Domain.ValueObjects;
 global using Microsoft.EntityFrameworkCore.Metadata.Builders;
+global using IDR.Library.BuildingBlocks;
