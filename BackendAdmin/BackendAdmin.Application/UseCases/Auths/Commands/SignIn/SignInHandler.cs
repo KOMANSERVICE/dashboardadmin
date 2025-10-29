@@ -27,7 +27,7 @@ public class SignInHandler(
             var authClains = new List<Claim>
                     {
                         new Claim(ClaimTypes.Email, EmailAdmin),
-                        new Claim(ClaimTypes.Upn, PasswordAdmin),
+                        new Claim(ClaimTypes.Upn, EmailAdmin),
                         new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                         new Claim(ClaimTypes.Role, "DashbordAdmin")
                     };
