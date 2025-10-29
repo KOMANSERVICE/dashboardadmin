@@ -1,10 +1,11 @@
 using BackendAdmin.Api;
 using BackendAdmin.Application;
 using BackendAdmin.Infrastructure;
-using Microsoft.AspNetCore.Builder;
+using BackendAdmin.Infrastructure.Data.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Configuration
+    .AddEnvironmentVariables();
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 
@@ -20,6 +21,8 @@ app.UseApiServices()
 
 if (app.Environment.IsDevelopment())
 {
+
+    await app.InitialiseDatabaseAsync();
     app.MapOpenApi();
 
     app.UseSwaggerUI(options =>

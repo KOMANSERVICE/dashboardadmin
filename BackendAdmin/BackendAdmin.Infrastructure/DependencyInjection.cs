@@ -1,10 +1,12 @@
-﻿using BackendAdmin.Infrastructure.Data.Interceptors;
+﻿using BackendAdmin.Application.Data;
+using BackendAdmin.Infrastructure.Data.Interceptors;
 using Microsoft.AspNetCore.Identity;
 
 namespace BackendAdmin.Infrastructure;
 
 public static class DependencyInjection
 {
+
     public static IServiceCollection AddInfrastructureServices
       (this IServiceCollection services, IConfiguration configuration)
     {
@@ -49,8 +51,10 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
+        services.AddGenericRepositories<ApplicationDbContext>();
 
         services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
+        services.AddScoped<IApplicationDbContext, ApplicationDbContext>();
         services.AddScoped<IKeyManagementService, KeyManagementService>();
         services.AddScoped<IEncryptionService, EncryptionService>();
         services.AddScoped<IUserContextService, UserContextService>();
