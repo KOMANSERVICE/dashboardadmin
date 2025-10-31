@@ -45,7 +45,8 @@ public static class DependencyInjection
                 {
                     policy.WithOrigins(origin)
                     .AllowAnyMethod()
-                    .AllowAnyHeader();
+                    .AllowAnyHeader()
+                    .AllowCredentials();
                 });
         });
         //services.AddAuthorizationBuilder().AddPolicy(MyAllowSpecificOrigins,
