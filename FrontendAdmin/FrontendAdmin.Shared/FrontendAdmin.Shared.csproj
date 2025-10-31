@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="IDR.Library.Blazor" Version="1.16.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.5" />
+    <PackageReference Include="Refit.HttpClientFactory" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Services\Auth\" />
+  </ItemGroup>
+
+</Project>

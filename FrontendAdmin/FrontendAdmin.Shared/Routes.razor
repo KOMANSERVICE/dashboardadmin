@@ -1,0 +1,11 @@
+﻿<AuthInitializer>
+    <Router AppAssembly="typeof(Layout.MainLayout).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        </Found>
+        <NotFound>
+            <p>Page introuvable</p>
+        </NotFound>
+    </Router>
+</AuthInitializer>
+

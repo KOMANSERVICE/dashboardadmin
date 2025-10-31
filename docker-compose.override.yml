@@ -30,9 +30,11 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081  
       - ApiSettings__Uri=${API_SETTINGS_URL}
     ports:
       - "9011:8080"
+      - "9012:8081"
     volumes:
       - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
       - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
@@ -56,6 +58,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081  
       - JWT__ValidAudience=${JWT_VALID_AUDIENCE_API}
       - JWT__ValidIssuer=${JWT_VALID_ISSUER_API}
       - JWT__Secret=${JWT_SECRET_API}
@@ -70,6 +73,7 @@ services:
       - ConnectionStrings__DashAdminDatabase=${CONNECTION_STRING_API}
     ports:
       - "9111:8080"
+      - "9112:8081"
     volumes:
       - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
       - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro

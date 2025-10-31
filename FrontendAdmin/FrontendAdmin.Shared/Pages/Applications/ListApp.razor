@@ -1,0 +1,77 @@
+
+    @page "/list-app"
+    @using FrontendAdmin.Shared.Pages.Applications.Models
+    @using FrontendAdmin.Shared.Services.Https
+    @inject IAppAdminHttpService AppAdminService
+    @inject NavigationManager NavigationManager
+    @inject AuthStateProvider AuthStateProvider
+
+    <PageTitleComponent Title="Liste des applications" />
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+            <div>
+                <h2 class="text-3xl font-bold text-primary-700 text-gray-900 sm:text-2xl">Mes Entreprises</h2>
+                <p class="text-gray-600">Gerez toutes vos entreprises en un seul endroit</p>
+            </div>
+
+            <Button type="button" @onclick="ToggleModal" id="addBusinessBtn"
+                    IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
+                <span>Nouvelle entreprise</span>
+            </Button>
+        </div>
+
+        @if (isLoading)
+        {
+            <LoadingData />
+        }
+        else
+        {
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                @foreach (var appAdmin in appAdmins)
+                {
+                    <InfoCard Title="@appAdmin.Name"
+                              Subtitle=@("Adresse: test")
+                              IconCss="fas fa-store text-primary-700 text-2xl"
+                              MetadataLabel="Cree le"
+                              MetadataValue="@appAdmin.Description"
+                              LinkHref="@(string.IsNullOrEmpty(appAdmin.Link) ? null : $"{appAdmin.Link}/{appAdmin.Id}")">
+                        <HeaderActions>
+                            <Button aria-label="Parametre" 
+                                class="text-gray-400 hover:text-primary-700 transition"
+                                    IconCss="fas fa-ellipsis-v" IconPlacement="ButtonIconPlacement.Left">
+                            </Button>
+                        </HeaderActions>
+                    </InfoCard>
+                }
+
+                <ActionCard Title="Ajouter une entreprise"
+                            Description="Creez une nouvelle entreprise pour commencer a gerer vos activites"
+                            IconCss="fas fa-plus text-primary-700 text-2xl"
+                            OnClick="ToggleModal" />
+            </div>
+        }
+    </div>
+
+    <Modal OnCloseModal="ToggleModal"
+           ShowModal="showModal"
+           ModalTitle="Nouvelle entreprise">
+    </Modal>
+
+    @code {
+        private List<AppAdmin> appAdmins = new();
+        private bool showModal;
+        private bool isLoading = true;
+
+        protected override async Task OnInitializedAsync()
+        {
+            isLoading = true;
+            var response = await AppAdminService.GetAppAdminByUserAsync();
+            appAdmins = response.Data.AppAdmins.ToList();
+
+            isLoading = false;
+        }
+
+
+        private void ToggleModal() => showModal = !showModal;
+    }
