@@ -1,11 +1,11 @@
-<AuthStateInitializer>
+@* <AuthStateInitializer> *@
     <Router AppAssembly="typeof(Layout.MainLayout).Assembly">
         <Found Context="routeData">
-            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+            <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
             @* <FocusOnNavigate RouteData="routeData" Selector="h1" /> *@
         </Found>
         <NotFound>
             <p>Page introuvable</p>
         </NotFound>
     </Router>
-</AuthStateInitializer>
+@* </AuthStateInitializer> *@

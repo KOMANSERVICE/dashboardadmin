@@ -6,6 +6,7 @@ using FrontendAdmin.Web.Services;
 using FrontendAdmin.Web.Services.Auth;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Server.Circuits;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using Microsoft.AspNetCore.DataProtection;
 using System.IO;
 
@@ -23,24 +24,18 @@ builder.Services.AddDataProtection()
     .SetApplicationName("FrontendAdmin.Web");
 
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<IServerTokenAccessor, HttpContextTokenAccessor>();
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
-    {
-        options.LoginPath = "/api/auth/denied";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-        options.SlidingExpiration = true;
-    });
+//builder.Services.AddScoped<IServerTokenAccessor, HttpContextTokenAccessor>();
+builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSharedServices(builder.Configuration);
 // Add device-specific services used by the FrontendAdmin.Shared project
 builder.Services.AddSingleton<IFormFactor, FormFactor>();
 
-builder.Services.AddScoped<CircuitHandler, ServicesAccessorCircuitHandler>();
+builder.Services.AddScoped<CircuitHandler, ServicesAccessorCircuitHandler>()
+                .AddScoped<IStorageService, WebSecureStorageService>();
+
+builder.Services.AddScoped<ProtectedLocalStorage>();
 
 var app = builder.Build();
 
