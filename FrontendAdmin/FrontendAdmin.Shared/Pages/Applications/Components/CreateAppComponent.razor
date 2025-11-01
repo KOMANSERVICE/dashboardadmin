@@ -1,0 +1,98 @@
+
+@inject IAppAdminHttpService _appAdminHttpService
+
+<LoadingPage IsLoad="@isLoad" />
+
+<EditForm EditContext="@editContext" OnValidSubmit="HandleCreateBoutique">
+    <DataAnnotationsValidator />
+    <ErrorsSummary editContext="@editContext" />
+
+    <div class="p-6 space-y-4">
+        <TextInput @bind-Value="appAdmin.Name"
+                    Label="Nom" Placeholder="Nom application"
+                   For="() => appAdmin.Name" />
+
+        <TextInput @bind-Value="appAdmin.Reference"
+                   Label="Réference" Placeholder="Réference"
+                   For="() => appAdmin.Reference" />
+
+        <TextInput @bind-Value="appAdmin.Description"
+                   Label="Description" Placeholder="Description"
+                   For="() => appAdmin.Description" />
+
+        <TextInput @bind-Value="appAdmin.Link"
+                   Label="Lien" Placeholder="Lien"
+                   For="() => appAdmin.Link" />
+    </div>
+
+
+    <div class="flex justify-end gap-3 px-6 py-4 border-t">
+        
+        <Button aria-label="Parametre" ButtonClass="border border-gray-300 bg-white rounded-lg text-gray-700 hover:bg-gray-50" type="button" @onclick="cancelSave">
+            Annuler
+        </Button>
+        <Button aria-label="Parametre" type="submit">
+            Créer l'application
+        </Button>
+    </div>
+</EditForm>
+@*         </div>
+    </div>
+</div> *@
+
+@code {
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnAfterSave { get; set; }
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnCancelSave { get; set; }
+
+
+    private bool isLoad = false;
+    private AppAdmin appAdmin = new();
+
+    private EditContext editContext;
+    private ValidationMessageStore messageStore;
+
+    protected override void OnInitialized()
+    {
+        editContext = new EditContext(appAdmin);
+        messageStore = new ValidationMessageStore(editContext);
+
+        editContext.OnValidationRequested += (s, e) => messageStore.Clear();
+        editContext.OnFieldChanged += (s, e) => messageStore.Clear(e.FieldIdentifier);
+    }
+
+    private void cancelSave()
+    {
+        OnCancelSave.InvokeAsync(null);
+    }
+
+    private async Task HandleCreateBoutique()
+    {
+        isLoad = true;
+        try
+        {
+            var result = await _appAdminHttpService.CreateAppAdminAsync(new CreateAppAdminRequest(appAdmin));
+            if (result.Success)
+            {
+                messageStore.Clear();
+                editContext.NotifyValidationStateChanged();
+                appAdmin = new AppAdmin();
+                await OnAfterSave.InvokeAsync(null);
+            }
+
+        }
+        catch (ApiException ex)
+        {
+            ApiErrorHandler.ApplyApiErrors<SignIn>(messageStore, editContext, ex.Content);
+            editContext.NotifyValidationStateChanged();
+        }
+        finally
+        {
+            isLoad = false;
+            StateHasChanged();
+        }
+    }
+
+
+}

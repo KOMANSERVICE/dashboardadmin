@@ -16,13 +16,13 @@ public class CreateAppAdmin : ICarterModule
             var result = await sender.Send(query);
 
             var response = result.Adapt<CreateAppAdminResponse>();
-            var baseResponse = ResponseFactory.Success(response, "Application créer avec succèss", StatusCodes.Status200OK);
+            var baseResponse = ResponseFactory.Success(response, "Application créer avec succèss", StatusCodes.Status201Created);
 
-            return Results.Created($"/application/{response.Id}", baseResponse);
+            return Results.Created($"/application", baseResponse);
         })
        .WithName("CreateAppAdmin")
        .WithTags("Application")
-       .Produces<BaseResponse<CreateAppAdminResponse>>(StatusCodes.Status200OK)
+       .Produces<BaseResponse<CreateAppAdminResponse>>(StatusCodes.Status201Created)
        .ProducesProblem(StatusCodes.Status400BadRequest)
        .WithSummary("CreateAppAdmin")
        .WithDescription("CreateAppAdmin")

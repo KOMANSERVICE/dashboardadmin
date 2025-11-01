@@ -11,8 +11,8 @@
     <div class="container mx-auto px-4 py-8">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
-                <h2 class="text-3xl font-bold text-primary-700 text-gray-900 sm:text-2xl">Mes Entreprises</h2>
-                <p class="text-gray-600">Gerez toutes vos entreprises en un seul endroit</p>
+                <h2 class="text-3xl font-bold text-primary-700 text-gray-900 sm:text-2xl">Mes Applications</h2>
+                <p class="text-gray-600">Gerez toutes vos application en un seul endroit</p>
             </div>
 
             <Button type="button" @onclick="ToggleModal" id="addBusinessBtn"
@@ -55,23 +55,36 @@
 
     <Modal OnCloseModal="ToggleModal"
            ShowModal="showModal"
-           ModalTitle="Nouvelle entreprise">
+           ModalTitle="Nouvelle applications">
+
+           <CreateAppComponent OnAfterSave="OnAfterSaveAsync"
+           OnCancelSave="ToggleModal" />
     </Modal>
 
-    @code {
-        private List<AppAdmin> appAdmins = new();
-        private bool showModal;
-        private bool isLoading = true;
+@code {
+    private List<AppAdmin> appAdmins = new();
+    private bool showModal;
+    private bool isLoading = true;
 
-        protected override async Task OnInitializedAsync()
-        {
-            isLoading = true;
-            var response = await AppAdminService.GetAppAdminByUserAsync();
-            appAdmins = response.Data.AppAdmins.ToList();
-
-            isLoading = false;
-        }
-
-
-        private void ToggleModal() => showModal = !showModal;
+    protected override async Task OnInitializedAsync()
+    {
+        await GetAppAdminByUserAsync();
     }
+
+    private async Task GetAppAdminByUserAsync()
+    {
+        isLoading = true;
+        var response = await AppAdminService.GetAppAdminByUserAsync();
+        appAdmins = response.Data.AppAdmins.ToList();
+        isLoading = false;
+    }
+
+    private async Task OnAfterSaveAsync()
+    {
+        ToggleModal();
+        await GetAppAdminByUserAsync();
+    }
+
+
+    private void ToggleModal() => showModal = !showModal;
+}

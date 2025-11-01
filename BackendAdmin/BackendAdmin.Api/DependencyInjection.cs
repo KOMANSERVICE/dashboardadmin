@@ -67,7 +67,7 @@ public static class DependencyInjection
             {
                 option.SaveToken = true;
                 option.RequireHttpsMetadata = false;
-                option.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters()
+                option.TokenValidationParameters = new TokenValidationParameters()
                 {
                     ValidateIssuer = true,
                     ValidateAudience = true,

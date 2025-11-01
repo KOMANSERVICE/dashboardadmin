@@ -7,5 +7,6 @@ public interface IAppAdminHttpService
 {
     [Get("/application")]
     Task<BaseResponse<GetAppAdminByUserResponse>> GetAppAdminByUserAsync();
-    Task<Guid> CreateAppAdminAsync(Guid appId);
+    [Post("/application")]
+    Task<BaseResponse<CreateAppAdminResponse>> CreateAppAdminAsync(CreateAppAdminRequest request);
 }

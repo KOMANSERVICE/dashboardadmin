@@ -11,3 +11,5 @@ public record AppAdmin
     public string Description { get; set; } = string.Empty;
     public string Link { get; set; } = string.Empty;
 }
+public record CreateAppAdminRequest(AppAdmin AppAdmin);
+public record CreateAppAdminResponse(Guid Id);
