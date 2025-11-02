@@ -1,4 +1,6 @@
-﻿namespace BackendAdmin.Application;
+﻿using BackendAdmin.Application.Services;
+
+namespace BackendAdmin.Application;
 
 public static class DependencyInjection
 {
@@ -17,7 +19,8 @@ public static class DependencyInjection
 
         services.AddFeatureManagement();
         //services.AddMessageBroker(configuration, Assembly.GetExecutingAssembly());
-  
+        services.AddScoped<AuthServices>();
+
 
         return services;
     }

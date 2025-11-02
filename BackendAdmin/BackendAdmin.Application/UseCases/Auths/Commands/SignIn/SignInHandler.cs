@@ -1,14 +1,17 @@
-﻿using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using System.Threading.Tasks;
+﻿using BackendAdmin.Application.Services;
+using BackendAdmin.Domain.Models;
+using IDR.Library.BuildingBlocks.Helpers;
+using IDR.Library.BuildingBlocks.Helpers.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace BackendAdmin.Application.UseCases.Auths.Commands.SignIn;
 
 public class SignInHandler(
     IConfiguration _configuration,
-    ISecureSecretProvider _secureSecretProvider
+    ISecureSecretProvider _secureSecretProvider,
+    AuthServices _authServices,
+    IGenericRepository<RefreshToken> _refreshTokenContext,
+    IUnitOfWork _unitOfWork
     ) :
     ICommandHandler<SignInCommand, SignInResult>
 {
@@ -24,43 +27,37 @@ public class SignInHandler(
 
         if (signIn.Email.Equals(EmailAdmin) && signIn.Password.Equals(PasswordAdmin))
         {
-            var authClains = new List<Claim>
-                    {
-                        new Claim(ClaimTypes.Email, EmailAdmin),
-                        new Claim(ClaimTypes.Upn, EmailAdmin),
-                        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                        new Claim(ClaimTypes.Role, "DashbordAdmin")
-                    };
-            var token = await GetTokenAsync(authClains);
-            return new SignInResult(token);
+            var jwtToken = new JwtTokenModel
+            {
+                Email = EmailAdmin,
+                UserId  = EmailAdmin,
+                Role = "DashbordAdmin",
+            };
+
+            var resultToken = await _authServices.GetTokenAsync(jwtToken);
+
+            var refreshTokenHash = AuthHelper.HashToken(resultToken.RefreshToken);
+
+            var refreshTokenEntity = new RefreshToken
+            {
+                Id = Guid.NewGuid(),
+                TokenHash = refreshTokenHash,
+                Email = EmailAdmin,
+                UserId = EmailAdmin, // Ou un vrai UserId si vous en avez
+                Role = "DashbordAdmin",
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddDays(15),
+                IsRevoked = false
+            };
+
+            await _refreshTokenContext.AddDataAsync(refreshTokenEntity);
+            await _unitOfWork.SaveChangesDataAsync(cancellationToken);
+
+            return new SignInResult(resultToken.Token);
 
         }
 
         throw new BadRequestException("Le mot de passe ou l'adresse email est incorrect.");
     }
 
-    private async Task<string> GetTokenAsync(List<Claim> authClains)
-    {
-        var JWT_Secret = _configuration["JWT:Secret"]!;
-        var JWT_ValidIssuer = _configuration["JWT:ValidIssuer"]!;
-        var JWT_ValidAudience = _configuration["JWT:ValidAudience"]!;
-
-        var secret = await _secureSecretProvider.GetSecretAsync(JWT_Secret);
-        var issuer = await _secureSecretProvider.GetSecretAsync(JWT_ValidIssuer);
-        var audience = await _secureSecretProvider.GetSecretAsync(JWT_ValidAudience);
-        
-        var authSigninkey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(secret));
-
-        var token = new JwtSecurityToken(
-            issuer: issuer,
-            audience: audience,
-            expires: DateTime.Now.AddMinutes(30),
-            claims: authClains,
-            signingCredentials: new SigningCredentials(authSigninkey, SecurityAlgorithms.HmacSha256Signature)
-        );
-
-        var strToken = new JwtSecurityTokenHandler().WriteToken(token);
-
-        return strToken;
-    }
 }

@@ -7,15 +7,16 @@ public static class DependencyInjection
     public static IServiceCollection AddSharedServices(this IServiceCollection services, IConfiguration configuration)
     {
         var uri = configuration["ApiSettings:Uri"]!;
-        Console.WriteLine($"API URI: {uri}");
 
-        services.AddAuthServices();
+        services.AddAuthServices(configuration);
 
         services.AddRefitClient<IAuthHttpService>()
-            .ConfigureHttpClient(c => c.BaseAddress = new Uri(uri));
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri(uri))
+            .AddHttpMessageHandler<CookieHandler>();
 
         services.AddRefitClient<IAppAdminHttpService>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(uri))
+            .AddHttpMessageHandler<CookieHandler>()
             .AddHttpMessageHandler<JwtAuthorizationHandler>();
 
         return services;

@@ -21,6 +21,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BackendAdmin.Application\BackendAdmin.Application.csproj" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <Folder Include="Filters\" />
   </ItemGroup>  
   
 </Project>

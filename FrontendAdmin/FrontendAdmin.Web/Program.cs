@@ -16,6 +16,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddSingleton<IFormFactor, FormFactor>()
                 .AddScoped<IStorageService, WebSecureStorageService>()
                 .AddScoped<ProtectedLocalStorage>()
+                .AddScoped<ProtectedSessionStorage>()
                 .AddSharedServices(builder.Configuration);
 
 builder.Services.AddAuthorization();
