@@ -1,11 +1,9 @@
 ﻿
 using BackendAdmin.Application.Data;
-using BackendAdmin.Application.Interfaces;
 using BackendAdmin.Application.Services;
 using IDR.Library.BuildingBlocks.Helpers;
 using IDR.Library.BuildingBlocks.Helpers.Models;
 using Microsoft.AspNetCore.Http;
-using BackendAdmin.Domain.Models;
 
 namespace BackendAdmin.Application.UseCases.Auths.Commands.Refresh;
 
