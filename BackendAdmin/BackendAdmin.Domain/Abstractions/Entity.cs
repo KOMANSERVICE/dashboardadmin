@@ -1,4 +1,6 @@
 ﻿
+using IDR.Library.BuildingBlocks.Abstractions;
+
 namespace BackendAdmin.Domain.Abstractions;
 
 public abstract class Entity<T> : IEntity<T>
