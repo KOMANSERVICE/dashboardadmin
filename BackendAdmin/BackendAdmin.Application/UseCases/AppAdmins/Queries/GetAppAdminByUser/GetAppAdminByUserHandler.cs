@@ -1,6 +1,5 @@
 ﻿
 using BackendAdmin.Application.Data;
-using BackendAdmin.Application.Interfaces;
 using BackendAdmin.Application.UseCases.AppAdmins.DTOs;
 using IDR.Library.BuildingBlocks.Security.Interfaces;
 

@@ -48,15 +48,16 @@ public class RefreshTokenHandler(
         tokenEntity.RevokedReason = "Utilisé pour refresh";
         _refreshTokenRepository.UpdateData(tokenEntity);
 
+        refreshTokenHash = AuthHelper.HashToken(result.RefreshToken);
         var newTokenEntity = new RefreshToken
         {
             Id = Guid.NewGuid(),
-            TokenHash = result.RefreshToken,
+            TokenHash = refreshTokenHash,
             Email = tokenEntity.Email,
             UserId = tokenEntity.UserId,
             Role = tokenEntity.Role,
             CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddDays(15),
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
             IsRevoked = false
         };
 

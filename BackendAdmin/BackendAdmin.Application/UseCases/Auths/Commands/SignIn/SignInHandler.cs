@@ -35,7 +35,6 @@ public class SignInHandler(
             };
 
             var resultToken = await _authServices.GetTokenAsync(jwtToken);
-
             var refreshTokenHash = AuthHelper.HashToken(resultToken.RefreshToken);
 
             var refreshTokenEntity = new RefreshToken

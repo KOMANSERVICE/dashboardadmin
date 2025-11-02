@@ -1,5 +1,6 @@
 ﻿using BackendAdmin.Application.Data;
-using BackendAdmin.Infrastructure.Data.Interceptors;
+using IDR.Library.BuildingBlocks.Contexts;
+using IDR.Library.BuildingBlocks.Interceptors;
 using Microsoft.AspNetCore.Identity;
 
 namespace BackendAdmin.Infrastructure;
@@ -46,26 +47,22 @@ public static class DependencyInjection
             options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
             options.UseNpgsql(connectionString);
         });
-
         services.AddIdentity<ApplicationUser, IdentityRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
         services.AddGenericRepositories<ApplicationDbContext>();
-
-        services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
         services.AddScoped<IApplicationDbContext, ApplicationDbContext>();
-        services.AddScoped<IKeyManagementService, KeyManagementService>();
-        services.AddScoped<IEncryptionService, EncryptionService>();
-        services.AddScoped<IUserContextService, UserContextService>();
 
-        services.AddHttpContextAccessor();
+        services.AddInterceptors();
+        services.AddSecurities();
+        services.AddContextMiddleware();
 
         return services;
     }
     public static WebApplication UseInfrastructureServices(this WebApplication app)
     {
-        app.UseMiddleware<UserContextMiddleware>();
+        app.UseContextMiddleware();
         return app;
     }
 }

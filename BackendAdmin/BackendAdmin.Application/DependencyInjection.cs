@@ -19,6 +19,7 @@ public static class DependencyInjection
 
         services.AddFeatureManagement();
         //services.AddMessageBroker(configuration, Assembly.GetExecutingAssembly());
+
         services.AddScoped<AuthServices>();
 
 
