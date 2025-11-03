@@ -3,6 +3,7 @@ using Blazored.SessionStorage;
 using FrontendAdmin.Shared;
 using FrontendAdmin.Shared.Services;
 using FrontendAdmin.Web.Client.Services;
+using IDR.Library.Blazor.Cookies;
 using IDR.Library.Blazor.LocalStorages;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
@@ -16,5 +17,7 @@ builder.Services.AddSingleton<IFormFactor, FormFactor>()
                 .AddBlazoredSessionStorage()
                 .AddAuthorizationCore()
                 .AddSharedServices(builder.Configuration);
+
+
 
 await builder.Build().RunAsync();

@@ -37,7 +37,7 @@ public class AuthServices(
 
         var refreshToken = new RefreshTokenModel
         {
-            RefreshTokenExpiration = 7,
+            RefreshTokenExpiration = DateTime.UtcNow.AddDays(7),
             remeberMe= remeberMe
         };
         var accesToken = AuthHelper.GetAccessToken(httpContext,jwtToken, refreshToken);
