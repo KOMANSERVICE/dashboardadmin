@@ -75,7 +75,7 @@ public static class DependencyInjection
                     ValidAudience = audience,
                     ValidIssuer = issuer,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
-                    ClockSkew = TimeSpan.Zero // 🆕 OPTIONNEL : Supprime la tolérance de 5 min par défaut
+                    ClockSkew = TimeSpan.Zero //Supprime la tolérance de 5 min par défaut
                 };
             });
 

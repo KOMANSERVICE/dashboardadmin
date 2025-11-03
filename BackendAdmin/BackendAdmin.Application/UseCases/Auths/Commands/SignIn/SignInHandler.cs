@@ -45,7 +45,7 @@ public class SignInHandler(
                 UserId = EmailAdmin, // Ou un vrai UserId si vous en avez
                 Role = "DashbordAdmin",
                 CreatedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddDays(15),
+                ExpiresAt = DateTime.UtcNow.AddDays(7),
                 IsRevoked = false
             };
 

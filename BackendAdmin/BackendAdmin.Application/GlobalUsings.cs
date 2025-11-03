@@ -14,3 +14,4 @@ global using System.Text;
 global using BackendAdmin.Domain.Models;
 global using IDR.Library.BuildingBlocks.Repositories;
 global using IDR.Library.BuildingBlocks.Contexts.Services;
+global using BackendAdmin.Application.Models;
