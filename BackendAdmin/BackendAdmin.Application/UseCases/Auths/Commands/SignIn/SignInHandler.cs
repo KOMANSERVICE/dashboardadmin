@@ -34,18 +34,17 @@ public class SignInHandler(
                 Role = "DashbordAdmin",
             };
 
-            var resultToken = await _authServices.GetTokenAsync(jwtToken);
-            var refreshTokenHash = AuthHelper.HashToken(resultToken.RefreshToken);
-
+            var resultToken = await _authServices.GetTokenAsync(jwtToken, signIn.RememberMe);
+            
             var refreshTokenEntity = new RefreshToken
             {
                 Id = Guid.NewGuid(),
-                TokenHash = refreshTokenHash,
-                Email = EmailAdmin,
-                UserId = EmailAdmin, // Ou un vrai UserId si vous en avez
-                Role = "DashbordAdmin",
+                TokenHash = resultToken.RefreshTokenHash,
+                Email = jwtToken.Email,
+                UserId = jwtToken.UserId, // Ou un vrai UserId si vous en avez
+                Role = jwtToken.Role,
                 CreatedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddDays(7),
+                ExpiresAt = resultToken.RefreshTokenExpiration,
                 IsRevoked = false
             };
 

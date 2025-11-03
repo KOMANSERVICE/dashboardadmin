@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BackendAdmin.Domain.Models;
+﻿namespace BackendAdmin.Domain.Models;
 [Table("TR00001")]
 public class RefreshToken
 {
@@ -21,7 +15,7 @@ public class RefreshToken
     [Column("fc6")]
     public DateTime CreatedAt { get; set; }
     [Column("fc7")]
-    public DateTime ExpiresAt { get; set; }
+    public DateTime? ExpiresAt { get; set; }
     [Column("fc8")]
     public bool IsRevoked { get; set; }
     [Column("fc9")]

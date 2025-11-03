@@ -18,11 +18,13 @@ public class RefreshTokenHandler(
 {
     public async Task<RefreshTokenResult> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
+        var remenberMe = request.RemenberMe;
+
         var httpContext = _httpContextAccessor.HttpContext;
         if (!httpContext.Request.Cookies.TryGetValue("refreshToken", out var refreshToken)
             || string.IsNullOrWhiteSpace(refreshToken))
         {
-            return (RefreshTokenResult)Results.Unauthorized(); ;
+            return (RefreshTokenResult)Results.Unauthorized();
         }
 
         var refreshTokenHash = AuthHelper.HashToken(refreshToken);
@@ -31,7 +33,7 @@ public class RefreshTokenHandler(
             .FirstOrDefaultAsync(r =>
                 r.TokenHash == refreshTokenHash &&
                 !r.IsRevoked &&
-                r.ExpiresAt > DateTime.UtcNow,
+                (r.ExpiresAt == null || r.ExpiresAt > DateTime.UtcNow),
                 cancellationToken);
         if (tokenEntity == null)
             return (RefreshTokenResult)Results.Unauthorized();
@@ -40,24 +42,33 @@ public class RefreshTokenHandler(
         {
             Email = tokenEntity.Email,
             UserId = tokenEntity.UserId,
-            Role = "DashbordAdmin",
+            Roles = tokenEntity.Role.Split(";").ToList(),
         };
 
-        var result = await _authServices.GetTokenAsync(jwtToken);
+        var result = await _authServices.GetTokenAsync(jwtToken, remenberMe);
         tokenEntity.IsRevoked = true;
         tokenEntity.RevokedReason = "Utilisé pour refresh";
         _refreshTokenRepository.UpdateData(tokenEntity);
 
-        refreshTokenHash = AuthHelper.HashToken(result.RefreshToken);
+        var tokens = await _dbContext.RefreshTokens
+        .Where(rt => rt.UserId == tokenEntity.UserId && !rt.IsRevoked)
+        .ToListAsync();
+
+        foreach (var token in tokens)
+        {
+            token.IsRevoked = true;
+        }
+        _refreshTokenRepository.UpdateRangeData(tokens);
+
         var newTokenEntity = new RefreshToken
         {
             Id = Guid.NewGuid(),
-            TokenHash = refreshTokenHash,
+            TokenHash = result.RefreshTokenHash,
             Email = tokenEntity.Email,
             UserId = tokenEntity.UserId,
             Role = tokenEntity.Role,
             CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            ExpiresAt = result.RefreshTokenExpiration,
             IsRevoked = false
         };
 

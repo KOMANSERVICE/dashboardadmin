@@ -12,7 +12,7 @@ public class AuthServices(
     IHttpContextAccessor _httpContextAccessor
 ) 
 {
-    public async Task<AccessToken> GetTokenAsync(JwtTokenModel jwtTokenModel)
+    public async Task<AccessToken> GetTokenAsync(JwtTokenModel jwtTokenModel, bool remeberMe)
     {
         var JWT_Secret = _configuration["JWT:Secret"]!;
         var JWT_ValidIssuer = _configuration["JWT:ValidIssuer"]!;
@@ -21,6 +21,9 @@ public class AuthServices(
         var secret = await _secureSecretProvider.GetSecretAsync(JWT_Secret);
         var issuer = await _secureSecretProvider.GetSecretAsync(JWT_ValidIssuer);
         var audience = await _secureSecretProvider.GetSecretAsync(JWT_ValidAudience);
+
+        var httpContext = _httpContextAccessor.HttpContext;
+
         var jwtToken = new JwtTokenModel
         {
             Email = jwtTokenModel.Email,
@@ -31,17 +34,21 @@ public class AuthServices(
             JwtAudience = audience,
             Expiration = DateTime.Now.AddMinutes(1)
         };
-        var token = AuthHelper.GetTokenAsync(jwtToken);
 
-        var httpContext = _httpContextAccessor.HttpContext;
-        var refreshToken = AuthHelper.GenerateRefreshToken(
-                httpContext: httpContext,
-                expiration: DateTime.Now.AddDays(7)
-            );
+        var refreshToken = new RefreshTokenModel
+        {
+            RefreshTokenExpiration = 7,
+            remeberMe= remeberMe
+        };
+        var accesToken = AuthHelper.GetAccessToken(httpContext,jwtToken, refreshToken);
+
+
         return new AccessToken
         {
-            Token = token,
-            RefreshToken = refreshToken
+            Token = accesToken.Token,
+            RefreshToken = accesToken.RefreshToken,
+            RefreshTokenHash = accesToken.RefreshTokenHash,
+            RefreshTokenExpiration = accesToken.RefreshTokenExpiration
         };
     }
 }
