@@ -35,6 +35,7 @@ public class RefreshTokenHandler(
                 !r.IsRevoked &&
                 (r.ExpiresAt == null || r.ExpiresAt > DateTime.UtcNow),
                 cancellationToken);
+
         if (tokenEntity == null)
             return (RefreshTokenResult)Results.Unauthorized();
 
