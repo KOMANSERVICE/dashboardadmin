@@ -8,7 +8,11 @@ public static class DependencyInjection
     {
         var uri = configuration["ApiSettings:Uri"]!;
 
-        services.AddAuthServices(configuration);
+        services.AddAuthServices(configuration, (options) =>
+        {
+            options.Uri = uri;
+            options.Logout = "logout";
+        });
 
         services.AddRefitClient<IAuthHttpService>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(uri))
