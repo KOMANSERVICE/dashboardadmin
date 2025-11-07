@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BackendAdmin.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251028212629_MenuCreate")]
-    partial class MenuCreate
+    [Migration("20251107204700_InitTable1")]
+    partial class InitTable1
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -30,16 +30,16 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("champ1");
+                        .HasColumnName("ch1");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("champ2");
+                        .HasColumnName("ch2");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("champ4");
+                        .HasColumnName("ch4");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -63,12 +63,12 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("champ3");
+                        .HasColumnName("ch3");
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("champ5");
+                        .HasColumnName("ch5");
 
                     b.HasKey("Id");
 
@@ -152,59 +152,103 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("champ1");
+                        .HasColumnName("ch1");
 
                     b.Property<string>("ApiRoute")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("cf3");
+                        .HasColumnName("cf2");
 
                     b.Property<Guid>("AppAdminId")
                         .HasColumnType("uuid")
-                        .HasColumnName("cf6");
-
-                    b.Property<Guid>("ApplicationId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("cf1");
+                        .HasColumnName("cf5");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("champ2");
+                        .HasColumnName("ch2");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("champ4");
+                        .HasColumnName("ch4");
 
                     b.Property<string>("Icon")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("cf5");
+                        .HasColumnName("cf4");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("cf2");
+                        .HasColumnName("cf1");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("champ3");
+                        .HasColumnName("ch3");
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("champ5");
+                        .HasColumnName("ch5");
 
                     b.Property<string>("UrlFront")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("cf4");
+                        .HasColumnName("cf3");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AppAdminId");
 
                     b.ToTable("TM00001");
+                });
+
+            modelBuilder.Entity("BackendAdmin.Domain.Models.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("fc1");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fc6");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("fc3");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fc7");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("boolean")
+                        .HasColumnName("fc8");
+
+                    b.Property<string>("RevokedReason")
+                        .HasColumnType("text")
+                        .HasColumnName("fc9");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("fc5");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("fc2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("fc4");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TR00001");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

@@ -4,18 +4,16 @@
 public class Menu : Entity<MenuId>
 {
     [Column("cf1")]
-    public Guid ApplicationId { get; set; }
-    [Column("cf2")]
     public string Name { get; set; } = default!;
-    [Column("cf3")]
+    [Column("cf2")]
     public string ApiRoute { get; set; } = default!;
 
-    [Column("cf4")]
+    [Column("cf3")]
     public string UrlFront { get; set; } = default!;
-    [Column("cf5")]
+    [Column("cf4")]
     public string Icon { get; set; } = default!;
-    [Column("cf6")]
+    [Column("cf5")]
     public AppAdminId AppAdminId { get; set; }
 
-    public AppAdmin AppAdmin { get; set; } = new();
+    public AppAdmin AppAdmin { get; set; }
 }

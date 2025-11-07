@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BackendAdmin.Infrastructure.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitTable : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -57,19 +57,38 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
                 name: "TA00001",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "text", nullable: false),
-                    Reference = table.Column<string>(type: "text", nullable: false),
-                    Description = table.Column<string>(type: "text", nullable: false),
-                    Link = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CreatedBy = table.Column<string>(type: "text", nullable: false),
-                    UpdatedBy = table.Column<string>(type: "text", nullable: false)
+                    ch1 = table.Column<Guid>(type: "uuid", nullable: false),
+                    cf1 = table.Column<string>(type: "text", nullable: false),
+                    cf2 = table.Column<string>(type: "text", nullable: false),
+                    cf3 = table.Column<string>(type: "text", nullable: false),
+                    cf4 = table.Column<string>(type: "text", nullable: false),
+                    ch2 = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ch3 = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ch4 = table.Column<string>(type: "text", nullable: false),
+                    ch5 = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_TA00001", x => x.Id);
+                    table.PrimaryKey("PK_TA00001", x => x.ch1);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TR00001",
+                columns: table => new
+                {
+                    fc1 = table.Column<Guid>(type: "uuid", nullable: false),
+                    fc2 = table.Column<string>(type: "text", nullable: false),
+                    fc3 = table.Column<string>(type: "text", nullable: false),
+                    fc4 = table.Column<string>(type: "text", nullable: false),
+                    fc5 = table.Column<string>(type: "text", nullable: false),
+                    fc6 = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    fc7 = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    fc8 = table.Column<bool>(type: "boolean", nullable: false),
+                    fc9 = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TR00001", x => x.fc1);
                 });
 
             migrationBuilder.CreateTable(
@@ -178,6 +197,32 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "TM00001",
+                columns: table => new
+                {
+                    ch1 = table.Column<Guid>(type: "uuid", nullable: false),
+                    cf1 = table.Column<string>(type: "text", nullable: false),
+                    cf2 = table.Column<string>(type: "text", nullable: false),
+                    cf3 = table.Column<string>(type: "text", nullable: false),
+                    cf4 = table.Column<string>(type: "text", nullable: false),
+                    cf5 = table.Column<Guid>(type: "uuid", nullable: false),
+                    ch2 = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ch3 = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ch4 = table.Column<string>(type: "text", nullable: false),
+                    ch5 = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TM00001", x => x.ch1);
+                    table.ForeignKey(
+                        name: "FK_TM00001_TA00001_cf5",
+                        column: x => x.cf5,
+                        principalTable: "TA00001",
+                        principalColumn: "ch1",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -214,6 +259,11 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
                 table: "AspNetUsers",
                 column: "NormalizedUserName",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TM00001_cf5",
+                table: "TM00001",
+                column: "cf5");
         }
 
         /// <inheritdoc />
@@ -235,13 +285,19 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
-                name: "TA00001");
+                name: "TM00001");
+
+            migrationBuilder.DropTable(
+                name: "TR00001");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
+
+            migrationBuilder.DropTable(
+                name: "TA00001");
         }
     }
 }

@@ -32,7 +32,7 @@ public class AuthServices(
             JwtSecret = secret,
             JwtIssuer = issuer,
             JwtAudience = audience,
-            Expiration = DateTime.UtcNow.AddMinutes(1)
+            Expiration = DateTime.UtcNow.AddMinutes(5)
         };
 
         var refreshToken = new RefreshTokenModel
