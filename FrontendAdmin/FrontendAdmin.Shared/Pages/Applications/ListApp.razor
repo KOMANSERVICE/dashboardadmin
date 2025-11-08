@@ -35,10 +35,10 @@
                               IconCss="fas fa-store text-primary-700 text-2xl"
                               MetadataLabel="Cree le"
                               MetadataValue="@appAdmin.Description"
-                              LinkHref="@(string.IsNullOrEmpty(appAdmin.Link) ? null : $"{appAdmin.Link}/{appAdmin.Id}")">
+                              LinkHref="@($"menu/{appAdmin.Id}")">
                         <HeaderActions>
-                            <Button aria-label="Parametre" 
-                                class="text-gray-400 hover:text-primary-700 transition"
+                            <Button aria-label="Parametre" Type="button"
+                                class="text-gray-400 hover:text-primary-700 transition" 
                                     IconCss="fas fa-ellipsis-v" IconPlacement="ButtonIconPlacement.Left">
                             </Button>
                         </HeaderActions>

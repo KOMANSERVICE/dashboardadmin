@@ -1,0 +1,196 @@
+@page "/menu/{appadminId:guid}"
+@using FrontendAdmin.Shared.Pages.Menus.Models
+@using FrontendAdmin.Shared.Pages.Menus.Components
+@inject IMenuHttpService _menuHttpService
+@inject NavigationManager Nav
+
+<PageTitleComponent Title="Gestion des menus" />
+
+<HeaderPage 
+    Title="Gestion des menu"
+    SubTitle="Créer, modifier vos menu"/>
+
+@inject NavigationManager Nav
+
+<ResponsiveDataTable Items="menus"
+                     DesktopColumnCount="8"
+                     EmptyStateText="Aucun produit disponible.">
+    <Toolbar>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
+            <div class="flex items-center">
+                <label for="itemsPerPage" class="mr-2 text-sm text-gray-600">Afficher</label>
+                <select id="itemsPerPage" class="border border-gray-300 rounded px-2 py-1 text-sm"
+                        @bind="pageSize">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                </select>
+                <span class="ml-2 text-sm text-gray-600">éléments</span>
+            </div>
+
+            <div class="relative w-full md:w-64">
+                <input type="text"
+                       placeholder="Rechercher un produit..."
+                       class="w-full border border-gray-300 rounded-md pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-700 focus:border-transparent"
+                       @bind="searchTerm" />
+                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+            </div>
+
+            <div class="flex gap-3">
+                
+                <Button type="button" @onclick="OnShowCreateModal" id="addBusinessBtn"
+                        IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left" ButtonText="">
+                    
+                </Button>
+                <Button type="button" @onclick="OpenPrintModal" id="addBusinessBtn"
+                        IconPlacement="ButtonIconPlacement.Left" ButtonText="">
+                    
+                    <Icon>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                  d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z"
+                                  clip-rule="evenodd" />
+                        </svg>                        
+                    </Icon>
+                </Button>
+            </div>
+        </div>
+    </Toolbar>
+
+    <DesktopHeader>
+        <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                 <input type="checkbox" id="selectAll" class="rounded text-primary-700 focus:ring-primary-700">
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Produit</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Code barre</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Catégorie</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Prix d'achat</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Prix de vente</th>
+            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">Actions</th>
+        </tr>
+    </DesktopHeader>
+
+    <RowTemplate Context="menu">
+        <tr>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <input type="checkbox" class="product-checkbox rounded text-primary-700 focus:ring-primary-700" data-id=@($"checkbox-{menu.Id}")>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium text-gray-900">@menu.Name</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@menu.ApiRoute</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-primary-700 bg-opacity-10 text-primary-700">
+                    @menu.UrlFront
+                </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@menu.Icon FCFA</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@menu.Name FCFA</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button class="text-primary-700 hover:text-amber-800 mr-3"
+                        @onclick="() => Edit(menu.Id)">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </td>
+        </tr>
+    </RowTemplate>
+
+    <MobileCardTemplate Context="menu">
+        <div class="bg-white rounded-lg shadow-md p-4">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <h3 class="font-medium text-gray-900">@menu.Name</h3>
+                    <span class="text-xs px-2 py-1 rounded-full bg-primary-700 bg-opacity-10 text-primary-700">
+                        @menu.UrlFront
+                    </span>
+                </div>
+                <input type="checkbox" class="product-checkbox rounded text-primary-700 focus:ring-primary-700" data-id="@menu.Id">
+            </div>
+            <p class="text-sm text-gray-500 mb-3">@menu.Name</p>
+            <div class="flex justify-between items-center">
+                <div>
+                    <span class="font-medium">@menu.Name FCFA</span>
+                   
+                </div>
+                <button class="text-primary-700 hover:text-amber-800"
+                        @onclick="() => Edit(menu.Id)">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+        </div>
+    </MobileCardTemplate>
+
+    <Footer>
+        <div class="flex flex-col md:flex-row justify-between items-center gap-3 w-full">
+            <button class="text-red-600 hover:text-red-800 disabled:text-gray-400"
+                    disabled="@(!menus.Any(p => p.IsSelected))"
+                    @onclick="DeleteSelected">
+                <i class="fas fa-trash-alt"></i> Supprimer sélection
+            </button>
+            <div class="text-sm text-gray-600">
+                Affichage de @PageStart à @PageEnd sur @TotalCount éléments
+            </div>
+            @* <PaginationComponent /> *@
+        </div>
+    </Footer>
+</ResponsiveDataTable>
+
+<Modal
+    ShowModal="@showModal"
+    OnCloseModal="()=>{
+           OnShowCreateModal();
+    }"
+    ModalTitle="Nouveau menu"
+>
+    <CreateMenuComponent 
+        AppAdminId="@appadminId"
+        OnAfterSave="async ()=>{
+            await GetMenusAsync();
+            OnShowCreateModal();
+        }" />
+</Modal>
+
+
+
+@code {
+
+    [Parameter]
+    public Guid appadminId { get; set; }
+
+    private bool showModal = false;
+    private List<Menu> menus = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetMenusAsync();
+    }
+
+    private async Task GetMenusAsync()
+    {
+        var response = await _menuHttpService.GetMenuByApplicationAsync(appadminId);
+        menus = response.Data.Menus.ToList();
+    }
+
+
+
+
+    private string searchTerm = string.Empty;
+    private int pageSize = 10;
+    private bool selectAll;
+
+    private int PageStart => 1;
+    private int PageEnd => menus.Count;
+    private int TotalCount => menus.Count;
+
+    private void OnShowCreateModal()
+    {
+        showModal = !showModal;
+    
+    }
+    private void OpenPrintModal() { /* ... */ }
+    private void Edit(Guid id) { /* ... */ }
+    private void DeleteSelected() { /* ... */ }
+
+ 
+}

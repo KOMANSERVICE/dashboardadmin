@@ -1,6 +1,4 @@
-﻿using IDR.Library.Blazor.Auths;
-
-namespace FrontendAdmin.Shared;
+﻿namespace FrontendAdmin.Shared;
 
 public static class DependencyInjection
 {
@@ -8,10 +6,11 @@ public static class DependencyInjection
     {
         var uri = configuration["ApiSettings:Uri"]!;
 
-        services.AddAuthServices(configuration, (options) =>
+        services.AddBlazorLibrairyServices(configuration, (options) =>
         {
             options.Uri = uri;
             options.Logout = "logout";
+            options.PageTitle = "ADMIN DASHBOARD - ";
         });
 
         services.AddRefitClient<IAuthHttpService>()
@@ -22,6 +21,12 @@ public static class DependencyInjection
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(uri))
             .AddHttpMessageHandler<CookieHandler>()
             .AddHttpMessageHandler<JwtAuthorizationHandler>();
+
+        services.AddRefitClient<IMenuHttpService>()
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri(uri))
+            .AddHttpMessageHandler<CookieHandler>()
+            .AddHttpMessageHandler<JwtAuthorizationHandler>();
+
 
         return services;
     }

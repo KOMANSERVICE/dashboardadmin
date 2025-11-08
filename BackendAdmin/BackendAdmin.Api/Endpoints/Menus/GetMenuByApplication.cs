@@ -1,5 +1,4 @@
-﻿using BackendAdmin.Application.UseCases.AppAdmins.DTOs;
-using BackendAdmin.Application.UseCases.Menus.DTOs;
+﻿using BackendAdmin.Application.UseCases.Menus.DTOs;
 using BackendAdmin.Application.UseCases.Menus.Queries.GetMenuByApplication;
 
 namespace BackendAdmin.Api.Endpoints.Menus;
@@ -11,9 +10,9 @@ public class GetMenuByApplication : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapGet("/menu/{appAdmin}", async (Guid appAdmin,ISender sender) =>
+        app.MapGet("/menu/{appAdminId}", async (Guid appAdminId,ISender sender) =>
         {
-            var result = await sender.Send(new GetMenuByApplicationQuery(appAdmin));
+            var result = await sender.Send(new GetMenuByApplicationQuery(appAdminId));
 
             var response = result.Adapt<GetMenuByApplicationResponse>();
             var baseResponse = ResponseFactory.Success(response, "Liste des menus réccuperées avec succès", StatusCodes.Status200OK);
