@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.36414.22
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11123.170 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "FrontendAdmin", "FrontendAdmin", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 EndProject
@@ -24,6 +24,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FrontendAdmin.Web", "FrontendAdmin\FrontendAdmin.Web\FrontendAdmin.Web.csproj", "{DE84CF5F-93C7-4CAA-8E35-D4826CFB72BB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FrontendAdmin.Web.Client", "FrontendAdmin\FrontendAdmin.Web.Client\FrontendAdmin.Web.Client.csproj", "{F8D69164-2103-48AB-862D-3D8A954A7F49}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{9670FA8E-1D03-4DCA-A114-39D70A03210F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Menu.Grpc", "Services\Menu.Grpc\Menu.Grpc.csproj", "{50D0C8FB-4D15-4586-BEAC-D5F9E1B4BBE7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -67,6 +71,10 @@ Global
 		{F8D69164-2103-48AB-862D-3D8A954A7F49}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F8D69164-2103-48AB-862D-3D8A954A7F49}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F8D69164-2103-48AB-862D-3D8A954A7F49}.Release|Any CPU.Build.0 = Release|Any CPU
+		{50D0C8FB-4D15-4586-BEAC-D5F9E1B4BBE7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{50D0C8FB-4D15-4586-BEAC-D5F9E1B4BBE7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{50D0C8FB-4D15-4586-BEAC-D5F9E1B4BBE7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{50D0C8FB-4D15-4586-BEAC-D5F9E1B4BBE7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -80,6 +88,7 @@ Global
 		{DF2D1036-E71A-4EFE-9C1C-1C16C32243F6} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{DE84CF5F-93C7-4CAA-8E35-D4826CFB72BB} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{F8D69164-2103-48AB-862D-3D8A954A7F49} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{50D0C8FB-4D15-4586-BEAC-D5F9E1B4BBE7} = {9670FA8E-1D03-4DCA-A114-39D70A03210F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {35F16C1E-0BA0-42E1-9392-035DE220EF71}

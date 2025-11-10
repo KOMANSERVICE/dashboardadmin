@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+option csharp_namespace = "Menu.Grpc";
+
+package menu;
+
+service MenuProtoService {
+  rpc GetMenu (GetMenuRequest) returns (MenuModel);
+  rpc CreateMenu (CreateMenuRequest) returns (MenuModel);
+  rpc UpdateMenu (UpdateMenuRequest) returns (MenuModel);
+  rpc DeleteMenu (DeleteMenuRequest) returns (DeleteMenuResponse);
+}
+
+message GetMenuRequest {
+  string name = 1;
+}
+
+message MenuModel {
+  string id = 1;
+  string name = 2;
+  string ApiRoute = 3;
+  string UrlFront = 4;
+  string Icon = 5;
+  bool IsActif = 6;
+  string AppAdminId = 7; 
+}
+
+message CreateMenuRequest {
+  MenuModel menu = 1; 
+}
+
+message UpdateMenuRequest {
+  MenuModel menu = 1; 
+}
+
+message DeleteMenuRequest {
+  string name = 1;
+}
+
+message DeleteMenuResponse {
+  bool success = 1;
+}

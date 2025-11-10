@@ -1,8 +1,12 @@
-﻿namespace BackendAdmin.Domain.Models;
+﻿using Menu.Grpc.Abstractions;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Menu.Grpc.Models;
 
 [Table("TM00001")]
-public class Menu : Entity<MenuId>
+public class Menu : Entity<Guid>
 {
+
     [Column("cf1")]
     public string Name { get; set; } = default!;
     [Column("cf2")]
@@ -15,7 +19,5 @@ public class Menu : Entity<MenuId>
     [Column("cf6")]
     public bool IsActif { get; set; }
     [Column("cf5")]
-    public AppAdminId AppAdminId { get; set; }
-
-    public AppAdmin AppAdmin { get; set; }
+    public Guid AppAdminId { get; set; }
 }
