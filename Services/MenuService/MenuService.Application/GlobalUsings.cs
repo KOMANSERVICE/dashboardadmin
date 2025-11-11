@@ -5,3 +5,4 @@ global using MenuService.Domain.Models;
 global using FluentValidation;
 global using Microsoft.EntityFrameworkCore;
 global using Mapster;
+global using IDR.Library.BuildingBlocks.Exceptions;

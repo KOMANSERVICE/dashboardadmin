@@ -2,5 +2,5 @@
 
 public class MenuStateDto : MenuDTO
 {
-    public bool Active { get; set; }
+    public bool IsActif { get; set; }
 }

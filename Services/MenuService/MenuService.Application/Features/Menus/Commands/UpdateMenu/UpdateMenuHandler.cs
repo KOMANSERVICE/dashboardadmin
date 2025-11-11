@@ -27,6 +27,11 @@ public class UpdateMenuHandler(
             m.AppAdminReference == menudto.AppAdminReference, cancellationToken
         );
 
+        if(menu == null)
+        {
+            throw new NotFoundException($"Menu with reference {menudto.Reference} not found.");
+        }
+
         menu = MapToEntity(menudto, menu);
 
         return menu;

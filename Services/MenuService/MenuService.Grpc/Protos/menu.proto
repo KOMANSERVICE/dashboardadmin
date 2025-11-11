@@ -6,7 +6,7 @@ package menu;
 
 service MenuProtoService {
   rpc GetAllMenu (GetAllMenuRequest) returns (GetAllMenuResponse);
-  rpc GetAllActifMenu (GetAllMenuRequest) returns (GetAllActifMenuResponse);
+  rpc GetAllByAppMenu (GetAllByAppMenuRequest) returns (GetAllByAppMenuResponse);
   rpc CreateMenu (CreateMenuRequest) returns (CreateMenuResponse);
   rpc UpdateMenu (UpdateMenuRequest) returns (UpdateMenuResponse);
   rpc ActiveMenu (ActiveMenuRequest) returns (ActiveMenuResponse);
@@ -32,7 +32,11 @@ message MenuSateModel {
 
 // ---- Requêtes ----
 message GetAllMenuRequest {
-	
+  string appAdminReference = 1;	
+}
+
+message GetAllByAppMenuRequest {
+  string appAdminReference = 1;
 }
 
 message CreateMenuRequest {
@@ -45,6 +49,7 @@ message UpdateMenuRequest {
 
 message ActiveMenuRequest {
   string reference = 1;
+  string appAdminReference = 2;
 }
 
 // ---- Réponses ----
@@ -52,7 +57,7 @@ message GetAllMenuResponse {
   repeated MenuSateModel menus = 1;
 }
 
-message GetAllActifMenuResponse {
+message GetAllByAppMenuResponse {
   repeated MenuModel menus = 1;
 }
 

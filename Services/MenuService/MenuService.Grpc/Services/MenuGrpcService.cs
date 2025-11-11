@@ -1,7 +1,9 @@
 ﻿using Grpc.Core;
 using Mapster;
 using MediatR;
+using MenuService.Application.Features.Menus.Commands.ActiveMenu;
 using MenuService.Application.Features.Menus.Commands.CreateMenu;
+using MenuService.Application.Features.Menus.Commands.InactiveMenu;
 using MenuService.Application.Features.Menus.Commands.UpdateMenu;
 using MenuService.Application.Features.Menus.Queries.GetAllActifMenu;
 using MenuService.Application.Features.Menus.Queries.GetAllMenu;
@@ -26,18 +28,20 @@ public class MenuGrpcService(
 
     public override async Task<GetAllMenuResponse> GetAllMenu(GetAllMenuRequest request, ServerCallContext context)
     {
-        var result = await _mediator.Send(new GetAllMenuQuery());
+        var query = request.Adapt<GetAllMenuQuery>();
+        var result = await _mediator.Send(query);
         var menus = result.Menus.Select(m => m.Adapt<MenuSateModel>()).ToList();
         var response = new GetAllMenuResponse();
         response.Menus.AddRange(menus);
         return response;
     }
 
-    public override async Task<GetAllActifMenuResponse> GetAllActifMenu(GetAllMenuRequest request, ServerCallContext context)
+    public override async Task<GetAllByAppMenuResponse> GetAllByAppMenu(GetAllByAppMenuRequest request, ServerCallContext context)
     {
-        var result = await _mediator.Send(new GetAllActifMenuQuery());
+        var query = request.Adapt<GetAllActifMenuQuery>();
+        var result = await _mediator.Send(query);
         var menus = result.Menus.Select(m => m.Adapt<MenuModel>()).ToList();
-        var response = new GetAllActifMenuResponse();
+        var response = new GetAllByAppMenuResponse();
         response.Menus.AddRange(menus);
         return response;
     }
@@ -52,13 +56,21 @@ public class MenuGrpcService(
         return menu;
     }
 
-    public override Task<ActiveMenuResponse> ActiveMenu(ActiveMenuRequest request, ServerCallContext context)
+    public override async Task<ActiveMenuResponse> ActiveMenu(ActiveMenuRequest request, ServerCallContext context)
     {
-        return base.ActiveMenu(request, context);
+        var command = request.Adapt<ActiveMenuCommand>();
+        var result = await _mediator.Send(command);
+        var success = result.Adapt<ActiveMenuResponse>();
+
+        return success;
     }
 
-    public override Task<ActiveMenuResponse> InactiveMenu(ActiveMenuRequest request, ServerCallContext context)
+    public override async Task<ActiveMenuResponse> InactiveMenu(ActiveMenuRequest request, ServerCallContext context)
     {
-        return base.InactiveMenu(request, context);
+
+        var command = request.Adapt<InactiveMenuCommand>();
+        var result = await _mediator.Send(command);
+        var success = result.Adapt<ActiveMenuResponse>();
+        return success;
     }
 }

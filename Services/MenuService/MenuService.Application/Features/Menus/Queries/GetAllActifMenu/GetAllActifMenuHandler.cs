@@ -6,8 +6,9 @@ public class GetAllActifMenuHandler(
 {
     public async Task<GetAllActifMenuResult> Handle(GetAllActifMenuQuery request, CancellationToken cancellationToken)
     {
-
-        var menus = await _menuRepository.GetByConditionAsync(m => m.IsActif ,cancellationToken);
+        var AppAdminReference = request.AppAdminReference;
+        var menus = await _menuRepository.GetByConditionAsync(m => m.IsActif &&
+        m.AppAdminReference == AppAdminReference, cancellationToken);
         var result = menus.Select(m => m.Adapt<MenuDTO>()).ToList();
 
         return new GetAllActifMenuResult(result);

@@ -11,7 +11,9 @@ public class GetAllMenuHandler(
 {
     public async Task<GetAllMenuResult> Handle(GetAllMenuQuery request, CancellationToken cancellationToken)
     {
-        var menus = await _menuRepository.GetAllAsync(cancellationToken);
+        var menus = await _menuRepository.GetByConditionAsync(
+            m => m.AppAdminReference == request.AppAdminReference
+            , cancellationToken);
         var result = menus.Select(m => m.Adapt<MenuStateDto>()).ToList();
         return new GetAllMenuResult(result);
     }
