@@ -2,6 +2,7 @@
 using Mapster;
 using MediatR;
 using MenuService.Application.Features.Menus.Commands.CreateMenu;
+using MenuService.Application.Features.Menus.Commands.UpdateMenu;
 using MenuService.Application.Features.Menus.Queries.GetAllActifMenu;
 using MenuService.Application.Features.Menus.Queries.GetAllMenu;
 
@@ -41,9 +42,14 @@ public class MenuGrpcService(
         return response;
     }
 
-    public override Task<UpdateMenuResponse> UpdateMenu(UpdateMenuRequest request, ServerCallContext context)
+    public override async Task<UpdateMenuResponse> UpdateMenu(UpdateMenuRequest request, ServerCallContext context)
     {
-        return base.UpdateMenu(request, context);
+        var command = request.Adapt<UpdateMenuCommand>();
+        var result = await _mediator.Send(command);
+
+        var menu = result.Adapt<UpdateMenuResponse>();
+
+        return menu;
     }
 
     public override Task<ActiveMenuResponse> ActiveMenu(ActiveMenuRequest request, ServerCallContext context)

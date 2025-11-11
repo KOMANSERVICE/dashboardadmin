@@ -15,7 +15,8 @@ public class CreateMenuValidator : AbstractValidator<CreateMenuCommand>
             .MaximumLength(100).WithMessage("Le nom du menu ne doit pas dépasser 100 caractères.");
         RuleFor(x => x.Menu.Reference)
             .NotEmpty().WithMessage("La référence du menu est requise.")
-            .MaximumLength(50).WithMessage("La référence du menu ne doit pas dépasser 50 caractères.");
+            .MaximumLength(50).WithMessage("La référence du menu ne doit pas dépasser 50 caractères.")
+            .Matches("^[a-z]+$").WithMessage("La référence du menu ne doit contenir que des lettres minuscule alphabétiques.");
         RuleFor(x => x.Menu.UrlFront)
             .NotEmpty().WithMessage("L'URL front du menu est requise.")
             .MaximumLength(200).WithMessage("L'URL front du menu ne doit pas dépasser 200 caractères.");
