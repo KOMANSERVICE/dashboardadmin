@@ -7,4 +7,4 @@ global using IDR.Library.BuildingBlocks.Security;
 global using IDR.Library.BuildingBlocks.Security.Interfaces;
 global using MenuService.Infrastructure.Data;
 global using Microsoft.Extensions.Configuration;
-
+global using MenuService.Application.Data;

@@ -1,4 +1,6 @@
-﻿namespace MenuService.Infrastructure;
+﻿using MenuService.Application.Data;
+
+namespace MenuService.Infrastructure;
 
 public static class DependencyInjection
 {
@@ -42,6 +44,8 @@ public static class DependencyInjection
         });
 
         services.AddGenericRepositories<MenuDbContext>();
+
+        services.AddScoped<IMenuDbContext, MenuDbContext>();
 
         return services;
     }

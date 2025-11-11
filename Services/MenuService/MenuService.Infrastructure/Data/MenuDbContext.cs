@@ -1,6 +1,6 @@
 ﻿namespace MenuService.Infrastructure.Data;
 
-public class MenuDbContext : DbContext
+public class MenuDbContext : DbContext, IMenuDbContext
 {
     public MenuDbContext(DbContextOptions<MenuDbContext> options)
         : base(options)

@@ -1,6 +1,8 @@
 ﻿using IDR.Library.BuildingBlocks.CQRS;
+using IDR.Library.BuildingBlocks.Exceptions;
 using IDR.Library.BuildingBlocks.Repositories;
 using MediatR;
+using MenuService.Application.Data;
 using MenuService.Application.Features.Menus.DTOs;
 using MenuService.Domain.Models;
 
@@ -8,6 +10,7 @@ namespace MenuService.Application.Features.Menus.Commands.CreateMenu;
 
 public class CreateMenuHandler(
         IGenericRepository<Menu> _menuRepository,
+        IMenuDbContext _dbContext,
         IUnitOfWork unitOfWork
     )
      : ICommandHandler<CreateMenuCommand, CreateMenuResult>
@@ -15,6 +18,14 @@ public class CreateMenuHandler(
     public async Task<CreateMenuResult> Handle(CreateMenuCommand request, CancellationToken cancellationToken)
     {
         var menuDto = request.Menu;
+
+        var menuexists = await _dbContext.Menus.AnyAsync(m => 
+        m.Reference == menuDto.Reference 
+        || m.Name == menuDto.Name);
+        if (menuexists)
+        {
+            throw new BadRequestException("Menu avec la même réference ou nom existe déjà.");
+        }
 
         var menuEntity = CreateMenu(menuDto);
 

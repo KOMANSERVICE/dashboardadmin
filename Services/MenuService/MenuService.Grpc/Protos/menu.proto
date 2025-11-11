@@ -6,7 +6,11 @@ package menu;
 
 service MenuProtoService {
   rpc GetAllMenu (GetAllMenuRequest) returns (GetAllMenuResponse);
+  rpc GetAllActifMenu (GetAllMenuRequest) returns (GetAllActifMenuResponse);
   rpc CreateMenu (CreateMenuRequest) returns (CreateMenuResponse);
+  rpc UpdateMenu (UpdateMenuRequest) returns (UpdateMenuResponse);
+  rpc ActiveMenu (ActiveMenuRequest) returns (ActiveMenuResponse);
+  rpc InactiveMenu (ActiveMenuRequest) returns (ActiveMenuResponse);
 }
 
 message MenuModel {
@@ -15,6 +19,15 @@ message MenuModel {
   string urlFront = 3;
   string icon = 4;
   string appAdminReference = 5; 
+}
+
+message MenuSateModel {
+  string name = 1;
+  string reference = 2;
+  string urlFront = 3;
+  string icon = 4;
+  string appAdminReference = 5; 
+  string isActif = 6;
 }
 
 // ---- Requêtes ----
@@ -26,12 +39,33 @@ message CreateMenuRequest {
   MenuModel menu = 1; 
 }
 
+message UpdateMenuRequest {
+  MenuModel menu = 1; 
+}
+
+message ActiveMenuRequest {
+  string reference = 1;
+}
+
 // ---- Réponses ----
 message GetAllMenuResponse {
+  repeated MenuSateModel menus = 1;
+}
+
+message GetAllActifMenuResponse {
   repeated MenuModel menus = 1;
 }
 
 message CreateMenuResponse {
   string id = 1;
 }
+
+message UpdateMenuResponse {
+  MenuModel menu = 1;
+}
+
+message ActiveMenuResponse {
+  bool success = 1;
+}
+
 
