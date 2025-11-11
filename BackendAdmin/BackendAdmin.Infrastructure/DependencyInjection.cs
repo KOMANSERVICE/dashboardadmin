@@ -65,7 +65,6 @@ public static class DependencyInjection
         services.AddGenericRepositories<ApplicationDbContext>();
         services.AddScoped<IApplicationDbContext, ApplicationDbContext>();
 
-        services.AddInterceptors();
         services.AddSecurities();
         services.AddContextMiddleware();
 

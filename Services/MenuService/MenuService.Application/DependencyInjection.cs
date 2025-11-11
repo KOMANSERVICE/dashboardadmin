@@ -17,7 +17,7 @@ public static class DependencyInjection
         (this IServiceCollection services, IConfiguration configuration)
     {
 
-        services.AddValidationBehaviors(configuration);
+        services.AddValidationBehaviors(Assembly.GetExecutingAssembly());
 
         return services;
     }
