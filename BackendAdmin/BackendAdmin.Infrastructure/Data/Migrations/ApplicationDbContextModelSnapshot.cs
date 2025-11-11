@@ -174,6 +174,10 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("cf4");
 
+                    b.Property<bool>("IsActif")
+                        .HasColumnType("boolean")
+                        .HasColumnName("cf6");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")

@@ -1,0 +1,10 @@
+﻿global using MenuService.Domain.Models;
+global using Microsoft.EntityFrameworkCore;
+global using Microsoft.AspNetCore.Builder;
+global using Microsoft.Extensions.DependencyInjection;
+global using IDR.Library.BuildingBlocks;
+global using IDR.Library.BuildingBlocks.Security;
+global using IDR.Library.BuildingBlocks.Security.Interfaces;
+global using MenuService.Infrastructure.Data;
+global using Microsoft.Extensions.Configuration;
+

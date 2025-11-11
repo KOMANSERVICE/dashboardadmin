@@ -1,12 +1,27 @@
 
-using Menu.Grpc.Services;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddGrpc();
 
+var database = builder.Configuration.GetConnectionString("Database");
+
+builder.Services.AddDbContext<MenuContext>((sp,opts) =>{
+    //opts.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
+    opts.UseSqlite(database);
+    });
+
+
+//builder.Services.AddInterceptors();
+builder.Services.AddGenericRepositories<MenuContext>();
+
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    await app.InitialiseDatabaseAsync();
+}
 
 // Configure the HTTP request pipeline.
 //app.MapGrpcService<GreeterService>();

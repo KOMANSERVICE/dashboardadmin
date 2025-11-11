@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace Menu.Grpc.Models;
 
 [Table("TM00001")]
-public class Menu : Entity<Guid>
+public class MenuNav : Entity<Guid>
 {
 
     [Column("cf1")]

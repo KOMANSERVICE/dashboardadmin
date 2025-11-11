@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+option csharp_namespace = "MenuService.Grpc";
+
+package menu;
+
+service MenuProtoService {
+  rpc GetAllMenu (GetAllMenuRequest) returns (GetAllMenuResponse);
+  rpc CreateMenu (CreateMenuRequest) returns (CreateMenuResponse);
+}
+
+message MenuModel {
+  string name = 1;
+  string reference = 2;
+  string urlFront = 3;
+  string icon = 4;
+  string appAdminReference = 5; 
+}
+
+// ---- Requêtes ----
+message GetAllMenuRequest {
+	
+}
+
+message CreateMenuRequest {
+  MenuModel menu = 1; 
+}
+
+// ---- Réponses ----
+message GetAllMenuResponse {
+  repeated MenuModel menus = 1;
+}
+
+message CreateMenuResponse {
+  string id = 1;
+}
+
