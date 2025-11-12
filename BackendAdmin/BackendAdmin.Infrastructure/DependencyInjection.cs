@@ -1,7 +1,9 @@
-﻿using BackendAdmin.Application.Data;
+﻿using BackendAdmin.Application.ApiExterne.Menus;
+using BackendAdmin.Application.Data;
 using IDR.Library.BuildingBlocks.Contexts;
 using IDR.Library.BuildingBlocks.Interceptors;
 using Microsoft.AspNetCore.Identity;
+using Refit;
 
 namespace BackendAdmin.Infrastructure;
 
@@ -67,6 +69,10 @@ public static class DependencyInjection
 
         services.AddSecurities();
         services.AddContextMiddleware();
+
+
+        services.AddRefitClient<IMenuService>()
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri("http://menuservice.api:8080"));
 
         return services;
     }

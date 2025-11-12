@@ -13,6 +13,9 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["Services/MenuService/MenuService.Api/MenuService.Api.csproj", "Services/MenuService/MenuService.Api/"]
+COPY ["Services/MenuService/MenuService.Application/MenuService.Application.csproj", "Services/MenuService/MenuService.Application/"]
+COPY ["Services/MenuService/MenuService.Domain/MenuService.Domain.csproj", "Services/MenuService/MenuService.Domain/"]
+COPY ["Services/MenuService/MenuService.Infrastructure/MenuService.Infrastructure.csproj", "Services/MenuService/MenuService.Infrastructure/"]
 RUN dotnet restore "./Services/MenuService/MenuService.Api/MenuService.Api.csproj"
 COPY . .
 WORKDIR "/src/Services/MenuService/MenuService.Api"

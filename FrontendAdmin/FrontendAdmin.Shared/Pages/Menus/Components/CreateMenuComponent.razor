@@ -17,9 +17,9 @@
                    Label="Url front end" Placeholder="Url front end"
                    For="() => menu.UrlFront" />
 
-        <TextInput @bind-Value="menu.ApiRoute"
-                   Label="Api route a autoriser" Placeholder="Api route a autoriser"
-                   For="() => menu.ApiRoute" />
+        <TextInput @bind-Value="menu.Reference"
+                   Label="Api route a autoriser" Placeholder="Réference route a autoriser"
+                   For="() => menu.Reference" />
 
         <TextInput @bind-Value="menu.Icon"
                    Label="Icon" Placeholder="Icon"
@@ -49,7 +49,7 @@
     public Guid MenuId { get; set; }
 
     [Parameter]
-    public Guid AppAdminId { get; set; }
+    public string AppAdminReference { get; set; }
 
     private bool isLoad = false;
 
@@ -95,7 +95,7 @@
         isLoad = true;
         try
         {
-            var result = await _menuHttpService.CreateMenuAsync(AppAdminId,new CreateMenuRequest(menu));
+            var result = await _menuHttpService.CreateMenuAsync(AppAdminReference, new CreateMenuRequest(menu));
             if (result.Success)
             {
                 messageStore.Clear();

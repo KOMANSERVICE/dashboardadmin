@@ -89,23 +89,8 @@ services:
       dashadminDB:
         condition: service_healthy
                
-  # menu.grpc:
-  #   container_name: menu.grpc
-  #   environment:
-  #     - ASPNETCORE_ENVIRONMENT=Development
-  #     - ASPNETCORE_HTTP_PORTS=8080
-  #     - ASPNETCORE_HTTPS_PORTS=8081
-  #     - ConnectionStrings__DashAdminDatabase=Data Source=menudb
-  #   ports:
-  #     - "9021:8080"
-  #     - "9022:8081"
-  #   volumes:
-  #     - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
-  #     - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
-  #     - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
-  #     - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
-
   menuservice.grpc:
+    container_name: menuservice.grpc
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
@@ -118,8 +103,27 @@ services:
       - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
       - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
       - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+    networks:
+      - vault-net
+
+  menuservice.api:
+    container_name: menuservice.api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+    ports:
+      - "9021:8080"
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+    networks:
+      - vault-net
+
 networks:
   vault-net:
     external: true 
+
 
 

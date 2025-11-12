@@ -2,7 +2,7 @@
 
 namespace BackendAdmin.Application.UseCases.Menus.Queries.GetMenuByApplication;
 
-public record GetMenuByApplicationQuery(Guid AppAdminId)
+public record GetMenuByApplicationQuery(string AppAdminReference)
     : IQuery<GetMenuByApplicationResult>;
 
-public record GetMenuByApplicationResult(List<MenuDTO> Menus);
+public record GetMenuByApplicationResult(List<MenuInfoDTO> Menus);

@@ -4,9 +4,9 @@ namespace FrontendAdmin.Shared.Services.Https;
 
 public interface IMenuHttpService
 {
-    [Get("/menu/{appAdminId}")]
-    Task<BaseResponse<GetMenuByApplicationResponse>> GetMenuByApplicationAsync(Guid appAdminId);
+    [Get("/menu/{appAdminReference}")]
+    Task<BaseResponse<GetMenuByApplicationResponse>> GetMenuByApplicationAsync(string appAdminReference);
 
-    [Post("/menu/{appAdminId}")]
-    Task<BaseResponse<CreateMenuResponse>> CreateMenuAsync(Guid AppAdminId, CreateMenuRequest request);
+    [Post("/menu/{appAdminReference}")]
+    Task<BaseResponse<CreateMenuResponse>> CreateMenuAsync(string appAdminReference, CreateMenuRequest request);
 }
