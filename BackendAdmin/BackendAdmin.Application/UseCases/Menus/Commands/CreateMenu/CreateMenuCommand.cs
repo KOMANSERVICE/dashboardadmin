@@ -2,7 +2,7 @@
 
 namespace BackendAdmin.Application.UseCases.Menus.Commands.CreateMenu;
 
-public record CreateMenuCommand(MenuDTO Menu, Guid AppAdminId)
+public record CreateMenuCommand(MenuInfoDTO Menu, string AppAdminReference)
     : ICommand<CreateMenuResult>;
 
 public record CreateMenuResult(Guid Id);

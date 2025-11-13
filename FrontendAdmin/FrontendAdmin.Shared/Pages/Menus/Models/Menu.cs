@@ -1,13 +1,13 @@
 ﻿namespace FrontendAdmin.Shared.Pages.Menus.Models;
 
 public record Menu{
-    public string Name;
-    public string Reference;
-    public string UrlFront;
-    public string Icon;
-    public string AppAdminReference;
-    public bool IsActive;
-    public bool IsSelected;
+    public string Name { get; set; }
+    public string Reference { get; set; }
+    public string UrlFront { get; set; }
+    public string Icon { get; set; }
+    public string AppAdminReference { get; set; }
+    public bool IsActif { get; set; }
+    public bool IsSelected { get; set; }
 }
 public record CreateMenuRequest(Menu Menu);
 public record CreateMenuResponse(Guid Id);

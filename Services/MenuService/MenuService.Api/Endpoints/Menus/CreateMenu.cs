@@ -1,18 +1,18 @@
-﻿using BackendAdmin.Application.UseCases.Menus.Commands.CreateMenu;
-using BackendAdmin.Application.UseCases.Menus.DTOs;
+﻿using MenuService.Application.Features.Menus.Commands.CreateMenu;
+using MenuService.Application.Features.Menus.DTOs;
 
-namespace BackendAdmin.Api.Endpoints.Menus;
+namespace MenuService.Api.Endpoints.Menus;
 
 
-public record CreateMenuRequest(MenuInfoDTO Menu);
+public record CreateMenuRequest(MenuDTO Menu);
 public record CreateMenuResponse(Guid Id);
 public class CreateMenu : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapPost("/menu/{appAdminReference}", async (string appAdminReference, CreateMenuRequest request, ISender sender) =>
+        app.MapPost("/menu", async (CreateMenuRequest request, ISender sender) =>
         {
-            var command = new CreateMenuCommand(request.Menu, appAdminReference);            
+            var command = new CreateMenuCommand(request.Menu);
             var result = await sender.Send(command);
 
             var response = result.Adapt<CreateMenuResponse>();
@@ -26,7 +26,7 @@ public class CreateMenu : ICarterModule
        .ProducesProblem(StatusCodes.Status400BadRequest)
        .WithSummary("CreateMenu")
        .WithDescription("CreateMenu")
-       .RequireAuthorization()
        .WithOpenApi();
     }
 }
+

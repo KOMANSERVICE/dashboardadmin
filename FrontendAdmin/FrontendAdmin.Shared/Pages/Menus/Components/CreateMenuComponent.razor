@@ -13,16 +13,17 @@
                    Label="Nom menu" Placeholder="Nom menu"
                    For="() => menu.Name" />
 
+        <TextInput @bind-Value="menu.Reference"
+                   Label="Réference" Placeholder="Réference"
+                   For="() => menu.Reference" />
+
         <TextInput @bind-Value="menu.UrlFront"
                    Label="Url front end" Placeholder="Url front end"
                    For="() => menu.UrlFront" />
 
-        <TextInput @bind-Value="menu.Reference"
-                   Label="Api route a autoriser" Placeholder="Réference route a autoriser"
-                   For="() => menu.Reference" />
 
         <TextInput @bind-Value="menu.Icon"
-                   Label="Icon" Placeholder="Icon"
+                   Label="Icôn" Placeholder="Icôn"
                    For="() => menu.Icon" />
     </div>
 

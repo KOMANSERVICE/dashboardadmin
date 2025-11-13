@@ -43,6 +43,8 @@ services:
     depends_on:
       backendadmin.api:
         condition: service_started
+      menuservice.api:
+        condition: service_started
     env_file:
       - ./.env
     networks:
