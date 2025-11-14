@@ -1,4 +1,6 @@
-﻿namespace FrontendAdmin.Shared;
+﻿using IDR.Library.Blazor.Toasts;
+
+namespace FrontendAdmin.Shared;
 
 public static class DependencyInjection
 {
@@ -27,6 +29,8 @@ public static class DependencyInjection
             .AddHttpMessageHandler<CookieHandler>()
             .AddHttpMessageHandler<JwtAuthorizationHandler>();
 
+
+        services.AddScoped<ToastService>();
 
         return services;
     }

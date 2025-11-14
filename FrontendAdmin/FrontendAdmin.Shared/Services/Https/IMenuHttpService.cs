@@ -9,4 +9,10 @@ public interface IMenuHttpService
 
     [Post("/menu/{appAdminReference}")]
     Task<BaseResponse<CreateMenuResponse>> CreateMenuAsync(string appAdminReference, CreateMenuRequest request);
+
+    [Patch("/menu/active")]
+    Task<BaseResponse<ActiveMenuResponse>> ActiveMenuAsync(ActiveMenuRequest request);
+
+    [Patch("/menu/inactive")]
+    Task<BaseResponse<ActiveMenuResponse>> InactiveMenuAsync(ActiveMenuRequest request);
 }

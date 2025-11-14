@@ -12,3 +12,5 @@ public record Menu{
 public record CreateMenuRequest(Menu Menu);
 public record CreateMenuResponse(Guid Id);
 public record GetMenuByApplicationResponse(List<Menu> Menus);
+public record ActiveMenuRequest(string Reference, string AppAdminReference);
+public record ActiveMenuResponse(bool Success);

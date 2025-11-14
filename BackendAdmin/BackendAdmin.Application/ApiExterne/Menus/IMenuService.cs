@@ -7,6 +7,8 @@ namespace BackendAdmin.Application.ApiExterne.Menus;
 public record GetAllMenuResponse(List<MenuInfoDTO> Menus);
 public record CreateMenuResponse(Guid Id);
 public record CreateMenuRequest(MenuInfoDTO Menu);
+public record ActiveMenuRequest(string Reference, string AppAdminReference);
+public record ActiveMenuResponse(bool Success);
 public interface IMenuService
 {
     [Get("/menu/{appAdminReference}")]
@@ -14,4 +16,10 @@ public interface IMenuService
 
     [Post("/menu")]
     Task<BaseResponse<CreateMenuResponse>> CreateMenuAsync(CreateMenuRequest request);
+
+    [Patch("/menu/active")]
+    Task<BaseResponse<ActiveMenuResponse>> ActiveMenuAsync(ActiveMenuRequest request);
+
+    [Patch("/menu/inactive")]
+    Task<BaseResponse<ActiveMenuResponse>> InactiveMenuAsync(ActiveMenuRequest request);
 }
