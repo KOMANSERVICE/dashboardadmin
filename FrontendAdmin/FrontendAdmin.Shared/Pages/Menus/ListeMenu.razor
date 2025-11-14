@@ -39,7 +39,7 @@
 
             <div class="flex gap-3">
                 
-                <Button type="button" @onclick="OnShowCreateModal" id="addBusinessBtn"
+                <Button type="button" @onclick="Create" id="addBusinessBtn"
                         IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left" ButtonText="">
                     
                 </Button>
@@ -108,7 +108,7 @@
                 </button>
 
                 <button class="text-primary-700 hover:text-amber-800 mr-3"
-                        @onclick="() => Edit(menu.Reference)">
+                        @onclick="() => Edit(menu)">
                     <svg class="w-6 h-6 text-primary-700  dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
                       <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m14.304 4.844 2.852 2.852M7 7H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-4.5m2.409-9.91a2.017 2.017 0 0 1 0 2.853l-6.844 6.844L8 14l.713-3.565 6.844-6.844a2.015 2.015 0 0 1 2.852 0Z"/>
                     </svg>
@@ -150,7 +150,7 @@
                     }
                 </button>
                 <button class="text-primary-700 hover:text-amber-800"
-                        @onclick="() => Edit(menu.Reference)">
+                        @onclick="() => Edit(menu)">
                     <i class="fas fa-edit"></i>
                 </button>
             </div>
@@ -177,10 +177,12 @@
     OnCloseModal="()=>{
            OnShowCreateModal();
     }"
-    ModalTitle="Nouveau menu"
+    ModalTitle="@ModalCreateTitle"
 >
     <CreateMenuComponent 
         AppAdminReference="@AppAdminReference"
+        Reference="@Reference"
+        menu="@menu"
         OnAfterSave="async ()=>{
             await GetMenusAsync();
             OnShowCreateModal();
@@ -195,7 +197,10 @@
     public string AppAdminReference { get; set; }
 
     private bool showModal = false;
+    private Menu menu { get; set; }  = new();
     private List<Menu> menus = new();
+    private string Reference { get; set; } = default!;
+    public string ModalCreateTitle { get; set; }= "Nouveau menu";
 
     protected override async Task OnInitializedAsync()
     {
@@ -222,10 +227,18 @@
 
     }
     private void OpenPrintModal() { /* ... */ }
-    private void Edit(string AppAdminReference)
+    private void Edit(Menu _menu)
     {
-
-
+        ModalCreateTitle = "Modifier le menu";
+        Reference = _menu.Reference;
+        menu = _menu;
+        OnShowCreateModal();
+    }
+    private void Create()
+    {
+        ModalCreateTitle = "Nouveau menu";
+        Reference = string.Empty;
+        OnShowCreateModal();
     }
     private void DeleteSelected() { /* ... */ } 
 

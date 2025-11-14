@@ -1,7 +1,12 @@
-﻿namespace MenuService.Application.Features.Menus.Commands.UpdateMenu;
+﻿using MenuService.Application.Data;
+using MenuService.Application.Features.Menus.DTOs;
+using Microsoft.EntityFrameworkCore;
+
+namespace MenuService.Application.Features.Menus.Commands.UpdateMenu;
 
 public class UpdateMenuHandler(
         IGenericRepository<Menu> _menuRepository,
+        IMenuDbContext _dbContext,
         IUnitOfWork unitOfWork
     )
     : ICommandHandler<UpdateMenuCommand, UpdateMenuResult>
@@ -30,6 +35,14 @@ public class UpdateMenuHandler(
         if(menu == null)
         {
             throw new NotFoundException($"Menu with reference {menudto.Reference} not found.");
+        }
+
+        var menuexists = await _dbContext.Menus.AnyAsync(m =>
+        m.Reference != menudto.Reference
+        && m.Name == menudto.Name);
+        if (menuexists)
+        {
+            throw new BadRequestException("Menu avec la même réference ou nom existe déjà.");
         }
 
         menu = MapToEntity(menudto, menu);

@@ -28,18 +28,4 @@ public class CreateMenuHandler(
         return new CreateMenuResult(id);
     }
 
-
-    private Menu CreateMenu(MenuDTO menuDTO, Guid appAdminId)
-    {
-        var menuId = MenuId.Of(Guid.NewGuid());
-        return new Menu
-        {
-            Id= menuId,
-            Name = menuDTO.Name,
-            Icon = menuDTO.Icon,
-            UrlFront = menuDTO.UrlFront,
-            ApiRoute = menuDTO.ApiRoute,
-            AppAdminId = AppAdminId.Of(appAdminId)
-        };
-    }
 }

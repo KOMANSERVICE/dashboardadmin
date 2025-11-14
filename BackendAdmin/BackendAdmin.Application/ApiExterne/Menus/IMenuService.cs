@@ -9,6 +9,8 @@ public record CreateMenuResponse(Guid Id);
 public record CreateMenuRequest(MenuInfoDTO Menu);
 public record ActiveMenuRequest(string Reference, string AppAdminReference);
 public record ActiveMenuResponse(bool Success);
+public record UpdateMenuRequest(MenuInfoDTO Menu);
+public record UpdateMenuResponse(MenuInfoDTO Menu);
 public interface IMenuService
 {
     [Get("/menu/{appAdminReference}")]
@@ -22,4 +24,9 @@ public interface IMenuService
 
     [Patch("/menu/inactive")]
     Task<BaseResponse<ActiveMenuResponse>> InactiveMenuAsync(ActiveMenuRequest request);
+
+    [Put("/menu")]
+    Task<BaseResponse<UpdateMenuResponse>> UpdateMenuAsync(UpdateMenuRequest request);
+
+    
 }

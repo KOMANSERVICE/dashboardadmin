@@ -12,10 +12,12 @@
         <TextInput @bind-Value="menu.Name"
                    Label="Nom menu" Placeholder="Nom menu"
                    For="() => menu.Name" />
-
-        <TextInput @bind-Value="menu.Reference"
-                   Label="Réference" Placeholder="Réference"
-                   For="() => menu.Reference" />
+        @if (string.IsNullOrWhiteSpace(Reference))
+        {
+            <TextInput @bind-Value="menu.Reference"
+                       Label="Réference" Placeholder="Réference"
+                       For="() => menu.Reference" />
+        }
 
         <TextInput @bind-Value="menu.UrlFront"
                    Label="Url front end" Placeholder="Url front end"
@@ -47,18 +49,19 @@
     public EventCallback<MouseEventArgs> OnCancelSave { get; set; }
 
     [Parameter]
-    public Guid MenuId { get; set; }
+    public string Reference { get; set; }
 
     [Parameter]
     public string AppAdminReference { get; set; }
 
     private bool isLoad = false;
 
+    [Parameter]
     public Menu menu { get; set; } = new();
 
     private EditContext editContext;
     private ValidationMessageStore messageStore;
-    
+
     bool isAuto = true;
     bool stockIsAuto = false;
     //private BoutiqueSettingValue settingCodeBar;
@@ -85,7 +88,7 @@
 
     }
 
-    
+
     private void cancelSave()
     {
         OnCancelSave.InvokeAsync(null);
@@ -96,8 +99,21 @@
         isLoad = true;
         try
         {
-            var result = await _menuHttpService.CreateMenuAsync(AppAdminReference, new CreateMenuRequest(menu));
-            if (result.Success)
+            var success = false;
+            if(string.IsNullOrWhiteSpace(Reference))
+            {
+                var result = await _menuHttpService.CreateMenuAsync(AppAdminReference, new CreateMenuRequest(menu));
+                success = result.Success;
+            }
+            else
+            {
+                menu.Reference = Reference;
+                var result = await _menuHttpService.UpdateMenuAsync(AppAdminReference, new UpdateMenuRequest(menu));
+                success = result.Success;
+            }
+
+
+            if (success)
             {
                 messageStore.Clear();
                 editContext.NotifyValidationStateChanged();

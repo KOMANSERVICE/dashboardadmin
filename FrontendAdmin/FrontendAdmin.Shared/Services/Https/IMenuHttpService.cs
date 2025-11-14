@@ -15,4 +15,7 @@ public interface IMenuHttpService
 
     [Patch("/menu/inactive")]
     Task<BaseResponse<ActiveMenuResponse>> InactiveMenuAsync(ActiveMenuRequest request);
+
+    [Put("/menu/{appAdminReference}")]
+    Task<BaseResponse<UpdateMenuResponse>> UpdateMenuAsync(string appAdminReference, UpdateMenuRequest request);
 }
