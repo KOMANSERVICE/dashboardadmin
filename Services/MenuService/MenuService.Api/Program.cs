@@ -4,6 +4,8 @@ using MenuService.Infrastructure;
 using MenuService.Infrastructure.Data.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration
+    .AddEnvironmentVariables();
 
 builder.Services
     .AddApplicationServices(builder.Configuration)

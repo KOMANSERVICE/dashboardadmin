@@ -14,11 +14,11 @@ services:
       context: .
       dockerfile: BackendAdmin/BackendAdmin.Api/Dockerfile
             
-  menuservice.grpc:
-    image: ${DOCKER_REGISTRY-}menuservicegrpc
-    build:
-      context: .
-      dockerfile: Services/MenuService/MenuService.Grpc/Dockerfile
+  # menuservice.grpc:
+  #   image: ${DOCKER_REGISTRY-}menuservicegrpc
+  #   build:
+  #     context: .
+  #     dockerfile: Services/MenuService/MenuService.Grpc/Dockerfile
 
   menuservice.api:
     image: ${DOCKER_REGISTRY-}menuserviceapi

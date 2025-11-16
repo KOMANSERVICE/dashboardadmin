@@ -76,11 +76,8 @@ services:
     ports:
       - "9111:8080"
       - "9112:8081"
-    volumes:
-      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
-      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
-      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+    env_file:
+      - ./.env
     networks:
       - vault-net
     deploy:
@@ -91,35 +88,30 @@ services:
       dashadminDB:
         condition: service_healthy
                
-  menuservice.grpc:
-    container_name: menuservice.grpc
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_HTTP_PORTS=8080
-      - ASPNETCORE_HTTPS_PORTS=8081
-    ports:
-      - "9031:8080"
-      - "9032:8081"
-    volumes:
-      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
-      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
-      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
-    networks:
-      - vault-net
-
   menuservice.api:
     container_name: menuservice.api
+    restart: unless-stopped
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
+      - JWT__ValidAudience=${JWT_VALID_AUDIENCE_API}
+      - JWT__ValidIssuer=${JWT_VALID_ISSUER_API}
+      - JWT__Secret=${JWT_SECRET_API}
+      - Vault__Uri=${VAULT_URI}
+      - Vault__RoleId=${VAULT_ROLE_ID}
+      - Vault__SecretId=${VAULT_SECRET_ID}
+      - Vault__PathMountPoint=${VAULT_PATH_MOUNT_POINT_MENU}
+      - Vault__MountPoint=${VAULT_MOUNT_POINT}
+      - Allow__Origins=${CORS_ALLOWED_ORIGINS_MENU}
+      - ConnectionStrings__MenuDatabase=${CONNECTION_STRING_API_MENU}
     ports:
       - "9021:8080"
-    volumes:
-      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
-      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
-      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+    env_file:
+      - ./.env
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     networks:
       - vault-net
 

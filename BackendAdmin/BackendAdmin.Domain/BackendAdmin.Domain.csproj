@@ -8,7 +8,7 @@
 
 
   <ItemGroup>
-    <PackageReference Include="IDR.Library.BuildingBlocks" Version="2.0.2" />
+    <PackageReference Include="IDR.Library.BuildingBlocks" Version="2.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.8" />
   </ItemGroup>
   

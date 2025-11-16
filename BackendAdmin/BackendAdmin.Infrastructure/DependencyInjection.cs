@@ -18,6 +18,8 @@ public static class DependencyInjection
         var roleId = configuration["Vault:RoleId"]!;
         var secretId = configuration["Vault:SecretId"]!;
         var dataBase = configuration.GetConnectionString("DashAdminDatabase")!;
+        var pathMountPoint = configuration["Vault:PathMountPoint"]!;
+        var mountPoint = configuration["Vault:MountPoint"]!;
 
         if (string.IsNullOrEmpty(dataBase))
         {
@@ -31,12 +33,23 @@ public static class DependencyInjection
             throw new InvalidOperationException("Vault configuration is not provided in configuration");
         }
 
+        if(string.IsNullOrEmpty(pathMountPoint))
+        {
+            throw new InvalidOperationException("Vault path mount point is not provided in configuration");
+        }
+
+        if (string.IsNullOrEmpty(mountPoint))
+        {
+            throw new InvalidOperationException("Vault mount point is not provided in configuration");
+        }
+
         services.AddSingleton<ISecureSecretProvider>(sp =>
             new VaultSecretProvider(
-                configuration: configuration,
                 vaultUri: vaultUri,
                 roleId: roleId,
-                secretId: secretId
+                secretId: secretId,
+                pathMountPoint: pathMountPoint,
+                mountPoint: mountPoint
             )
         );
 

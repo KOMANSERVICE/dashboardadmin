@@ -18,7 +18,7 @@ public static class DependencyInjection
             options.AddPolicy(name: MyAllowSpecificOrigins,
                 policy =>
                 {
-                    policy.WithOrigins("https://localhost:9112","https://backendadmin.api:9112","https://backendadmin.api:8081")
+                    policy.WithOrigins("https://localhost:9112","https://backendadmin.api:9112","https://backendadmin.api:8081", "https://depensio.api:9102")
                     .AllowAnyMethod()
                     .AllowAnyHeader()
                     .AllowCredentials();
