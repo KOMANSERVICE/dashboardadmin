@@ -11,10 +11,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore" Version="2.49.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
     <PackageReference Include="Carter" Version="8.2.1" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="9.0.6" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.10">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.11">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -24,6 +25,12 @@
   <ItemGroup>
     <ProjectReference Include="..\BackendAdmin.Application\BackendAdmin.Application.csproj" />
     <ProjectReference Include="..\BackendAdmin.Infrastructure\BackendAdmin.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="..\..\Services\MenuService\MenuService.Grpc\Protos\menu.proto" GrpcServices="Client">
+      <Link>Protos\menu.proto</Link>
+    </Protobuf>
   </ItemGroup>
 
 

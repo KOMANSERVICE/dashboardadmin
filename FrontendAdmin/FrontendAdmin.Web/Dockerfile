@@ -12,11 +12,12 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["FrontendAdmin/FrontendAdmin.Web/FrontendAdmin.Web.csproj", "FrontendAdmin/FrontendAdmin.Web/"]
-COPY ["FrontendAdmin/FrontendAdmin.Shared/FrontendAdmin.Shared.csproj", "FrontendAdmin/FrontendAdmin.Shared/"]
-RUN dotnet restore "./FrontendAdmin/FrontendAdmin.Web/FrontendAdmin.Web.csproj"
+COPY ["dashboardadmin/FrontendAdmin/FrontendAdmin.Web/FrontendAdmin.Web.csproj", "dashboardadmin/FrontendAdmin/FrontendAdmin.Web/"]
+COPY ["dashboardadmin/FrontendAdmin/FrontendAdmin.Web.Client/FrontendAdmin.Web.Client.csproj", "dashboardadmin/FrontendAdmin/FrontendAdmin.Web.Client/"]
+COPY ["dashboardadmin/FrontendAdmin/FrontendAdmin.Shared/FrontendAdmin.Shared.csproj", "dashboardadmin/FrontendAdmin/FrontendAdmin.Shared/"]
+RUN dotnet restore "./dashboardadmin/FrontendAdmin/FrontendAdmin.Web/FrontendAdmin.Web.csproj"
 COPY . .
-WORKDIR "/src/FrontendAdmin/FrontendAdmin.Web"
+WORKDIR "/src/dashboardadmin/FrontendAdmin/FrontendAdmin.Web"
 RUN dotnet build "./FrontendAdmin.Web.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # Cette étape permet de publier le projet de service à copier dans la phase finale

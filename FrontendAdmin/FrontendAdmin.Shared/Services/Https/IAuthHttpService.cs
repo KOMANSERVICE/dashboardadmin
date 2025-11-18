@@ -1,6 +1,5 @@
 ﻿using FrontendAdmin.Shared.Models;
 using FrontendAdmin.Shared.Pages.Auths.Models;
-using Refit;
 
 namespace FrontendAdmin.Shared.Services.Https;
 

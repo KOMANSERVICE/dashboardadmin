@@ -5,7 +5,10 @@
       "commandVersion": "1.0",
       "serviceActions": {
         "frontendadmin.web": "StartDebugging",
-        "backendadmin.api": "StartDebugging"
+        "backendadmin.api": "StartDebugging",
+        "menu.grpc": "StartDebugging",
+        "menuservice.grpc": "StartDebugging",
+        "menuservice.api": "StartDebugging"
       }
     }
   }

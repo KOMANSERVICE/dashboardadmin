@@ -1,5 +1,4 @@
 ﻿namespace FrontendAdmin.Shared.Models;
-
 public record BaseResponse<T>(
     T Data,
     string Message,
@@ -7,3 +6,4 @@ public record BaseResponse<T>(
     DateTime Timestamp,
     bool Success = true
 );
+

@@ -1,6 +1,11 @@
-﻿<Router AppAssembly="typeof(Layout.MainLayout).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
-        <FocusOnNavigate RouteData="routeData" Selector="h1" />
-    </Found>
-</Router>
+﻿<AuthInitializer RedirectToLogin="/login"    >
+    <Router AppAssembly="typeof(Layout.MainLayout).Assembly">
+        <Found Context="routeData">
+            <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        </Found>
+        <NotFound>
+            <p>Page introuvable</p>
+        </NotFound>
+    </Router>
+</AuthInitializer>
+

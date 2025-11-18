@@ -1,23 +1,35 @@
 using FrontendAdmin.Shared.Services;
+using FrontendAdmin.Shared;
 using FrontendAdmin.Web.Components;
 using FrontendAdmin.Web.Services;
-using FrontendAdmin.Shared;
+using IDR.Library.Blazor.LocalStorages;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddInteractiveWebAssemblyComponents();
 
-
-builder.Services.AddSharedServices(builder.Configuration);
 // Add device-specific services used by the FrontendAdmin.Shared project
-builder.Services.AddSingleton<IFormFactor, FormFactor>();
+builder.Services.AddSingleton<IFormFactor, FormFactor>()
+                .AddScoped<IStorageService, WebSecureStorageService>()
+                .AddScoped<ProtectedLocalStorage>()
+                .AddScoped<ProtectedSessionStorage>()
+                .AddSharedServices(builder.Configuration);
+
+builder.Services.AddAuthorization();
+builder.Services.AddAuthentication();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
+{
+    app.UseWebAssemblyDebugging();
+}
+else
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
@@ -29,8 +41,13 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode()
-    .AddAdditionalAssemblies(typeof(FrontendAdmin.Shared._Imports).Assembly);
+    .AddInteractiveWebAssemblyRenderMode()
+    .AddAdditionalAssemblies(
+        typeof(FrontendAdmin.Shared._Imports).Assembly,
+        typeof(FrontendAdmin.Web.Client._Imports).Assembly);
 
 app.Run();

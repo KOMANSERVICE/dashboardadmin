@@ -19,7 +19,7 @@ public class MenuConfiguration : IEntityTypeConfiguration<Menu>
 
         builder.Property(e => e.AppAdminId)
             .HasConversion(
-                boutiqueId => boutiqueId.Value,
+                appAdminId => appAdminId.Value,
                 dbId => AppAdminId.Of(dbId)
             )
             .IsRequired();

@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+option csharp_namespace = "MenuService.Grpc";
+
+package menu;
+
+service MenuProtoService {
+  rpc GetAllMenu (GetAllMenuRequest) returns (GetAllMenuResponse);
+  rpc GetAllByAppMenu (GetAllByAppMenuRequest) returns (GetAllByAppMenuResponse);
+  rpc CreateMenu (CreateMenuRequest) returns (CreateMenuResponse);
+  rpc UpdateMenu (UpdateMenuRequest) returns (UpdateMenuResponse);
+  rpc ActiveMenu (ActiveMenuRequest) returns (ActiveMenuResponse);
+  rpc InactiveMenu (ActiveMenuRequest) returns (ActiveMenuResponse);
+}
+
+message MenuModel {
+  string name = 1;
+  string reference = 2;
+  string urlFront = 3;
+  string icon = 4;
+  string appAdminReference = 5; 
+}
+
+message MenuSateModel {
+  string name = 1;
+  string reference = 2;
+  string urlFront = 3;
+  string icon = 4;
+  string appAdminReference = 5; 
+  bool isActif = 6;
+}
+
+// ---- Requêtes ----
+message GetAllMenuRequest {
+  string appAdminReference = 1;	
+}
+
+message GetAllByAppMenuRequest {
+  string appAdminReference = 1;
+}
+
+message CreateMenuRequest {
+  MenuModel menu = 1; 
+}
+
+message UpdateMenuRequest {
+  MenuModel menu = 1; 
+}
+
+message ActiveMenuRequest {
+  string reference = 1;
+  string appAdminReference = 2;
+}
+
+// ---- Réponses ----
+message GetAllMenuResponse {
+  repeated MenuSateModel menus = 1;
+}
+
+message GetAllByAppMenuResponse {
+  repeated MenuModel menus = 1;
+}
+
+message CreateMenuResponse {
+  string id = 1;
+}
+
+message UpdateMenuResponse {
+  MenuModel menu = 1;
+}
+
+message ActiveMenuResponse {
+  bool success = 1;
+}
+
+

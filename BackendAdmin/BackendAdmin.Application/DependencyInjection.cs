@@ -1,4 +1,7 @@
-﻿namespace BackendAdmin.Application;
+﻿using BackendAdmin.Application.Services;
+using IDR.Library.BuildingBlocks.Behaviors;
+
+namespace BackendAdmin.Application;
 
 public static class DependencyInjection
 {
@@ -6,18 +9,13 @@ public static class DependencyInjection
        (this IServiceCollection services, IConfiguration configuration)
     {
 
-        services.AddMediatR(config =>
-        {
-            config.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
-            config.AddOpenBehavior(typeof(ValidationBehavior<,>));
-            config.AddOpenBehavior(typeof(LoggingBehavior<,>));
-        });
-
-        services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+        services.AddValidationBehaviors(Assembly.GetExecutingAssembly());
 
         services.AddFeatureManagement();
         //services.AddMessageBroker(configuration, Assembly.GetExecutingAssembly());
-  
+
+        services.AddScoped<AuthServices>();
+
 
         return services;
     }

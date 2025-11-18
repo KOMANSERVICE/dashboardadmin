@@ -1,6 +1,9 @@
-﻿using BackendAdmin.Application.Data;
-using BackendAdmin.Infrastructure.Data.Interceptors;
+﻿using BackendAdmin.Application.ApiExterne.Menus;
+using BackendAdmin.Application.Data;
+using IDR.Library.BuildingBlocks.Contexts;
+using IDR.Library.BuildingBlocks.Interceptors;
 using Microsoft.AspNetCore.Identity;
+using Refit;
 
 namespace BackendAdmin.Infrastructure;
 
@@ -15,6 +18,9 @@ public static class DependencyInjection
         var roleId = configuration["Vault:RoleId"]!;
         var secretId = configuration["Vault:SecretId"]!;
         var dataBase = configuration.GetConnectionString("DashAdminDatabase")!;
+        var pathMountPoint = configuration["Vault:PathMountPoint"]!;
+        var mountPoint = configuration["Vault:MountPoint"]!;
+        var menuServiceUri = configuration["Service:MenuUrl"]!;
 
         if (string.IsNullOrEmpty(dataBase))
         {
@@ -28,18 +34,35 @@ public static class DependencyInjection
             throw new InvalidOperationException("Vault configuration is not provided in configuration");
         }
 
+        if(string.IsNullOrEmpty(pathMountPoint))
+        {
+            throw new InvalidOperationException("Vault path mount point is not provided in configuration");
+        }
+
+        if (string.IsNullOrEmpty(mountPoint))
+        {
+            throw new InvalidOperationException("Vault mount point is not provided in configuration");
+        }
+
+        if (string.IsNullOrEmpty(menuServiceUri))
+        {
+            throw new InvalidOperationException("Menu service URI is not provided in configuration");
+        }
+
         services.AddSingleton<ISecureSecretProvider>(sp =>
             new VaultSecretProvider(
-                configuration: configuration,
                 vaultUri: vaultUri,
                 roleId: roleId,
-                secretId: secretId
+                secretId: secretId,
+                pathMountPoint: pathMountPoint,
+                mountPoint: mountPoint
             )
         );
 
         var tempProvider = services.BuildServiceProvider();
         var vaultSecretProvider = tempProvider.GetRequiredService<ISecureSecretProvider>();
         var connectionString = vaultSecretProvider.GetSecretAsync(dataBase).Result;
+        var menu_url = vaultSecretProvider.GetSecretAsync(menuServiceUri).Result ?? "";
 
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
@@ -47,25 +70,35 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString);
         });
 
+        services.Configure<IdentityOptions>(options =>
+        {
+            // Default Password settings.
+            options.Password.RequireDigit = false;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireNonAlphanumeric = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequiredLength = 6;
+        });
+
         services.AddIdentity<ApplicationUser, IdentityRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
         services.AddGenericRepositories<ApplicationDbContext>();
-
-        services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
         services.AddScoped<IApplicationDbContext, ApplicationDbContext>();
-        services.AddScoped<IKeyManagementService, KeyManagementService>();
-        services.AddScoped<IEncryptionService, EncryptionService>();
-        services.AddScoped<IUserContextService, UserContextService>();
 
-        services.AddHttpContextAccessor();
+        services.AddSecurities();
+        services.AddContextMiddleware();
+
+
+        services.AddRefitClient<IMenuService>()
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri(menu_url));
 
         return services;
     }
     public static WebApplication UseInfrastructureServices(this WebApplication app)
     {
-        app.UseMiddleware<UserContextMiddleware>();
+        app.UseContextMiddleware();
         return app;
     }
 }

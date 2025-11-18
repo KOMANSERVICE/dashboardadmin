@@ -1,6 +1,7 @@
 ﻿using FrontendAdmin.Services;
 using FrontendAdmin.Shared;
 using FrontendAdmin.Shared.Services;
+using IDR.Library.Blazor.LocalStorages;
 using Microsoft.Extensions.Logging;
 
 namespace FrontendAdmin
@@ -17,12 +18,14 @@ namespace FrontendAdmin
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 });
 
-            builder.Services.AddSharedServices(builder.Configuration);
             // Add device-specific services used by the FrontendAdmin.Shared project
-            builder.Services.AddSingleton<IFormFactor, FormFactor>();
+            builder.Services.AddSingleton<IFormFactor, FormFactor>()
+                .AddScoped<IStorageService, MauiSecureStorageService>()
+                .AddSharedServices(builder.Configuration);
 
             builder.Services.AddMauiBlazorWebView();
 
+            builder.Services.AddAuthorizationCore();
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
             builder.Logging.AddDebug();

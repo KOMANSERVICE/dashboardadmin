@@ -1,0 +1,14 @@
+@page "/logout"
+@using IDR.Library.Blazor.Auths
+@inject NavigationManager NavManager
+@inject IAuthService _authService
+@layout MainLayout
+
+@code{
+
+    protected override async Task OnInitializedAsync()
+    {
+        await _authService.RemoveTokenAsync();
+        NavManager.NavigateTo("login");
+    }
+}

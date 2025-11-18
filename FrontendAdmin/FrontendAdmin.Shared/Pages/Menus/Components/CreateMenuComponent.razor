@@ -1,0 +1,137 @@
+@using FrontendAdmin.Shared.Pages.Menus.Models
+@inject IMenuHttpService _menuHttpService;
+
+<LoadingPage IsLoad="@isLoad" />
+
+
+<EditForm EditContext="@editContext" OnValidSubmit="HandleCreateOrUpdate">
+    <DataAnnotationsValidator />
+    <ErrorsSummary editContext="@editContext" />
+
+    <div class="p-6 space-y-4">
+        <TextInput @bind-Value="menu.Name"
+                   Label="Nom menu" Placeholder="Nom menu"
+                   For="() => menu.Name" />
+        @if (string.IsNullOrWhiteSpace(Reference))
+        {
+            <TextInput @bind-Value="menu.Reference"
+                       Label="Réference" Placeholder="Réference"
+                       For="() => menu.Reference" />
+        }
+
+        <TextInput @bind-Value="menu.UrlFront"
+                   Label="Url front end" Placeholder="Url front end"
+                   For="() => menu.UrlFront" />
+
+
+        <TextInput @bind-Value="menu.Icon"
+                   Label="Icôn" Placeholder="Icôn"
+                   For="() => menu.Icon" />
+    </div>
+
+
+    <div class="flex justify-end gap-3 px-6 py-4 border-t">
+        <Button aria-label="Parametre" ButtonClass="border border-gray-300 bg-white rounded-lg text-gray-700 hover:bg-gray-50" type="button" @onclick="cancelSave">
+            Annuler
+        </Button>
+        <Button aria-label="Parametre" type="submit">
+            Créer l'application
+        </Button>
+    </div>
+</EditForm>
+
+
+
+@code {
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnAfterSave { get; set; }
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnCancelSave { get; set; }
+
+    [Parameter]
+    public string Reference { get; set; }
+
+    [Parameter]
+    public string AppAdminReference { get; set; }
+
+    private bool isLoad = false;
+
+    [Parameter]
+    public Menu menu { get; set; } = new();
+
+    private EditContext editContext;
+    private ValidationMessageStore messageStore;
+
+    bool isAuto = true;
+    bool stockIsAuto = false;
+    //private BoutiqueSettingValue settingCodeBar;
+
+    protected override async Task OnInitializedAsync()
+    {
+        editContext = new EditContext(menu);
+
+
+        messageStore = new ValidationMessageStore(editContext);
+
+        editContext.OnValidationRequested += (s, e) => messageStore.Clear();
+        editContext.OnFieldChanged += (s, e) => messageStore.Clear(e.FieldIdentifier);
+
+
+        // var setting = await _boutiqueSettingService.GetSettingByBoutique(BoutiqueId, BoutiqueSettingKeys.PRODUCT_KEY);
+        // var result = JsonSerializer.Deserialize<List<BoutiqueSettingValue>>(setting.Data.Settings.Value);
+        // var settingCodeBar = result?.FirstOrDefault(x => x.Id == BoutiqueSettingKeys.PRODUCT_BARCODE_GENERATION_MODE);
+        // var settingStock = result?.FirstOrDefault(x => x.Id == BoutiqueSettingKeys.PRODUCT_STOCK_AUTOMATIQUE);
+
+        // mode = EnumHelper.ParseOrDefault<BarcodeGenerationMode>(settingCodeBar?.Value.ToString(), BarcodeGenerationMode.Auto);
+        // isAuto = mode == BarcodeGenerationMode.Auto;
+        // stockIsAuto = BoolHelper.ToBool(settingStock?.Value.ToString());
+
+    }
+
+
+    private void cancelSave()
+    {
+        OnCancelSave.InvokeAsync(null);
+    }
+
+    private async Task HandleCreateOrUpdate()
+    {
+        isLoad = true;
+        try
+        {
+            var success = false;
+            if(string.IsNullOrWhiteSpace(Reference))
+            {
+                var result = await _menuHttpService.CreateMenuAsync(AppAdminReference, new CreateMenuRequest(menu));
+                success = result.Success;
+            }
+            else
+            {
+                menu.Reference = Reference;
+                var result = await _menuHttpService.UpdateMenuAsync(AppAdminReference, new UpdateMenuRequest(menu));
+                success = result.Success;
+            }
+
+
+            if (success)
+            {
+                messageStore.Clear();
+                editContext.NotifyValidationStateChanged();
+                menu = new Menu();
+                await OnAfterSave.InvokeAsync(null);
+            }
+
+        }
+        catch (ApiException ex)
+        {
+            ApiErrorHandler.ApplyApiErrors<Menu>(messageStore, editContext, ex.Content);
+            editContext.NotifyValidationStateChanged();
+        }
+        finally
+        {
+            isLoad = false;
+            StateHasChanged();
+        }
+    }
+
+}

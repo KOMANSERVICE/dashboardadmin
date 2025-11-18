@@ -1,8 +1,5 @@
 ﻿global using BackendAdmin.Domain.Models;
-global using BackendAdmin.Application.Interfaces;
 global using BackendAdmin.Infrastructure.Data;
-global using BackendAdmin.Infrastructure.Middlewares;
-global using BackendAdmin.Infrastructure.Services;
 global using IDR.Library.BuildingBlocks.Security;
 global using IDR.Library.BuildingBlocks.Security.Interfaces;
 global using Microsoft.AspNetCore.Builder;

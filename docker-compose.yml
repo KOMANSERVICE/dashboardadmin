@@ -2,6 +2,9 @@ services:
   dashadminDB:
     image: postgres:15
 
+  menuDB:
+    image: postgres:15
+
   frontendadmin.web:
     image: ${DOCKER_REGISTRY-}frontendadminweb
     build:
@@ -14,5 +17,20 @@ services:
       context: .
       dockerfile: BackendAdmin/BackendAdmin.Api/Dockerfile
             
+  # menuservice.grpc:
+  #   image: ${DOCKER_REGISTRY-}menuservicegrpc
+  #   build:
+  #     context: .
+  #     dockerfile: Services/MenuService/MenuService.Grpc/Dockerfile
+
+  menuservice.api:
+    image: ${DOCKER_REGISTRY-}menuserviceapi
+    build:
+      context: .
+      dockerfile: Services/MenuService/MenuService.Api/Dockerfile
+
 volumes:
   pgdata_dashadmin:
+  pgdata_menu:
+
+

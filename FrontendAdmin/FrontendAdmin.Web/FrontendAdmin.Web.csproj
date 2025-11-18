@@ -4,18 +4,15 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>5a959a9f-ba35-4f4f-a0bc-988eca424810</UserSecretsId>
+    <UserSecretsId>456e43a5-e85f-4726-aa17-b3fad3d660a6</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-    <DockerfileContext>..\..</DockerfileContext>
-    <DockerComposeProjectPath>..\..\docker-compose.dcproj</DockerComposeProjectPath>
+    <DockerfileContext>..\..\..</DockerfileContext>
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\FrontendAdmin.Web.Client\FrontendAdmin.Web.Client.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.0.5" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\FrontendAdmin.Shared\FrontendAdmin.Shared.csproj" />
   </ItemGroup>
 
 </Project>

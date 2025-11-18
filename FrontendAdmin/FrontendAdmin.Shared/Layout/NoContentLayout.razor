@@ -1,4 +1,8 @@
 @inherits LayoutComponentBase
 
 
-@Body
+<CascadingAuthenticationState>
+    <RouteGuardNotConnected RedirectUrl="/list-app">
+        @Body
+    </RouteGuardNotConnected>
+</CascadingAuthenticationState>

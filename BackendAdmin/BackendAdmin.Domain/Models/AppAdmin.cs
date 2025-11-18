@@ -14,5 +14,5 @@ public class AppAdmin : Entity<AppAdminId>
 
     [Column("cf4")]
     public string Link { get; set; } = default!;
-    public virtual ICollection<Menu> Menus { get; set; } = new HashSet<Menu>();
+    public virtual ICollection<Menu> Menus { get; set; }
 }

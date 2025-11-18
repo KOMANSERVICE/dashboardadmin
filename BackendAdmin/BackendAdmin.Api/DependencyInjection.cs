@@ -37,15 +37,17 @@ public static class DependencyInjection
         //Add cors
         var Allow_origin = configuration["Allow:Origins"]!;
         var origin = vaultSecretProvider.GetSecretAsync(Allow_origin).Result;
+        var origins = origin.Split(';', StringSplitOptions.RemoveEmptyEntries).ToArray();
 
         services.AddCors(options =>
         {
             options.AddPolicy(name: MyAllowSpecificOrigins,
                 policy =>
                 {
-                    policy.WithOrigins(origin)
+                    policy.WithOrigins(origins)
                     .AllowAnyMethod()
-                    .AllowAnyHeader();
+                    .AllowAnyHeader()
+                    .AllowCredentials();
                 });
         });
         //services.AddAuthorizationBuilder().AddPolicy(MyAllowSpecificOrigins,
@@ -65,14 +67,15 @@ public static class DependencyInjection
             {
                 option.SaveToken = true;
                 option.RequireHttpsMetadata = false;
-                option.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters()
+                option.TokenValidationParameters = new TokenValidationParameters()
                 {
                     ValidateIssuer = true,
                     ValidateAudience = true,
                     ValidateIssuerSigningKey = true,
                     ValidAudience = audience,
                     ValidIssuer = issuer,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret))
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
+                    ClockSkew = TimeSpan.Zero //Supprime la tolérance de 5 min par défaut
                 };
             });
 
