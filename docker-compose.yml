@@ -2,6 +2,9 @@ services:
   dashadminDB:
     image: postgres:15
 
+  menuDB:
+    image: postgres:15
+
   frontendadmin.web:
     image: ${DOCKER_REGISTRY-}frontendadminweb
     build:
@@ -28,5 +31,6 @@ services:
 
 volumes:
   pgdata_dashadmin:
+  pgdata_menu:
 
 

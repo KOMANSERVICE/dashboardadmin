@@ -1,5 +1,8 @@
 ﻿
 
+using IDR.Library.BuildingBlocks.Security;
+using IDR.Library.BuildingBlocks.Security.Interfaces;
+
 namespace MenuService.Api;
 
 public static class DependencyInjection
@@ -13,12 +16,20 @@ public static class DependencyInjection
         services.AddExceptionHandler<CustomExceptionHandler>();
 
 
+        var tempProvider = services.BuildServiceProvider();
+        var vaultSecretProvider = tempProvider.GetRequiredService<ISecureSecretProvider>();
+
+        //Add cors
+        var Allow_origin = configuration["Allow:Origins"]!;
+        var origin = vaultSecretProvider.GetSecretAsync(Allow_origin).Result;
+        var origins = origin.Split(';', StringSplitOptions.RemoveEmptyEntries).ToArray();
+
         services.AddCors(options =>
         {
             options.AddPolicy(name: MyAllowSpecificOrigins,
                 policy =>
                 {
-                    policy.WithOrigins("https://localhost:9112","https://backendadmin.api:9112","https://backendadmin.api:8081", "https://depensio.api:9102")
+                    policy.WithOrigins(origins)
                     .AllowAnyMethod()
                     .AllowAnyHeader()
                     .AllowCredentials();

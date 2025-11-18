@@ -9,7 +9,7 @@ public class MenuDbContextFactory : IDesignTimeDbContextFactory<MenuDbContext>
         var optionsBuilder = new DbContextOptionsBuilder<MenuDbContext>();
 
         // Chaine de connexion "factice" ou minimale pour EF Core
-        optionsBuilder.UseSqlite("");
+        optionsBuilder.UseNpgsql("");
 
         return new MenuDbContext(optionsBuilder.Options);
     }

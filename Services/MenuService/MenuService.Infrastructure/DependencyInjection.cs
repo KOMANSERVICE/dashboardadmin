@@ -54,7 +54,7 @@ public static class DependencyInjection
 
         services.AddDbContext<MenuDbContext>((sp, opts) => {
             //opts.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
-            opts.UseSqlite(connectionString);
+            opts.UseNpgsql(connectionString);
         });
 
         services.AddGenericRepositories<MenuDbContext>();

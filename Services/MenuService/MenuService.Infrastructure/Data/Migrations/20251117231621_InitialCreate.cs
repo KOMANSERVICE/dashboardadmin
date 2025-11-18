@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace MenuService.Infrastructure.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class InitMenu : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,13 +15,13 @@ namespace MenuService.Infrastructure.Data.Migrations
                 name: "TM00001",
                 columns: table => new
                 {
-                    ch1 = table.Column<Guid>(type: "TEXT", nullable: false),
-                    cf1 = table.Column<string>(type: "TEXT", nullable: false),
-                    cf2 = table.Column<string>(type: "TEXT", nullable: false),
-                    cf3 = table.Column<string>(type: "TEXT", nullable: false),
-                    cf4 = table.Column<string>(type: "TEXT", nullable: false),
-                    cf5 = table.Column<bool>(type: "INTEGER", nullable: false),
-                    cf6 = table.Column<string>(type: "TEXT", nullable: false)
+                    ch1 = table.Column<Guid>(type: "uuid", nullable: false),
+                    cf1 = table.Column<string>(type: "text", nullable: false),
+                    cf2 = table.Column<string>(type: "text", nullable: false),
+                    cf3 = table.Column<string>(type: "text", nullable: false),
+                    cf4 = table.Column<string>(type: "text", nullable: false),
+                    cf5 = table.Column<bool>(type: "boolean", nullable: false),
+                    cf6 = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {

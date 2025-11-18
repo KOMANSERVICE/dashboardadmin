@@ -20,6 +20,7 @@ public static class DependencyInjection
         var dataBase = configuration.GetConnectionString("DashAdminDatabase")!;
         var pathMountPoint = configuration["Vault:PathMountPoint"]!;
         var mountPoint = configuration["Vault:MountPoint"]!;
+        var menuServiceUri = configuration["Service:MenuUrl"]!;
 
         if (string.IsNullOrEmpty(dataBase))
         {
@@ -43,6 +44,11 @@ public static class DependencyInjection
             throw new InvalidOperationException("Vault mount point is not provided in configuration");
         }
 
+        if (string.IsNullOrEmpty(menuServiceUri))
+        {
+            throw new InvalidOperationException("Menu service URI is not provided in configuration");
+        }
+
         services.AddSingleton<ISecureSecretProvider>(sp =>
             new VaultSecretProvider(
                 vaultUri: vaultUri,
@@ -56,6 +62,7 @@ public static class DependencyInjection
         var tempProvider = services.BuildServiceProvider();
         var vaultSecretProvider = tempProvider.GetRequiredService<ISecureSecretProvider>();
         var connectionString = vaultSecretProvider.GetSecretAsync(dataBase).Result;
+        var menu_url = vaultSecretProvider.GetSecretAsync(menuServiceUri).Result ?? "";
 
         services.AddDbContext<ApplicationDbContext>((sp, options) =>
         {
@@ -85,7 +92,7 @@ public static class DependencyInjection
 
 
         services.AddRefitClient<IMenuService>()
-            .ConfigureHttpClient(c => c.BaseAddress = new Uri("http://menuservice.api:8080"));
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri(menu_url));
 
         return services;
     }
