@@ -14,7 +14,6 @@ env:
   IMAGE_API: BackendAdmin
   IMAGE_WEB: FrontendAdmin
   IMAGE_SQL: FrontendAdminsql
-  IMAGE_SERVICE_MENU: MenuService
 
 jobs:
   build-and-push:
@@ -99,4 +98,3 @@ jobs:
           build_and_push "${{ env.IMAGE_SQL }}" "backendadminsql.Dockerfile"
           build_and_push "${{ env.IMAGE_API }}" "BackendAdmin/BackendAdmin.Api/Dockerfile"
           build_and_push "${{ env.IMAGE_WEB }}" "FrontendAdmin/FrontendAdmin.Web/Dockerfile"
-          build_and_push "${{ env.IMAGE_SERVICE_MENU }}" "Services/MenuService/MenuService.Api/Dockerfile"
