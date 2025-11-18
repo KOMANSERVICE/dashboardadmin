@@ -11,9 +11,9 @@ on:
 
 env:
   REGISTRY: komanatse
-  IMAGE_API: BackendAdmin
-  IMAGE_WEB: FrontendAdmin
-  IMAGE_SQL: FrontendAdminsql
+  IMAGE_API: backendadmin
+  IMAGE_WEB: frontendadmin
+  IMAGE_SQL: frontendadminsql
 
 jobs:
   build-and-push:
