@@ -61,11 +61,11 @@ jobs:
       # Générer le SQL EF
       - name: Generate EF SQL
         run: |
-          dotnet restore backend/depensio.Api/
-          dotnet build backend/depensio.Api/ --no-restore --configuration Release
+          dotnet restore BackendAdmin/BackendAdmin.Api/
+          dotnet build BackendAdmin/BackendAdmin.Api/ --no-restore --configuration Release
           dotnet ef migrations script \
-            --project backend/depensio.Infrastructure \
-            --startup-project backend/depensio.Api \
+            --project BackendAdmin/BackendAdmin.Infrastructure \
+            --startup-project BackendAdmin/BackendAdmin.Api \
             --idempotent \
             --output migrations/migrations.sql
     
