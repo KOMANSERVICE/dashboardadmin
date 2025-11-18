@@ -1,0 +1,98 @@
+name: MENUSERVICE - Build and Push Docker Images
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'        # build prod sur tag versionné
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+env:
+  REGISTRY: komanatse
+  IMAGE_API: menuservice
+  IMAGE_SQL: menuservicesql
+
+jobs:
+  build-and-push:
+    name: MENUSERVICE - Build & Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Install dotnet-ef tool
+        run: |
+          dotnet tool install --global dotnet-ef  --version 9.*
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ env.REGISTRY }}" --password-stdin
+
+      # Définir les tags dynamiques
+      - name: Define build tags
+        id: vars
+        run: |
+          # Génération du tag unique pour cette build
+          DATE_TAG=$(date +'%Y%m%d-%H%M')
+          COMMIT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "env=prod" >> $GITHUB_OUTPUT
+            echo "version_tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+            echo "extra_tags=latest ${GITHUB_REF_NAME}-${COMMIT_SHA}" >> $GITHUB_OUTPUT
+          else
+            echo "env=nonprod" >> $GITHUB_OUTPUT
+            echo "version_tag=dev-${DATE_TAG}" >> $GITHUB_OUTPUT
+            echo "extra_tags=sha-${COMMIT_SHA}" >> $GITHUB_OUTPUT
+          fi
+
+      # Générer le SQL EF
+      - name: Generate EF SQL
+        run: |
+          dotnet restore Services/MenuService/MenuService.Api/
+          dotnet build Services/MenuService/MenuService.Api/ --no-restore --configuration Release
+          dotnet ef migrations script \
+            --project Services/MenuService/MenuService.Infrastructure \
+            --startup-project Services/MenuService/MenuService.Api \
+            --idempotent \
+            --output migrations/migrations.sql
+    
+            
+      # Fonction de build/push réutilisable
+      - name: Build and push all Docker images
+        run: |
+          build_and_push() {
+            local image=$1
+            local dockerfile=$2
+
+            echo "📦 Building $image:${{ steps.vars.outputs.version_tag }}"
+            docker build -t ${{ env.REGISTRY }}/$image:${{ steps.vars.outputs.version_tag }} -f $dockerfile .
+
+            echo "🚀 Pushing $image:${{ steps.vars.outputs.version_tag }}"
+            docker push ${{ env.REGISTRY }}/$image:${{ steps.vars.outputs.version_tag }}
+
+            # Historiser les tags supplémentaires            
+            if [[ "${{ steps.vars.outputs.env }}" == "prod" ]]; then
+              docker tag ${{ env.REGISTRY }}/$image:${{ steps.vars.outputs.version_tag }} ${{ env.REGISTRY }}/$image:latest
+              docker push ${{ env.REGISTRY }}/$image:latest
+            fi
+            # for tag in ${{ steps.vars.outputs.extra_tags }}; do
+            #   docker tag ${{ env.REGISTRY }}/$image:${{ steps.vars.outputs.version_tag }} ${{ env.REGISTRY }}/$image:$tag
+            #   docker push ${{ env.REGISTRY }}/$image:$tag
+            #   echo "🕒 Image historisée : $image:$tag"
+            # done
+          }
+
+          build_and_push "${{ env.IMAGE_SQL }}" "backendadminsql.Dockerfile"
+          build_and_push "${{ env.IMAGE_API }}" "Services/MenuService/MenuService.Api/Dockerfile"
