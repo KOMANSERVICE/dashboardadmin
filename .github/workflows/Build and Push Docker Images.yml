@@ -32,12 +32,9 @@ jobs:
         with:
           dotnet-version: 9.0.x
 
-      - name: Install .NET Runtime 9
-        run: sudo apt-get update && sudo apt-get install -y dotnet-runtime-9.0
-
       - name: Install dotnet-ef tool
         run: |
-          dotnet tool install --global dotnet-ef
+          dotnet tool install --global dotnet-ef  --version 9.*
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
       - name: Login to Docker Hub
