@@ -47,8 +47,8 @@ services:
       - ASPNETCORE_HTTP_PORTS=8080
       - ApiSettings__Uri=${API_SETTINGS_URL}
     volumes:
-      - ./frontend/depensio.Web.Client/wwwroot/appsettings.json:/app/wwwroot/appsettings.json:ro
-      - ./frontend/depensio.Web/appsettings.json:/app/appsettings.json:ro
+      - ./FrontendAdmin/FrontendAdmin.Web.Client/wwwroot/appsettings.json:/app/wwwroot/appsettings.json:ro
+      - ./FrontendAdmin/FrontendAdmin.Web/appsettings.json:/app/appsettings.json:ro
     ports:
       - "9011:8080"
     depends_on:
