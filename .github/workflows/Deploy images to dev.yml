@@ -3,7 +3,7 @@ name: Deploy images to dev
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["Build and Push Docker Images"]  # nom exact du workflow précédent
+    workflows: ["BackendAdmin - Build and Push Docker Images"]  # nom exact du workflow précédent
     types:
       - completed  # se déclenche quand le workflow précédent est terminé
 
