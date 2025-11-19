@@ -112,6 +112,7 @@ jobs:
             CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
             CONNECTION_STRING_API=${{ secrets.CONNECTION_STRING_API }}
             VAULT_PATH_MOUNT_POINT_MENU=${{ secrets.VAULT_PATH_MOUNT_POINT_MENU }}
+            DOCKER_TAG=$TAG
             EOF
 
             chmod 644 $ENV_PATH
