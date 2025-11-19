@@ -28,7 +28,7 @@ services:
       menuDB:
         condition: service_healthy
     environment:
-      DB_HOST: dashadminDB
+      DB_HOST: menuDB
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER_MENU}
       DB_PASSWORD: ${POSTGRES_PASSWORD_MENU}
