@@ -21,9 +21,9 @@ services:
     networks:
       - vault-net
     
-  ef-migrator:
+  ef-migrator-dashadmin:
     image: komanatse/frontendadminsql:${DOCKER_TAG}
-    container_name: ef-migrator
+    container_name: ef-migrator-dashadmin
     depends_on:
       dashadminDB:
         condition: service_healthy
