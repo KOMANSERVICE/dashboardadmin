@@ -42,6 +42,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MenuService.Infrastructure"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MenuService.Api", "Services\MenuService\MenuService.Api\MenuService.Api.csproj", "{0B8CEA08-318D-4CBC-A5B2-94723523B33F}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Éléments de solution", "Éléments de solution", "{42D9AED2-5002-4DA4-8E80-A1A7D19701A3}"
+	ProjectSection(SolutionItems) = preProject
+		docker-compose.prod.yml = docker-compose.prod.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -70,8 +75,10 @@ Global
 		{8E88D691-C2E3-44B7-B2A7-8E2273BFFF35}.Release|Any CPU.Build.0 = Release|Any CPU
 		{926C7237-C91E-49B7-B5CC-757802363910}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{926C7237-C91E-49B7-B5CC-757802363910}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{926C7237-C91E-49B7-B5CC-757802363910}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
 		{926C7237-C91E-49B7-B5CC-757802363910}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{926C7237-C91E-49B7-B5CC-757802363910}.Release|Any CPU.Build.0 = Release|Any CPU
+		{926C7237-C91E-49B7-B5CC-757802363910}.Release|Any CPU.Deploy.0 = Release|Any CPU
 		{DF2D1036-E71A-4EFE-9C1C-1C16C32243F6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{DF2D1036-E71A-4EFE-9C1C-1C16C32243F6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DF2D1036-E71A-4EFE-9C1C-1C16C32243F6}.Release|Any CPU.ActiveCfg = Release|Any CPU
