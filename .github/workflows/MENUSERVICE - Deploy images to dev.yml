@@ -125,6 +125,6 @@ jobs:
             docker compose -f docker-compose.menuservice.yml pull
 
             echo "🚀 Démarrage du stack avec le tag ${TAG}"
-            DOCKER_TAG=$TAG docker compose -f docker-compose.prod.yml --env-file .env up -d --build --remove-orphans
+            DOCKER_TAG=$TAG docker compose -f docker-compose.menuservice.yml --env-file .env up -d --build --remove-orphans
 
             echo "✅ Déploiement terminé avec succès (tag=${TAG})"
