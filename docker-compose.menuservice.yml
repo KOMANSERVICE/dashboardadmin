@@ -30,9 +30,9 @@ services:
     environment:
       DB_HOST: dashadminDB
       DB_PORT: 5432
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER_MENU}
+      DB_PASSWORD: ${POSTGRES_PASSWORD_MENU}
+      DB_NAME: ${POSTGRES_DB_MENU}
     env_file:
       - ./.env
     networks:
