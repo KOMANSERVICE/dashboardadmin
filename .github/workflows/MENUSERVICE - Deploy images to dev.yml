@@ -64,7 +64,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           port: 22
-          source: "docker-compose.prod.yml"
+          source: "docker-compose.menuservice.yml"
           target: ${{ env.DEPLOY_PATH }}
 
       - name: SSH to VPS and deploy stack
