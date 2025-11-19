@@ -117,6 +117,7 @@ jobs:
             MENU_SERVICE_URL=${{ secrets.MENU_SERVICE_URL }}
             API_SETTINGS_URL=${{ vars.API_SETTINGS_URL }}
             VAULT_PATH_MOUNT_POINT_MENU=${{ secrets.VAULT_PATH_MOUNT_POINT_MENU }}
+            DOCKER_TAG=$TAG
             EOF
 
             chmod 644 $ENV_PATH
