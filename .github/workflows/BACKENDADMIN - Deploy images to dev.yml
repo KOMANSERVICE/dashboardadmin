@@ -1,4 +1,4 @@
-name: Deploy images to dev
+name: BACKENDADMIN - Deploy images to dev
 
 on:
   workflow_dispatch:
