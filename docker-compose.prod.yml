@@ -64,7 +64,7 @@ services:
     image: komanatse/backendadmin:${DOCKER_TAG}
     restart: unless-stopped
     depends_on:
-      ef-migrator:
+      ef-migrator-dashadmin:
         condition: service_completed_successfully
     environment:
       - ASPNETCORE_ENVIRONMENT=Poduction
