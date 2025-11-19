@@ -41,7 +41,7 @@ jobs:
             echo "🧪 Déploiement de la dernière version non-prod"
 
             # Récupérer le dernier tag 'dev-' pushé sur GHCR pour l'image API
-            IMAGE_NAME="depensioapi"
+            IMAGE_NAME="backendadmin"
             GH_API="https://hub.docker.com/v2/repositories/komanatse/${IMAGE_NAME}/tags?page_size=100"
 
             echo "🔍 Recherche du dernier tag 'dev-' pour ${IMAGE_NAME} sur GHCR..."
