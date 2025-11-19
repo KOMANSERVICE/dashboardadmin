@@ -66,8 +66,6 @@ services:
     depends_on:
       ef-migrator:
         condition: service_completed_successfully
-      menuservice.api:
-        condition: service_started
     environment:
       - ASPNETCORE_ENVIRONMENT=Poduction
       - ASPNETCORE_HTTP_PORTS=8080     
