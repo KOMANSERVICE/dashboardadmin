@@ -3,7 +3,7 @@ name: BACKENDADMIN - Deploy images to dev
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["BackendAdmin - Build and Push Docker Images"]  # nom exact du workflow précédent
+    workflows: ["BACKENDADMIN - Build and Push Docker Images"]  # nom exact du workflow précédent
     types:
       - completed  # se déclenche quand le workflow précédent est terminé
 
@@ -101,9 +101,6 @@ jobs:
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
             POSTGRES_DB=${{ secrets.POSTGRES_DB }}
             POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-            POSTGRES_PASSWORD_MENU=${{ secrets.POSTGRES_PASSWORD_MENU }}
-            POSTGRES_DB_MENU=${{ secrets.POSTGRES_DB_MENU }}
-            POSTGRES_USER_MENU=${{ secrets.POSTGRES_USER_MENU }}
             VAULT_URI=${{ secrets.VAULT_URI }}
             VAULT_ROLE_ID=${{ secrets.VAULT_ROLE_ID }}
             VAULT_SECRET_ID=${{ secrets.VAULT_SECRET_ID }}
