@@ -1,4 +1,4 @@
-@page "/menu/{AppAdminReference}"
+ï»¿@page "/menu/{AppAdminReference}"
 @using FrontendAdmin.Shared.Pages.Menus.Models
 @using FrontendAdmin.Shared.Pages.Menus.Components
 @inject IMenuHttpService _menuHttpService
@@ -9,7 +9,7 @@
 
 <HeaderPage 
     Title="Gestion des menu"
-    SubTitle="Créer, modifier vos menu"/>
+    SubTitle="CrÃ©er, modifier vos menu"/>
 
 @inject NavigationManager Nav
 
@@ -26,7 +26,7 @@
                     <option value="25">25</option>
                     <option value="50">50</option>
                 </select>
-                <span class="ml-2 text-sm text-gray-600">éléments</span>
+                <span class="ml-2 text-sm text-gray-600">Ã©lÃ©ments</span>
             </div>
 
             <div class="relative w-full md:w-64">
@@ -64,9 +64,9 @@
                  <input type="checkbox" id="selectAll" class="rounded text-primary-700 focus:ring-primary-700">
             </th>
             <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Name</th>
-            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Rféerence</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">RfÃ©erence</th>
             <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Url de front end</th>
-            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Icône</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">IcÃ´ne</th>
             <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">Actions</th>
         </tr>
     </DesktopHeader>
@@ -162,10 +162,10 @@
             <button class="text-red-600 hover:text-red-800 disabled:text-gray-400"
                     disabled="@(!menus.Any(p => p.IsSelected))"
                     @onclick="DeleteSelected">
-                <i class="fas fa-trash-alt"></i> Supprimer sélection
+                <i class="fas fa-trash-alt"></i> Supprimer sÃ©lection
             </button>
             <div class="text-sm text-gray-600">
-                Affichage de @PageStart à @PageEnd sur @TotalCount éléments
+                Affichage de @PageStart Ã  @PageEnd sur @TotalCount Ã©lÃ©ments
             </div>
             @* <PaginationComponent /> *@
         </div>
@@ -254,7 +254,7 @@
             {
                 await _menuHttpService.ActiveMenuAsync(new ActiveMenuRequest(reference,AppAdminReference));
             }
-            ToastService.ShowToast("Succès", "Status modifié avec succès", "success");
+            ToastService.ShowToast("SuccÃ¨s", "Status modifiÃ© avec succÃ¨s", "success");
         }
         catch (Exception ex)
         {

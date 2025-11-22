@@ -1,6 +1,6 @@
 ﻿using Grpc.Core;
 using Mapster;
-using MediatR;
+using IDR.Library.BuildingBlocks.CQRS;
 using MenuService.Application.Features.Menus.Commands.ActiveMenu;
 using MenuService.Application.Features.Menus.Commands.CreateMenu;
 using MenuService.Application.Features.Menus.Commands.InactiveMenu;
@@ -11,7 +11,7 @@ using MenuService.Application.Features.Menus.Queries.GetAllMenu;
 namespace MenuService.Grpc.Services;
 
 public class MenuGrpcService(
-        IMediator _mediator
+        ISender _mediator
     ) : MenuProtoService.MenuProtoServiceBase
 {
 
