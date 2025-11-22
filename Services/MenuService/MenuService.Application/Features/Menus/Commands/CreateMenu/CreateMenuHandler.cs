@@ -1,10 +1,4 @@
-﻿using IDR.Library.BuildingBlocks.CQRS;
-using IDR.Library.BuildingBlocks.Exceptions;
-using IDR.Library.BuildingBlocks.Repositories;
-using MediatR;
-using MenuService.Application.Data;
-using MenuService.Application.Features.Menus.DTOs;
-using MenuService.Domain.Models;
+﻿using MenuService.Application.Data;
 
 namespace MenuService.Application.Features.Menus.Commands.CreateMenu;
 
