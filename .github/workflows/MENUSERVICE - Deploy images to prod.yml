@@ -1,0 +1,132 @@
+name: MENUSERVICE - Deploy images to prod
+
+on:
+  workflow_run:
+    workflows: ["MENUSERVICE - Build and Push Docker Images"]  # nom exact du workflow précédent
+    types:
+      - completed  # se déclenche quand le workflow précédent est terminé
+
+env:
+  DEPLOY_PATH: /home/komanatse/menuservice
+
+jobs:
+  deploy:
+    if: >
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'v')
+    name: Deploy to VPS PROD (auto-tag)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Déterminer le tag Docker à déployer
+      - name: Define image tag
+        id: vars
+        run: |
+          set -e
+
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          REF="${{ github.event.workflow_run.head_sha }}"
+
+          echo "🔍 Workflow build triggered on branch/tag: $BRANCH"
+
+          # Si c'est un tag versionné (vX.X.X)
+          if [[ "$BRANCH" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "env=prod" >> $GITHUB_OUTPUT
+            echo "tag=$BRANCH" >> $GITHUB_OUTPUT
+            echo "✅ Déploiement PROD : $BRANCH"
+          else
+            echo "env=nonprod" >> $GITHUB_OUTPUT
+            echo "🧪 Déploiement de la dernière version non-prod"
+
+            # Récupérer le dernier tag 'dev-' pushé sur GHCR pour l'image API
+            IMAGE_NAME="menuservice"
+            GH_API="https://hub.docker.com/v2/repositories/komanatse/${IMAGE_NAME}/tags?page_size=100"
+
+            echo "🔍 Recherche du dernier tag 'dev-' pour ${IMAGE_NAME} sur GHCR..."
+            TAG=$(curl -s  $GH_API | jq -r '.results[].name' | grep '^dev-' | sort -r | head -n 1)
+
+            if [ -z "$TAG" ]; then
+              echo "❌ Aucun tag 'dev-' trouvé sur GHCR. Abandon."
+              exit 1
+            fi
+
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "✅ Dernier tag dev trouvé : $TAG"
+          fi
+
+      - name: Copy docker-compose and .env to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST_PROD }}
+          username: ${{ secrets.SSH_USER_PROD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE_PROD }}
+          port: 22
+          source: "docker-compose.menuservice.yml"
+          target: ${{ env.DEPLOY_PATH }}
+
+      - name: SSH to VPS and deploy stack
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST_PROD }}
+          username: ${{ secrets.SSH_USER_PROD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE_PROD }}
+          port: 22
+          script: |
+            TAG="${{ steps.vars.outputs.tag }}"
+            DIR_PATH="${{ env.DEPLOY_PATH }}"
+
+            echo "📦 Déploiement avec le tag Docker : ${TAG}"
+
+            cd $DIR_PATH
+
+            echo "🛑 Arrêt des anciens conteneurs"
+            docker compose -f docker-compose.menuservice.yml down
+
+            echo "🚀 Sauvegarde des volumes Docker"
+            chmod +x /home/komanatse/savevolume/backup_docker_volumes.sh
+            /home/komanatse/savevolume/backup_docker_volumes.sh
+
+            ENV_PATH="$DIR_PATH/.env"
+            if [ -f "$ENV_PATH" ]; then
+              TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+              mv "$ENV_PATH" "${ENV_PATH}_${TIMESTAMP}.bak"
+              echo "🌀 Fichier .env renommé : ${ENV_PATH}_${TIMESTAMP}.bak"
+            fi
+
+            cat <<EOF > $ENV_PATH
+            POSTGRES_PASSWORD_MENU=${{ secrets.POSTGRES_PASSWORD_MENU_PROD }}
+            POSTGRES_DB_MENU=${{ secrets.POSTGRES_DB_MENU_PROD }}
+            POSTGRES_USER_MENU=${{ secrets.POSTGRES_USER_MENU_PROD }}
+            VAULT_URI=${{ secrets.VAULT_URI }}
+            VAULT_ROLE_ID=${{ secrets.VAULT_ROLE_ID }}
+            VAULT_SECRET_ID=${{ secrets.VAULT_SECRET_ID }}
+            VAULT_MOUNT_POINT=${{ secrets.VAULT_MOUNT_POINT }}
+
+            JWT_VALID_AUDIENCE_API=${{ secrets.JWT_VALID_AUDIENCE_API }}
+            JWT_VALID_ISSUER_API=${{ secrets.JWT_VALID_ISSUER_API }}
+            JWT_SECRET_API=${{ secrets.JWT_SECRET_API }}
+            CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
+            CONNECTION_STRING_API=${{ secrets.CONNECTION_STRING_API }}
+            VAULT_PATH_MOUNT_POINT_MENU=${{ secrets.VAULT_PATH_MOUNT_POINT_MENU }}
+            DOCKER_TAG=$TAG
+            EOF
+
+            chmod 644 $ENV_PATH
+            dos2unix $ENV_PATH
+
+            echo "🔑 Login GHCR"
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            echo "📦 Pull des images version ${TAG}"
+            docker compose -f docker-compose.menuservice.yml pull
+
+            echo "🚀 Démarrage du stack avec le tag ${TAG}"
+            DOCKER_TAG=$TAG docker compose -f docker-compose.menuservice.yml --env-file .env up -d --build --remove-orphans
+
+            echo "✅ Déploiement terminé avec succès (tag=${TAG})"
