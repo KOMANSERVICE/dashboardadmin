@@ -117,7 +117,7 @@ jobs:
             CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
             CONNECTION_STRING_API=${{ secrets.CONNECTION_STRING_API }}
             MENU_SERVICE_URL=${{ secrets.MENU_SERVICE_URL }}
-            API_SETTINGS_URL=${{ vars.API_SETTINGS_URL }}
+            API_SETTINGS_URL=${{ vars.API_SETTINGS_URL_PROD }}
             VAULT_PATH_MOUNT_POINT_MENU=${{ secrets.VAULT_PATH_MOUNT_POINT_MENU }}
             DOCKER_TAG=$TAG
             EOF
