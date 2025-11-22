@@ -104,8 +104,8 @@ jobs:
             POSTGRES_DB_MENU=${{ secrets.POSTGRES_DB_MENU_PROD }}
             POSTGRES_USER_MENU=${{ secrets.POSTGRES_USER_MENU_PROD }}
             VAULT_URI=${{ secrets.VAULT_URI }}
-            VAULT_ROLE_ID=${{ secrets.VAULT_ROLE_ID }}
-            VAULT_SECRET_ID=${{ secrets.VAULT_SECRET_ID }}
+            VAULT_ROLE_ID=${{ secrets.VAULT_ROLE_ID_PROD }}
+            VAULT_SECRET_ID=${{ secrets.VAULT_SECRET_ID_PROD }}
             VAULT_MOUNT_POINT=${{ secrets.VAULT_MOUNT_POINT }}
 
             JWT_VALID_AUDIENCE_API=${{ secrets.JWT_VALID_AUDIENCE_API }}
