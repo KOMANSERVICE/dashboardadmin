@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.0.11123.170
+VisualStudioVersion = 18.0.11205.157 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "FrontendAdmin", "FrontendAdmin", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 EndProject
@@ -28,9 +28,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{9670FA8E-1D03-4DCA-A114-39D70A03210F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MenuService", "MenuService", "{1F023ADF-464F-4C64-9CBE-BE229A3957FD}"
-	ProjectSection(SolutionItems) = preProject
-		readme.md = readme.md
-	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MenuService.Grpc", "Services\MenuService\MenuService.Grpc\MenuService.Grpc.csproj", "{CBFFC488-38EF-4B0C-9557-B4A41C6F2506}"
 EndProject
@@ -43,10 +40,16 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MenuService.Api", "Services\MenuService\MenuService.Api\MenuService.Api.csproj", "{0B8CEA08-318D-4CBC-A5B2-94723523B33F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Éléments de solution", "Éléments de solution", "{42D9AED2-5002-4DA4-8E80-A1A7D19701A3}"
-	ProjectSection(SolutionItems) = preProject
-		docker-compose.menuservice.yml = docker-compose.menuservice.yml
-		docker-compose.prod.yml = docker-compose.prod.yml
-	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MagasinService", "MagasinService", "{67B2D64A-94D7-4E13-9E82-02D6FFB6796B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MagasinService.Api", "Services\MagasinService\MagasinService.Api\MagasinService.Api.csproj", "{B42E75D7-1D3E-4528-BCFB-0B96F2FBA0DD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MagasinService.Domain", "Services\MagasinService\MagasinService.Domain\MagasinService.Domain.csproj", "{9DE849E9-D87A-45CA-B2F7-AE29B5414817}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MagasinService.Application", "Services\MagasinService\MagasinService.Application\MagasinService.Application.csproj", "{8F87EA9A-0D6D-43AA-B15F-74720D401A57}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MagasinService.Infrastructure", "Services\MagasinService\MagasinService.Infrastructure\MagasinService.Infrastructure.csproj", "{45407C3B-A1D0-4778-ABA1-B3E838E2E703}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -112,6 +115,22 @@ Global
 		{0B8CEA08-318D-4CBC-A5B2-94723523B33F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0B8CEA08-318D-4CBC-A5B2-94723523B33F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0B8CEA08-318D-4CBC-A5B2-94723523B33F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B42E75D7-1D3E-4528-BCFB-0B96F2FBA0DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B42E75D7-1D3E-4528-BCFB-0B96F2FBA0DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B42E75D7-1D3E-4528-BCFB-0B96F2FBA0DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B42E75D7-1D3E-4528-BCFB-0B96F2FBA0DD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9DE849E9-D87A-45CA-B2F7-AE29B5414817}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9DE849E9-D87A-45CA-B2F7-AE29B5414817}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9DE849E9-D87A-45CA-B2F7-AE29B5414817}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9DE849E9-D87A-45CA-B2F7-AE29B5414817}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F87EA9A-0D6D-43AA-B15F-74720D401A57}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F87EA9A-0D6D-43AA-B15F-74720D401A57}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F87EA9A-0D6D-43AA-B15F-74720D401A57}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F87EA9A-0D6D-43AA-B15F-74720D401A57}.Release|Any CPU.Build.0 = Release|Any CPU
+		{45407C3B-A1D0-4778-ABA1-B3E838E2E703}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45407C3B-A1D0-4778-ABA1-B3E838E2E703}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45407C3B-A1D0-4778-ABA1-B3E838E2E703}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45407C3B-A1D0-4778-ABA1-B3E838E2E703}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -131,6 +150,11 @@ Global
 		{E8BA5030-E34E-4C46-964F-3006FABFC82C} = {1F023ADF-464F-4C64-9CBE-BE229A3957FD}
 		{8C8D80BA-09B9-4AD2-A915-910D528F4782} = {1F023ADF-464F-4C64-9CBE-BE229A3957FD}
 		{0B8CEA08-318D-4CBC-A5B2-94723523B33F} = {1F023ADF-464F-4C64-9CBE-BE229A3957FD}
+		{67B2D64A-94D7-4E13-9E82-02D6FFB6796B} = {9670FA8E-1D03-4DCA-A114-39D70A03210F}
+		{B42E75D7-1D3E-4528-BCFB-0B96F2FBA0DD} = {67B2D64A-94D7-4E13-9E82-02D6FFB6796B}
+		{9DE849E9-D87A-45CA-B2F7-AE29B5414817} = {67B2D64A-94D7-4E13-9E82-02D6FFB6796B}
+		{8F87EA9A-0D6D-43AA-B15F-74720D401A57} = {67B2D64A-94D7-4E13-9E82-02D6FFB6796B}
+		{45407C3B-A1D0-4778-ABA1-B3E838E2E703} = {67B2D64A-94D7-4E13-9E82-02D6FFB6796B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {35F16C1E-0BA0-42E1-9392-035DE220EF71}

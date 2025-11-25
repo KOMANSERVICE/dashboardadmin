@@ -1,0 +1,11 @@
+﻿global using MagasinService.Domain.Entities;
+global using Microsoft.EntityFrameworkCore;
+global using Microsoft.EntityFrameworkCore.Metadata.Builders;
+global using MagasinService.Domain.ValueObjects;
+global using IDR.Library.BuildingBlocks;
+global using IDR.Library.BuildingBlocks.Security;
+global using IDR.Library.BuildingBlocks.Security.Interfaces;
+global using MagasinService.Infrastructure.Data;
+global using Microsoft.Extensions.Configuration;
+global using Microsoft.Extensions.DependencyInjection;
+global using MagasinService.Application.Commons.Data;
