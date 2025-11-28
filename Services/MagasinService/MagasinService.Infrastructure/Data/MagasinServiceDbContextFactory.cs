@@ -8,7 +8,7 @@ public class MagasinServiceDbContextFactory : IDesignTimeDbContextFactory<Magasi
     {
         var optionsBuilder = new DbContextOptionsBuilder<MagasinServiceDbContext>();
 
-        //optionsBuilder.UseNpgsql("");
+        optionsBuilder.UseNpgsql("");
 
         return new MagasinServiceDbContext(optionsBuilder.Options);
     }

@@ -13,9 +13,6 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["Services/MagasinService/MagasinService.Api/MagasinService.Api.csproj", "Services/MagasinService/MagasinService.Api/"]
-COPY ["Services/MagasinService/MagasinService.Application/MagasinService.Application.csproj", "Services/MagasinService/MagasinService.Application/"]
-COPY ["Services/MagasinService/MagasinService.Domain/MagasinService.Domain.csproj", "Services/MagasinService/MagasinService.Domain/"]
-COPY ["Services/MagasinService/MagasinService.Infrastructure/MagasinService.Infrastructure.csproj", "Services/MagasinService/MagasinService.Infrastructure/"]
 RUN dotnet restore "./Services/MagasinService/MagasinService.Api/MagasinService.Api.csproj"
 COPY . .
 WORKDIR "/src/Services/MagasinService/MagasinService.Api"

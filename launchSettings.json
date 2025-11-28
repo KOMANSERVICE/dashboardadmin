@@ -8,7 +8,8 @@
         "backendadmin.api": "StartDebugging",
         "menu.grpc": "StartDebugging",
         "menuservice.grpc": "StartDebugging",
-        "menuservice.api": "StartDebugging"
+        "menuservice.api": "StartDebugging",
+        "magasinservice.api": "StartDebugging"
       }
     }
   }

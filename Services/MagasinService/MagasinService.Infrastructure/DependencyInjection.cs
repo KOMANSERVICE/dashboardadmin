@@ -9,7 +9,7 @@ public static class DependencyInjection
         var vaultUri = configuration["Vault:Uri"]!;
         var roleId = configuration["Vault:RoleId"]!;
         var secretId = configuration["Vault:SecretId"]!;
-        var dataBase = configuration.GetConnectionString("MenuDatabase")!;
+        var dataBase = configuration.GetConnectionString("Database")!;
         var pathMountPoint = configuration["Vault:PathMountPoint"]!;
         var mountPoint = configuration["Vault:MountPoint"]!;
 

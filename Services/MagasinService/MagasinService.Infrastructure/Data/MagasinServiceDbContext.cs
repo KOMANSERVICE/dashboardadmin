@@ -1,4 +1,6 @@
-﻿namespace MagasinService.Infrastructure.Data;
+﻿using System.Reflection;
+
+namespace MagasinService.Infrastructure.Data;
 
 public class MagasinServiceDbContext : DbContext, IMagasinServiceDbContext
 {
@@ -7,4 +9,11 @@ public class MagasinServiceDbContext : DbContext, IMagasinServiceDbContext
     {
     }
     public DbSet<StockLocation> StockLocations => Set<StockLocation>();
+
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+        base.OnModelCreating(modelBuilder);
+    }
 }

@@ -4,6 +4,9 @@ services:
 
   menuDB:
     image: postgres:15
+    
+  magasinDB:
+    image: postgres:17
 
   frontendadmin.web:
     image: ${DOCKER_REGISTRY-}frontendadminweb
@@ -29,8 +32,16 @@ services:
       context: .
       dockerfile: Services/MenuService/MenuService.Api/Dockerfile
 
+  magasinservice.api:
+    image: ${DOCKER_REGISTRY-}magasinserviceapi
+    build:
+      context: .
+      dockerfile: Services/MagasinService/MagasinService.Api/Dockerfile
+
 volumes:
   pgdata_dashadmin:
   pgdata_menu:
+  pgdata_magasin:
+
 
 

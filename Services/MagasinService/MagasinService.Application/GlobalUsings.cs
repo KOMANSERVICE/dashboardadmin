@@ -4,3 +4,6 @@ global using Microsoft.Extensions.DependencyInjection;
 global using System.Reflection;
 global using MagasinService.Domain.Entities;
 global using Microsoft.EntityFrameworkCore;
+global using IDR.Library.BuildingBlocks.CQRS;
+global using IDR.Library.BuildingBlocks.Repositories;
+global using Mapster;
