@@ -22,7 +22,7 @@ public class UpdateMagasin : ICarterModule
             return Results.Ok(baseResponse);
         })
        .WithName("UpdateMagasin")
-       .WithTags("Application")
+       .WithTags("Magasin")
        .Produces<BaseResponse<UpdateMagasinResponse>>(StatusCodes.Status200OK)
        .ProducesProblem(StatusCodes.Status400BadRequest)
        .WithSummary("UpdateMagasin")

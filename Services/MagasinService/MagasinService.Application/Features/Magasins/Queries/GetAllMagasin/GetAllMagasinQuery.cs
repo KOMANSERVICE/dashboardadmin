@@ -1,6 +1,9 @@
-﻿namespace MagasinService.Application.Features.Magasins.Queries.GetAllMagasin;
+﻿using MagasinService.Application.Features.Magasins.DTOs;
 
-internal class GetAllMagasinQuery
-{
-}
+namespace MagasinService.Application.Features.Magasins.Queries.GetAllMagasin;
+
+public record GetAllMagasinQuery(Guid BoutiqueId)
+    : IQuery<GetAllMagasinResult>;
+
+public record GetAllMagasinResult(List<StockLocationDTO> StockLocations);
 

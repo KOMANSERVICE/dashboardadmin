@@ -27,7 +27,7 @@ public class CreateMagasin : ICarterModule
             return Results.Created($"/magasin", baseResponse);
         })
        .WithName("CreateMagasin")
-       .WithTags("Application")
+       .WithTags("Magasin")
        .Produces<BaseResponse<CreateMagasinResponse>>(StatusCodes.Status201Created)
        .ProducesProblem(StatusCodes.Status400BadRequest)
        .WithSummary("CreateMagasin")
