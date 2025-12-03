@@ -15,8 +15,4 @@
   <ItemGroup>
     <ProjectReference Include="..\BackendAdmin.Domain\BackendAdmin.Domain.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="UseCases\Menus\Queries\GetMenuByApplication\" />
-  </ItemGroup>
 </Project>

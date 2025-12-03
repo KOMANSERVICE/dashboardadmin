@@ -1,4 +1,4 @@
-﻿using BackendAdmin.Application.UseCases.Auths.Commands.Refresh;
+﻿using BackendAdmin.Application.Features.Auths.Commands.Refresh;
 
 namespace BackendAdmin.Api.Endpoints.Auths;
 

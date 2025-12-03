@@ -1,5 +1,5 @@
-﻿using BackendAdmin.Application.UseCases.AppAdmins.Commands.CreateAppAdmin;
-using BackendAdmin.Application.UseCases.AppAdmins.DTOs;
+﻿using BackendAdmin.Application.Features.AppAdmins.Commands.CreateAppAdmin;
+using BackendAdmin.Application.Features.AppAdmins.DTOs;
 
 namespace BackendAdmin.Api.Endpoints.AppAdmins;
 

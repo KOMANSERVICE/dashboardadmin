@@ -27,11 +27,5 @@
     <ProjectReference Include="..\BackendAdmin.Infrastructure\BackendAdmin.Infrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Protobuf Include="..\..\Services\MenuService\MenuService.Grpc\Protos\menu.proto" GrpcServices="Client">
-      <Link>Protos\menu.proto</Link>
-    </Protobuf>
-  </ItemGroup>
-
 
 </Project>

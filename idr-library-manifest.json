@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IDR Library Manifest",
+  "description": "Configuration et documentation des librairies internes IDR",
+  "version": "1.0.0",
+  "libraries": {
+    "IDR.Library.BuildingBlocks": {
+      "name": "IDR.Library.BuildingBlocks",
+      "description": "Bibliothèque de base pour les projets .NET - CQRS, Auth, Validation",
+      "nugetPath": "$env:USERPROFILE\\.nuget\\packages\\idr.library.buildingblocks",
+      "docsPath": "contentFiles\\any\\any\\agent-docs",
+      "alwaysUpdate": true,
+      "features": [
+        {
+          "name": "CQRS",
+          "description": "Command Query Responsibility Segregation",
+          "interfaces": ["ICommand", "IQuery", "ICommandHandler", "IQueryHandler"],
+          "usage": "Utiliser pour séparer les opérations de lecture et d'écriture"
+        },
+        {
+          "name": "Authentication",
+          "description": "Authentification JWT et refresh token",
+          "interfaces": ["IAuthService", "ITokenService"],
+          "usage": "Gestion de l'authentification et des tokens"
+        },
+        {
+          "name": "Security",
+          "description": "Encryption et sécurité",
+          "interfaces": ["IEncryptionService"],
+          "usage": "Chiffrement des données sensibles"
+        },
+        {
+          "name": "Vault",
+          "description": "Gestion des secrets avec VaultSharp",
+          "interfaces": ["IVaultService"],
+          "usage": "Récupération sécurisée des secrets"
+        },
+        {
+          "name": "Validation",
+          "description": "Validation avec FluentValidation",
+          "baseClass": "AbstractValidator<T>",
+          "usage": "Validation des commandes et requêtes"
+        },
+        {
+          "name": "Mapping",
+          "description": "Mapping DTO/Entity avec Mapster",
+          "extensions": ["Adapt", "AdaptTo"],
+          "usage": "Conversion entre DTOs et entités"
+        }
+      ]
+    },
+    "IDR.Library.Blazor": {
+      "name": "IDR.Library.Blazor",
+      "description": "Composants Blazor réutilisables",
+      "nugetPath": "$env:USERPROFILE\\.nuget\\packages\\idr.library.blazor",
+      "docsPath": "contentFiles\\any\\any\\agent-docs",
+      "alwaysUpdate": true,
+      "features": [
+        {
+          "name": "Components",
+          "description": "Composants UI standard",
+          "prefix": "Idr",
+          "usage": "Utiliser les composants Idr* pour la cohérence UI"
+        },
+        {
+          "name": "Forms",
+          "description": "Composants de formulaires",
+          "components": ["IdrForm", "IdrInput", "IdrSelect"],
+          "usage": "Formulaires avec validation intégrée"
+        },
+        {
+          "name": "Layout",
+          "description": "Composants de mise en page",
+          "components": ["IdrLayout", "IdrNavMenu", "IdrHeader"],
+          "usage": "Structure de page cohérente"
+        }
+      ]
+    }
+  },
+  "documentation": {
+    "autoLoad": true,
+    "basePath": "$env:USERPROFILE\\.nuget\\packages",
+    "pattern": "{package}\\*\\contentFiles\\any\\any\\agent-docs\\*"
+  },
+  "rules": {
+    "autoUpdate": true,
+    "protectedPackages": true,
+    "requireDocumentation": true,
+    "autoReadDocs": true
+  },
+  "nugetSource": {
+    "type": "private",
+    "url": "https://nuget.votre-org.com/v3/index.json",
+    "name": "IDR-Internal"
+  }
+}

@@ -1,5 +1,5 @@
-﻿using BackendAdmin.Application.UseCases.Menus.Commands.UpdateMenu;
-using BackendAdmin.Application.UseCases.Menus.DTOs;
+﻿using BackendAdmin.Application.Features.Menus.Commands.UpdateMenu;
+using BackendAdmin.Application.Features.Menus.DTOs;
 
 namespace BackendAdmin.Api.Endpoints.Menus;
 public record UpdateMenuRequest(MenuInfoDTO Menu, string AppAdminReference);

@@ -1,5 +1,5 @@
-﻿using BackendAdmin.Application.UseCases.Menus.DTOs;
-using BackendAdmin.Application.UseCases.Menus.Queries.GetMenuByApplication;
+﻿using BackendAdmin.Application.Features.Menus.DTOs;
+using BackendAdmin.Application.Features.Menus.Queries.GetMenuByApplication;
 
 namespace BackendAdmin.Api.Endpoints.Menus;
 

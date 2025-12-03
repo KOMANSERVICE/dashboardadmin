@@ -1,5 +1,5 @@
-﻿using BackendAdmin.Application.UseCases.Menus.Commands.CreateMenu;
-using BackendAdmin.Application.UseCases.Menus.DTOs;
+﻿using BackendAdmin.Application.Features.Menus.Commands.CreateMenu;
+using BackendAdmin.Application.Features.Menus.DTOs;
 
 namespace BackendAdmin.Api.Endpoints.Menus;
 

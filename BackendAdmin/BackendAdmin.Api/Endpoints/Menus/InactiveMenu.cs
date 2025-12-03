@@ -1,4 +1,4 @@
-﻿using BackendAdmin.Application.UseCases.Menus.Commands.InactiveMenu;
+﻿using BackendAdmin.Application.Features.Menus.Commands.InactiveMenu;
 
 namespace BackendAdmin.Api.Endpoints.Menus;
 

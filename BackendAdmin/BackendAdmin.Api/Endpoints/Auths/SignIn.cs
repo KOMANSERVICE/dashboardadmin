@@ -1,5 +1,5 @@
-﻿using BackendAdmin.Application.UseCases.Auths.Commands.SignIn;
-using BackendAdmin.Application.UseCases.Auths.DTOs;
+﻿using BackendAdmin.Application.Features.Auths.Commands.SignIn;
+using BackendAdmin.Application.Features.Auths.DTOs;
 
 namespace BackendAdmin.Api.Endpoints.Auths;
 

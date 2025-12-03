@@ -1,5 +1,5 @@
-﻿using BackendAdmin.Application.UseCases.AppAdmins.DTOs;
-using BackendAdmin.Application.UseCases.AppAdmins.Queries.GetAppAdminByUser;
+﻿using BackendAdmin.Application.Features.AppAdmins.DTOs;
+using BackendAdmin.Application.Features.AppAdmins.Queries.GetAppAdminByUser;
 
 namespace BackendAdmin.Api.Endpoints.AppAdmins;
 public record GetAppAdminByUserResponse(IEnumerable<AppAdminDTO> AppAdmins);
