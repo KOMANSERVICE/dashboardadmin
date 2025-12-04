@@ -11,7 +11,8 @@ public class StockSlipConfiguration : IEntityTypeConfiguration<StockSlip>
                 stockSlipId => stockSlipId.Value,
                 dbId => StockSlipId.Of(dbId)
             )
-            .ValueGeneratedOnAdd();
+            .ValueGeneratedOnAdd()
+            .HasColumnName("Id");
 
         builder.Property(e => e.Reference)
             .HasMaxLength(100)

@@ -11,7 +11,8 @@ public class StockMovementConfiguration : IEntityTypeConfiguration<StockMovement
                 stockMovementId => stockMovementId.Value,
                 dbId => StockMovementId.Of(dbId)
             )
-            .ValueGeneratedOnAdd();
+            .ValueGeneratedOnAdd()
+            .HasColumnName("Id");
 
         builder.Property(e => e.SourceLocationId)
             .HasConversion(

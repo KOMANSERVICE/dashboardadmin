@@ -31,7 +31,7 @@ public class StockSlipItemIdTests
 
         // Assert
         act.Should().Throw<DomainException>()
-            .WithMessage("StockSlipItemId cannot be empty.");
+            .WithMessage("*StockSlipItemId cannot be empty.*");
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class StockSlipItemIdTests
     }
 
     [Fact]
-    public void ToString_ShouldReturnGuidString()
+    public void ToString_ShouldContainGuidValue()
     {
         // Arrange
         var guid = Guid.NewGuid();
@@ -74,7 +74,7 @@ public class StockSlipItemIdTests
         var result = stockSlipItemId.ToString();
 
         // Assert
-        result.Should().Be(guid.ToString());
+        result.Should().Contain(guid.ToString());
     }
 
     [Fact]

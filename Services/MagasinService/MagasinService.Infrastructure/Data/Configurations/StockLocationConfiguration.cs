@@ -11,7 +11,8 @@ public class StockLocationConfiguration : IEntityTypeConfiguration<StockLocation
                 stockLocationId => stockLocationId.Value,
                 dbId => StockLocationId.Of(dbId)
             )
-            .ValueGeneratedOnAdd();
+            .ValueGeneratedOnAdd()
+            .HasColumnName("Id");
 
        
     }

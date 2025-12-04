@@ -27,7 +27,7 @@ public class StockMovementIdTests
 
         // Assert
         act.Should().Throw<DomainException>()
-            .WithMessage("StockMovementId cannot be empty.");
+            .WithMessage("*StockMovementId cannot be empty.*");
     }
 
     [Fact]

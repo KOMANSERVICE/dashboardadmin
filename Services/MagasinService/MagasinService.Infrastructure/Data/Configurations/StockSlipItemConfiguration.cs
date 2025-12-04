@@ -11,7 +11,8 @@ public class StockSlipItemConfiguration : IEntityTypeConfiguration<StockSlipItem
                 stockSlipItemId => stockSlipItemId.Value,
                 dbId => StockSlipItemId.Of(dbId)
             )
-            .ValueGeneratedOnAdd();
+            .ValueGeneratedOnAdd()
+            .HasColumnName("Id");
 
         builder.Property(e => e.StockSlipId)
             .HasConversion(

@@ -1,12 +1,11 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using MagasinService.Application.Features.StockSlips.Commands.CreateStockSlip;
-using MagasinService.Application.Features.StockSlips.DTOs;
+using MagasinService.Application.Features.StockMovements.Commands.CreateStockMovement;
 using MagasinService.Domain.Entities;
 using MagasinService.Domain.Enums;
 using MagasinService.Domain.ValueObjects;
 using MagasinService.Infrastructure.Data;
-using MagasinService.Infrastructure.Repositories;
 
 namespace MagasinService.Tests.Integration;
 
@@ -14,35 +13,24 @@ public class StockMovementIntegrationTests : IDisposable
 {
     private readonly MagasinServiceDbContext _context;
     private readonly CreateStockSlipHandler _slipHandler;
-    private readonly StockSlipRepository _slipRepository;
-    private readonly StockLocationRepository _locationRepository;
-    private readonly StockMovementRepository _movementRepository;
-    private readonly UnitOfWork _unitOfWork;
+    private readonly CreateStockMovementHandler _movementHandler;
     private readonly Guid _boutiqueId = Guid.NewGuid();
+    private readonly List<StockLocation> _testLocations;
 
     public StockMovementIntegrationTests()
     {
         var options = new DbContextOptionsBuilder<MagasinServiceDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .UseInMemoryDatabase(databaseName: $"IntegrationTestDb_{Guid.NewGuid()}")
             .Options;
 
         _context = new MagasinServiceDbContext(options);
-        _slipRepository = new StockSlipRepository(_context);
-        _locationRepository = new StockLocationRepository(_context);
-        _movementRepository = new StockMovementRepository(_context);
-        _unitOfWork = new UnitOfWork(_context);
+        _slipHandler = new CreateStockSlipHandler(_context);
+        _movementHandler = new CreateStockMovementHandler(_context);
 
-        _slipHandler = new CreateStockSlipHandler(
-            _slipRepository,
-            _locationRepository,
-            _movementRepository,
-            _unitOfWork
-        );
-
-        SetupTestData();
+        _testLocations = SetupTestData();
     }
 
-    private void SetupTestData()
+    private List<StockLocation> SetupTestData()
     {
         var locations = new List<StockLocation>
         {
@@ -51,7 +39,7 @@ public class StockMovementIntegrationTests : IDisposable
                 Id = StockLocationId.Of(Guid.NewGuid()),
                 Name = "Magasin Paris",
                 Address = "1 Rue de Rivoli, Paris",
-                Type = StockLocationType.Store,
+                Type = StockLocationType.Sale,
                 BoutiqueId = _boutiqueId
             },
             new StockLocation
@@ -59,7 +47,7 @@ public class StockMovementIntegrationTests : IDisposable
                 Id = StockLocationId.Of(Guid.NewGuid()),
                 Name = "Magasin Lyon",
                 Address = "10 Place Bellecour, Lyon",
-                Type = StockLocationType.Store,
+                Type = StockLocationType.Sale,
                 BoutiqueId = _boutiqueId
             },
             new StockLocation
@@ -67,132 +55,135 @@ public class StockMovementIntegrationTests : IDisposable
                 Id = StockLocationId.Of(Guid.NewGuid()),
                 Name = "Entrepôt Central",
                 Address = "Zone Industrielle, Roissy",
-                Type = StockLocationType.Warehouse,
+                Type = StockLocationType.Store,
                 BoutiqueId = _boutiqueId
+            },
+            new StockLocation
+            {
+                Id = StockLocationId.Of(Guid.NewGuid()),
+                Name = "Magasin Externe",
+                Address = "Autre adresse",
+                Type = StockLocationType.Sale,
+                BoutiqueId = Guid.NewGuid() // Different boutique
             }
         };
 
         _context.StockLocations.AddRange(locations);
         _context.SaveChanges();
+
+        return locations;
     }
 
     [Fact]
     public async Task CompleteInterStoreMovement_ShouldCreateSlipAndMovements()
     {
         // Arrange
-        var locations = await _context.StockLocations
-            .Where(l => l.BoutiqueId == _boutiqueId)
-            .ToListAsync();
-
-        var sourceLocation = locations.First(l => l.Name == "Entrepôt Central");
-        var destinationLocation = locations.First(l => l.Name == "Magasin Paris");
+        var sourceLocation = _testLocations.First(l => l.Name == "Entrepôt Central");
+        var destinationLocation = _testLocations.First(l => l.Name == "Magasin Paris");
 
         var productIds = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() };
 
-        var request = new CreateStockSlipRequest
+        var slipCommand = new CreateStockSlipCommand
         {
-            Reference = "BS-2025-001",
-            Note = "Réapprovisionnement mensuel du magasin Paris",
             BoutiqueId = _boutiqueId,
-            SlipType = StockSlipType.Transfer,
             SourceLocationId = sourceLocation.Id.Value,
             DestinationLocationId = destinationLocation.Id.Value,
-            Items = productIds.Select((id, index) => new CreateStockSlipItemRequest
+            Note = "Réapprovisionnement mensuel du magasin Paris",
+            IsInbound = false, // Sortie de l'entrepôt
+            Items = productIds.Select((id, index) => new StockSlipItemDto
             {
                 ProductId = id,
                 Quantity = (index + 1) * 10, // 10, 20, 30
+                UnitPrice = 50.00m + (index * 10),
                 Note = $"Produit {index + 1}"
             }).ToList()
         };
 
-        var command = new CreateStockSlipCommand(request);
-
         // Act
-        var slipResult = await _slipHandler.Handle(command, CancellationToken.None);
+        var slipResult = await _slipHandler.Handle(slipCommand, CancellationToken.None);
 
         // Assert - Verify slip creation
         slipResult.Should().NotBeNull();
-        slipResult.Reference.Should().Be("BS-2025-001");
-        slipResult.Items.Should().HaveCount(3);
+        slipResult.Success.Should().BeTrue();
+        slipResult.Reference.Should().StartWith("BS-"); // Bordereau de sortie
+        slipResult.ItemsCount.Should().Be(3);
 
         // Verify database state
         var savedSlip = await _context.StockSlips
             .Include(s => s.StockSlipItems)
-            .Include(s => s.SourceLocation)
-            .Include(s => s.DestinationLocation)
-            .FirstOrDefaultAsync(s => s.Id == StockSlipId.Of(slipResult.Id));
+            .FirstOrDefaultAsync(s => s.Id.Value == slipResult.Id);
 
         savedSlip.Should().NotBeNull();
         savedSlip!.StockSlipItems.Should().HaveCount(3);
-        savedSlip.SourceLocation.Name.Should().Be("Entrepôt Central");
-        savedSlip.DestinationLocation!.Name.Should().Be("Magasin Paris");
+        savedSlip.BoutiqueId.Should().Be(_boutiqueId);
+        savedSlip.IsInbound.Should().BeFalse();
 
         // Verify movements were created
         var movements = await _context.StockMovements
             .Include(m => m.SourceLocation)
             .Include(m => m.DestinationLocation)
-            .Where(m => m.Reference == request.Reference)
-            .OrderBy(m => m.ProductId)
+            .OrderBy(m => m.Reference)
             .ToListAsync();
 
         movements.Should().HaveCount(3);
-        movements.All(m => m.MovementType == StockMovementType.Transfer).Should().BeTrue();
+        movements.All(m => m.SourceLocationId == sourceLocation.Id).Should().BeTrue();
+        movements.All(m => m.DestinationLocationId == destinationLocation.Id).Should().BeTrue();
         movements.All(m => m.Date.Date == DateTime.UtcNow.Date).Should().BeTrue();
 
         // Verify quantities match items
-        for (int i = 0; i < movements.Count; i++)
-        {
-            movements[i].Quantity.Should().Be((i + 1) * 10);
-        }
+        var orderedMovements = movements.OrderBy(m => m.Quantity).ToList();
+        orderedMovements[0].Quantity.Should().Be(10);
+        orderedMovements[1].Quantity.Should().Be(20);
+        orderedMovements[2].Quantity.Should().Be(30);
 
-        // Verify locations
-        movements.All(m => m.SourceLocation.Name == "Entrepôt Central").Should().BeTrue();
-        movements.All(m => m.DestinationLocation.Name == "Magasin Paris").Should().BeTrue();
+        // Verify slip items are linked to movements
+        foreach (var slipItem in savedSlip.StockSlipItems)
+        {
+            var relatedMovement = movements.FirstOrDefault(m => m.Id == slipItem.StockMovementId);
+            relatedMovement.Should().NotBeNull();
+            relatedMovement!.ProductId.Should().Be(slipItem.ProductId);
+            relatedMovement.Quantity.Should().Be(slipItem.Quantity);
+        }
     }
 
     [Fact]
     public async Task MultipleTransfers_ShouldMaintainDataIntegrity()
     {
         // Arrange
-        var locations = await _context.StockLocations
-            .Where(l => l.BoutiqueId == _boutiqueId)
-            .ToListAsync();
-
-        var warehouse = locations.First(l => l.Type == StockLocationType.Warehouse);
-        var stores = locations.Where(l => l.Type == StockLocationType.Store).ToList();
+        var warehouse = _testLocations.First(l => l.Type == StockLocationType.Store && l.Name.Contains("Entrepôt"));
+        var stores = _testLocations.Where(l => l.Type == StockLocationType.Sale && l.BoutiqueId == _boutiqueId).ToList();
 
         var productId = Guid.NewGuid();
-        var transfers = new List<CreateStockSlipRequest>();
+        var transfers = new List<CreateStockSlipCommand>();
 
         // Create multiple transfers for the same product
         foreach (var store in stores)
         {
-            transfers.Add(new CreateStockSlipRequest
+            transfers.Add(new CreateStockSlipCommand
             {
-                Reference = $"BS-MULTI-{stores.IndexOf(store):000}",
-                Note = $"Transfert vers {store.Name}",
                 BoutiqueId = _boutiqueId,
-                SlipType = StockSlipType.Transfer,
                 SourceLocationId = warehouse.Id.Value,
                 DestinationLocationId = store.Id.Value,
-                Items = new List<CreateStockSlipItemRequest>
+                Note = $"Transfert vers {store.Name}",
+                IsInbound = false,
+                Items = new List<StockSlipItemDto>
                 {
-                    new() { ProductId = productId, Quantity = 50, Note = "Stock initial" }
+                    new() { ProductId = productId, Quantity = 50, UnitPrice = 100.00m, Note = "Stock initial" }
                 }
             });
         }
 
         // Act
-        var results = new List<StockSlipDto>();
+        var results = new List<CreateStockSlipResponse>();
         foreach (var transfer in transfers)
         {
-            var command = new CreateStockSlipCommand(transfer);
-            var result = await _slipHandler.Handle(command, CancellationToken.None);
+            var result = await _slipHandler.Handle(transfer, CancellationToken.None);
             results.Add(result);
         }
 
         // Assert
         results.Should().HaveCount(stores.Count);
+        results.All(r => r.Success).Should().BeTrue();
 
         // Verify all movements for the product
         var allMovements = await _context.StockMovements
@@ -206,99 +197,143 @@ public class StockMovementIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task EntrySlip_ShouldNotCreateMovements()
+    public async Task DirectMovementWithoutSlip_ShouldCreateMovement()
     {
         // Arrange
-        var warehouse = await _context.StockLocations
-            .FirstAsync(l => l.Type == StockLocationType.Warehouse && l.BoutiqueId == _boutiqueId);
+        var sourceLocation = _testLocations.First(l => l.Name == "Magasin Paris");
+        var destinationLocation = _testLocations.First(l => l.Name == "Magasin Lyon");
 
-        var request = new CreateStockSlipRequest
+        var movementCommand = new CreateStockMovementCommand
         {
-            Reference = "BS-ENTRY-TEST",
-            Note = "Réception de marchandises",
+            ProductId = Guid.NewGuid(),
             BoutiqueId = _boutiqueId,
-            SlipType = StockSlipType.Entry,
-            SourceLocationId = warehouse.Id.Value,
-            DestinationLocationId = null,
-            Items = new List<CreateStockSlipItemRequest>
-            {
-                new() { ProductId = Guid.NewGuid(), Quantity = 100, Note = "Nouvelle livraison" }
-            }
+            Quantity = 15,
+            SourceLocationId = sourceLocation.Id.Value,
+            DestinationLocationId = destinationLocation.Id.Value,
+            Reference = "MOV-DIRECT-001",
+            MovementType = StockMovementType.Transfer,
+            Note = "Transfert direct entre magasins"
         };
 
-        var command = new CreateStockSlipCommand(request);
-
         // Act
-        var result = await _slipHandler.Handle(command, CancellationToken.None);
+        var result = await _movementHandler.Handle(movementCommand, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
-        result.SlipType.Should().Be(StockSlipType.Entry);
+        result.Success.Should().BeTrue();
+        result.Reference.Should().Be("MOV-DIRECT-001");
 
-        // Verify no movements were created for entry slip
-        var movements = await _context.StockMovements
-            .Where(m => m.Reference == request.Reference)
-            .ToListAsync();
+        // Verify movement in database
+        var savedMovement = await _context.StockMovements
+            .Include(m => m.SourceLocation)
+            .Include(m => m.DestinationLocation)
+            .FirstOrDefaultAsync(m => m.Id.Value == result.Id);
 
-        movements.Should().BeEmpty();
-
-        // But slip should exist
-        var slip = await _context.StockSlips
-            .Include(s => s.StockSlipItems)
-            .FirstAsync(s => s.Reference == request.Reference);
-
-        slip.StockSlipItems.Should().HaveCount(1);
-        slip.StockSlipItems.First().Quantity.Should().Be(100);
+        savedMovement.Should().NotBeNull();
+        savedMovement!.ProductId.Should().Be(movementCommand.ProductId);
+        savedMovement.Quantity.Should().Be(movementCommand.Quantity);
+        savedMovement.SourceLocation.Name.Should().Be("Magasin Paris");
+        savedMovement.DestinationLocation.Name.Should().Be("Magasin Lyon");
+        savedMovement.MovementType.Should().Be(StockMovementType.Transfer);
     }
 
     [Fact]
-    public async Task ExitSlip_ShouldNotCreateMovements()
+    public async Task CrossBoutiqueTransfer_ShouldFail()
     {
         // Arrange
-        var store = await _context.StockLocations
-            .FirstAsync(l => l.Type == StockLocationType.Store && l.BoutiqueId == _boutiqueId);
+        var internalLocation = _testLocations.First(l => l.BoutiqueId == _boutiqueId);
+        var externalLocation = _testLocations.First(l => l.BoutiqueId != _boutiqueId);
 
-        var request = new CreateStockSlipRequest
+        var movementCommand = new CreateStockMovementCommand
         {
-            Reference = "BS-EXIT-TEST",
-            Note = "Sortie pour vente",
+            ProductId = Guid.NewGuid(),
             BoutiqueId = _boutiqueId,
-            SlipType = StockSlipType.Exit,
-            SourceLocationId = store.Id.Value,
-            DestinationLocationId = null,
-            Items = new List<CreateStockSlipItemRequest>
-            {
-                new() { ProductId = Guid.NewGuid(), Quantity = 25, Note = "Vente client" }
-            }
+            Quantity = 10,
+            SourceLocationId = internalLocation.Id.Value,
+            DestinationLocationId = externalLocation.Id.Value,
+            Reference = "MOV-CROSS-001",
+            MovementType = StockMovementType.Transfer,
+            Note = "Tentative de transfert inter-boutique"
         };
 
-        var command = new CreateStockSlipCommand(request);
-
         // Act
-        var result = await _slipHandler.Handle(command, CancellationToken.None);
+        var result = await _movementHandler.Handle(movementCommand, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
-        result.SlipType.Should().Be(StockSlipType.Exit);
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("même boutique");
 
-        // Verify no movements were created for exit slip
+        // Verify no movement was created
         var movements = await _context.StockMovements
-            .Where(m => m.Reference == request.Reference)
+            .Where(m => m.Reference == "MOV-CROSS-001")
             .ToListAsync();
 
         movements.Should().BeEmpty();
+    }
 
-        // But slip should exist
-        var slip = await _context.StockSlips
-            .Include(s => s.StockSlipItems)
-            .FirstAsync(s => s.Reference == request.Reference);
+    [Fact]
+    public async Task CompleteWorkflow_FromWarehouseToMultipleStores()
+    {
+        // Arrange
+        var warehouse = _testLocations.First(l => l.Type == StockLocationType.Store && l.Name.Contains("Entrepôt"));
+        var stores = _testLocations.Where(l => l.Type == StockLocationType.Sale && l.BoutiqueId == _boutiqueId).ToList();
+        var productId = Guid.NewGuid();
 
-        slip.StockSlipItems.Should().HaveCount(1);
-        slip.StockSlipItems.First().Quantity.Should().Be(25);
+        // Act & Assert - Create initial stock slip from warehouse to first store
+        var initialSlipCommand = new CreateStockSlipCommand
+        {
+            BoutiqueId = _boutiqueId,
+            SourceLocationId = warehouse.Id.Value,
+            DestinationLocationId = stores[0].Id.Value,
+            Note = "Distribution initiale",
+            IsInbound = false,
+            Items = new List<StockSlipItemDto>
+            {
+                new() { ProductId = productId, Quantity = 100, UnitPrice = 50.00m, Note = "Stock initial" }
+            }
+        };
+
+        var initialResult = await _slipHandler.Handle(initialSlipCommand, CancellationToken.None);
+        initialResult.Success.Should().BeTrue();
+
+        // Then transfer between stores
+        var interStoreCommand = new CreateStockMovementCommand
+        {
+            ProductId = productId,
+            BoutiqueId = _boutiqueId,
+            Quantity = 30,
+            SourceLocationId = stores[0].Id.Value,
+            DestinationLocationId = stores[1].Id.Value,
+            Reference = "MOV-INTER-STORE",
+            MovementType = StockMovementType.Transfer,
+            Note = "Rééquilibrage des stocks"
+        };
+
+        var interStoreResult = await _movementHandler.Handle(interStoreCommand, CancellationToken.None);
+        interStoreResult.Success.Should().BeTrue();
+
+        // Verify complete movement history
+        var allMovements = await _context.StockMovements
+            .Where(m => m.ProductId == productId)
+            .OrderBy(m => m.Date)
+            .ToListAsync();
+
+        allMovements.Should().HaveCount(2);
+
+        // First movement: warehouse to store 1 (100 units)
+        allMovements[0].SourceLocationId.Should().Be(warehouse.Id);
+        allMovements[0].DestinationLocationId.Should().Be(stores[0].Id);
+        allMovements[0].Quantity.Should().Be(100);
+
+        // Second movement: store 1 to store 2 (30 units)
+        allMovements[1].SourceLocationId.Should().Be(stores[0].Id);
+        allMovements[1].DestinationLocationId.Should().Be(stores[1].Id);
+        allMovements[1].Quantity.Should().Be(30);
     }
 
     public void Dispose()
     {
-        _context?.Dispose();
+        _context.Dispose();
     }
 }

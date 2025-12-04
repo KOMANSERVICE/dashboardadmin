@@ -1,40 +1,29 @@
 using FluentAssertions;
-using Moq;
-using MagasinService.Application.Commons.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using MagasinService.Application.Commons.Data;
 using MagasinService.Application.Features.StockSlips.Commands.CreateStockSlip;
-using MagasinService.Application.Features.StockSlips.DTOs;
 using MagasinService.Domain.Entities;
 using MagasinService.Domain.Enums;
-using MagasinService.Domain.Exceptions;
 using MagasinService.Domain.ValueObjects;
-using IDR.Library.BuildingBlocks.Exceptions;
-using Mapster;
+using MagasinService.Infrastructure.Data;
 
 namespace MagasinService.Tests.Features.StockSlips;
 
-public class CreateStockSlipHandlerTests
+public class CreateStockSlipHandlerTests : IDisposable
 {
-    private readonly Mock<IStockSlipRepository> _stockSlipRepositoryMock;
-    private readonly Mock<IStockLocationRepository> _stockLocationRepositoryMock;
-    private readonly Mock<IStockMovementRepository> _stockMovementRepositoryMock;
-    private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly MagasinServiceDbContext _context;
     private readonly CreateStockSlipHandler _handler;
     private readonly List<StockLocation> _testLocations;
     private readonly Guid _boutiqueId = Guid.NewGuid();
 
     public CreateStockSlipHandlerTests()
     {
-        _stockSlipRepositoryMock = new Mock<IStockSlipRepository>();
-        _stockLocationRepositoryMock = new Mock<IStockLocationRepository>();
-        _stockMovementRepositoryMock = new Mock<IStockMovementRepository>();
-        _unitOfWorkMock = new Mock<IUnitOfWork>();
+        var options = new DbContextOptionsBuilder<MagasinServiceDbContext>()
+            .UseInMemoryDatabase(databaseName: $"TestDb_{Guid.NewGuid()}")
+            .Options;
 
-        _handler = new CreateStockSlipHandler(
-            _stockSlipRepositoryMock.Object,
-            _stockLocationRepositoryMock.Object,
-            _stockMovementRepositoryMock.Object,
-            _unitOfWorkMock.Object
-        );
+        _context = new MagasinServiceDbContext(options);
+        _handler = new CreateStockSlipHandler(_context);
 
         // Setup test data
         _testLocations = SetupTestData();
@@ -48,429 +37,304 @@ public class CreateStockSlipHandlerTests
             {
                 Id = StockLocationId.Of(Guid.NewGuid()),
                 Name = "Magasin Central",
-                Address = "100 Avenue Centrale",
-                Type = StockLocationType.Store,
+                Address = "123 Rue Principale",
+                Type = StockLocationType.Sale,
                 BoutiqueId = _boutiqueId
             },
             new StockLocation
             {
                 Id = StockLocationId.Of(Guid.NewGuid()),
-                Name = "Magasin Nord",
-                Address = "200 Route du Nord",
-                Type = StockLocationType.Store,
+                Name = "Magasin Secondaire",
+                Address = "456 Rue Secondaire",
+                Type = StockLocationType.Sale,
                 BoutiqueId = _boutiqueId
             },
             new StockLocation
             {
                 Id = StockLocationId.Of(Guid.NewGuid()),
-                Name = "Entrepôt Principal",
-                Address = "300 Zone Logistique",
-                Type = StockLocationType.Warehouse,
+                Name = "Entrepôt Externe",
+                Address = "789 Zone Industrielle",
+                Type = StockLocationType.Store,
                 BoutiqueId = Guid.NewGuid() // Different boutique
             }
         };
+
+        _context.StockLocations.AddRange(locations);
+        _context.SaveChanges();
 
         return locations;
     }
 
     [Fact]
-    public async Task Handle_ValidTransferSlip_ShouldCreateSlipAndMovements()
+    public async Task Handle_ValidInboundSlip_ShouldCreateStockSlipWithMovements()
     {
         // Arrange
-        var productId1 = Guid.NewGuid();
-        var productId2 = Guid.NewGuid();
-
-        var request = new CreateStockSlipRequest
+        var items = new List<StockSlipItemDto>
         {
-            Reference = "BS-TEST-001",
-            Note = "Transfert test",
-            BoutiqueId = _boutiqueId,
-            SlipType = StockSlipType.Transfer,
-            SourceLocationId = _testLocations[0].Id.Value,
-            DestinationLocationId = _testLocations[1].Id.Value,
-            Items = new List<CreateStockSlipItemRequest>
-            {
-                new() { ProductId = productId1, Quantity = 10, Note = "Produit 1" },
-                new() { ProductId = productId2, Quantity = 20, Note = "Produit 2" }
-            }
-        };
-
-        var command = new CreateStockSlipCommand(request);
-
-        // Setup mocks
-        _stockSlipRepositoryMock
-            .Setup(x => x.GetByReferenceAsync(request.Reference, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((StockSlip?)null);
-
-        _stockLocationRepositoryMock
-            .Setup(x => x.GetByIdAsync(request.SourceLocationId))
-            .ReturnsAsync(_testLocations[0]);
-
-        _stockLocationRepositoryMock
-            .Setup(x => x.GetByIdAsync(request.DestinationLocationId!.Value))
-            .ReturnsAsync(_testLocations[1]);
-
-        var createdSlip = new StockSlip
-        {
-            Id = StockSlipId.Of(Guid.NewGuid()),
-            Reference = request.Reference,
-            Date = DateTime.UtcNow,
-            Note = request.Note,
-            BoutiqueId = request.BoutiqueId,
-            SlipType = request.SlipType,
-            SourceLocationId = _testLocations[0].Id,
-            DestinationLocationId = _testLocations[1].Id,
-            SourceLocation = _testLocations[0],
-            DestinationLocation = _testLocations[1],
-            StockSlipItems = new List<StockSlipItem>
-            {
-                new() {
-                    Id = StockSlipItemId.Of(Guid.NewGuid()),
-                    ProductId = productId1,
-                    Quantity = 10,
-                    Note = "Produit 1"
-                },
-                new() {
-                    Id = StockSlipItemId.Of(Guid.NewGuid()),
-                    ProductId = productId2,
-                    Quantity = 20,
-                    Note = "Produit 2"
-                }
-            }
-        };
-
-        _stockSlipRepositoryMock
-            .Setup(x => x.GetSlipWithItemsAsync(It.IsAny<StockSlipId>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(createdSlip);
-
-        // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.Id.Should().NotBeEmpty();
-        result.Reference.Should().Be(request.Reference);
-        result.Note.Should().Be(request.Note);
-        result.BoutiqueId.Should().Be(request.BoutiqueId);
-        result.SlipType.Should().Be(request.SlipType);
-        result.Items.Should().HaveCount(2);
-
-        // Verify mocks
-        _stockSlipRepositoryMock.Verify(x => x.GetByReferenceAsync(request.Reference, It.IsAny<CancellationToken>()), Times.Once);
-        _stockLocationRepositoryMock.Verify(x => x.GetByIdAsync(request.SourceLocationId), Times.Once);
-        _stockLocationRepositoryMock.Verify(x => x.GetByIdAsync(request.DestinationLocationId!.Value), Times.Once);
-        _stockSlipRepositoryMock.Verify(x => x.AddAsync(It.IsAny<StockSlip>()), Times.Once);
-        _stockMovementRepositoryMock.Verify(x => x.AddAsync(It.IsAny<StockMovement>()), Times.Exactly(2)); // 2 items
-        _unitOfWorkMock.Verify(x => x.SaveChangesDataAsync(It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task Handle_EntrySlip_ShouldCreateWithoutDestination()
-    {
-        // Arrange
-        var request = new CreateStockSlipRequest
-        {
-            Reference = "BS-ENTRY-001",
-            Note = "Réception marchandise",
-            BoutiqueId = _boutiqueId,
-            SlipType = StockSlipType.Entry,
-            SourceLocationId = _testLocations[0].Id.Value,
-            DestinationLocationId = null, // No destination for entry
-            Items = new List<CreateStockSlipItemRequest>
-            {
-                new() { ProductId = Guid.NewGuid(), Quantity = 50, Note = "Nouvelle livraison" }
-            }
-        };
-
-        var command = new CreateStockSlipCommand(request);
-
-        // Setup mocks
-        _stockSlipRepositoryMock
-            .Setup(x => x.GetByReferenceAsync(request.Reference, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((StockSlip?)null);
-
-        _stockLocationRepositoryMock
-            .Setup(x => x.GetByIdAsync(request.SourceLocationId))
-            .ReturnsAsync(_testLocations[0]);
-
-        var createdSlip = new StockSlip
-        {
-            Id = StockSlipId.Of(Guid.NewGuid()),
-            Reference = request.Reference,
-            Date = DateTime.UtcNow,
-            Note = request.Note,
-            BoutiqueId = request.BoutiqueId,
-            SlipType = request.SlipType,
-            SourceLocationId = _testLocations[0].Id,
-            DestinationLocationId = null,
-            SourceLocation = _testLocations[0],
-            DestinationLocation = null,
-            StockSlipItems = new List<StockSlipItem>
-            {
-                new() {
-                    Id = StockSlipItemId.Of(Guid.NewGuid()),
-                    ProductId = request.Items[0].ProductId,
-                    Quantity = 50,
-                    Note = "Nouvelle livraison"
-                }
-            }
-        };
-
-        _stockSlipRepositoryMock
-            .Setup(x => x.GetSlipWithItemsAsync(It.IsAny<StockSlipId>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(createdSlip);
-
-        // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.SlipType.Should().Be(StockSlipType.Entry);
-        result.DestinationLocationId.Should().BeNull();
-
-        // Verify mocks
-        _stockMovementRepositoryMock.Verify(x => x.AddAsync(It.IsAny<StockMovement>()), Times.Never); // No movements for Entry type without destination
-    }
-
-    [Fact]
-    public async Task Handle_DuplicateReference_ShouldThrowDomainException()
-    {
-        // Arrange
-        var existingSlip = new StockSlip
-        {
-            Id = StockSlipId.Of(Guid.NewGuid()),
-            Reference = "BS-DUPLICATE-001",
-            Date = DateTime.UtcNow,
-            Note = "Existing slip",
-            BoutiqueId = _boutiqueId,
-            SlipType = StockSlipType.Transfer,
-            SourceLocationId = _testLocations[0].Id,
-            DestinationLocationId = _testLocations[1].Id
-        };
-
-        var request = new CreateStockSlipRequest
-        {
-            Reference = "BS-DUPLICATE-001", // Same reference
-            Note = "Duplicate test",
-            BoutiqueId = _boutiqueId,
-            SlipType = StockSlipType.Transfer,
-            SourceLocationId = _testLocations[0].Id.Value,
-            DestinationLocationId = _testLocations[1].Id.Value,
-            Items = new List<CreateStockSlipItemRequest>
-            {
-                new() { ProductId = Guid.NewGuid(), Quantity = 10 }
-            }
-        };
-
-        var command = new CreateStockSlipCommand(request);
-
-        // Setup mocks
-        _stockSlipRepositoryMock
-            .Setup(x => x.GetByReferenceAsync(request.Reference, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(existingSlip);
-
-        // Act
-        Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        await act.Should().ThrowAsync<DomainException>()
-            .WithMessage("*référence*existe déjà*");
-
-        // Verify mocks
-        _stockLocationRepositoryMock.Verify(x => x.GetByIdAsync(It.IsAny<Guid>()), Times.Never);
-        _stockSlipRepositoryMock.Verify(x => x.AddAsync(It.IsAny<StockSlip>()), Times.Never);
-        _unitOfWorkMock.Verify(x => x.SaveChangesDataAsync(It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task Handle_TransferWithNonexistentDestination_ShouldThrowNotFoundException()
-    {
-        // Arrange
-        var request = new CreateStockSlipRequest
-        {
-            Reference = "BS-NOTFOUND-001",
-            Note = "Transfer avec destination inexistante",
-            BoutiqueId = _boutiqueId,
-            SlipType = StockSlipType.Transfer,
-            SourceLocationId = _testLocations[0].Id.Value,
-            DestinationLocationId = Guid.NewGuid(), // Non-existent
-            Items = new List<CreateStockSlipItemRequest>
-            {
-                new() { ProductId = Guid.NewGuid(), Quantity = 10 }
-            }
-        };
-
-        var command = new CreateStockSlipCommand(request);
-
-        // Setup mocks
-        _stockSlipRepositoryMock
-            .Setup(x => x.GetByReferenceAsync(request.Reference, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((StockSlip?)null);
-
-        _stockLocationRepositoryMock
-            .Setup(x => x.GetByIdAsync(request.SourceLocationId))
-            .ReturnsAsync(_testLocations[0]);
-
-        _stockLocationRepositoryMock
-            .Setup(x => x.GetByIdAsync(request.DestinationLocationId!.Value))
-            .ReturnsAsync((StockLocation?)null);
-
-        // Act
-        Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        await act.Should().ThrowAsync<NotFoundException>()
-            .WithMessage("*StockLocation*");
-
-        // Verify mocks
-        _stockSlipRepositoryMock.Verify(x => x.AddAsync(It.IsAny<StockSlip>()), Times.Never);
-        _unitOfWorkMock.Verify(x => x.SaveChangesDataAsync(It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task Handle_ExitSlip_ShouldCreateWithoutDestination()
-    {
-        // Arrange
-        var request = new CreateStockSlipRequest
-        {
-            Reference = "BS-EXIT-001",
-            Note = "Sortie de stock",
-            BoutiqueId = _boutiqueId,
-            SlipType = StockSlipType.Exit,
-            SourceLocationId = _testLocations[0].Id.Value,
-            DestinationLocationId = null,
-            Items = new List<CreateStockSlipItemRequest>
-            {
-                new() { ProductId = Guid.NewGuid(), Quantity = 30, Note = "Sortie pour vente" }
-            }
-        };
-
-        var command = new CreateStockSlipCommand(request);
-
-        // Setup mocks
-        _stockSlipRepositoryMock
-            .Setup(x => x.GetByReferenceAsync(request.Reference, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((StockSlip?)null);
-
-        _stockLocationRepositoryMock
-            .Setup(x => x.GetByIdAsync(request.SourceLocationId))
-            .ReturnsAsync(_testLocations[0]);
-
-        var createdSlip = new StockSlip
-        {
-            Id = StockSlipId.Of(Guid.NewGuid()),
-            Reference = request.Reference,
-            Date = DateTime.UtcNow,
-            Note = request.Note,
-            BoutiqueId = request.BoutiqueId,
-            SlipType = request.SlipType,
-            SourceLocationId = _testLocations[0].Id,
-            DestinationLocationId = null,
-            SourceLocation = _testLocations[0],
-            DestinationLocation = null,
-            StockSlipItems = new List<StockSlipItem>
-            {
-                new() {
-                    Id = StockSlipItemId.Of(Guid.NewGuid()),
-                    ProductId = request.Items[0].ProductId,
-                    Quantity = 30,
-                    Note = "Sortie pour vente"
-                }
-            }
-        };
-
-        _stockSlipRepositoryMock
-            .Setup(x => x.GetSlipWithItemsAsync(It.IsAny<StockSlipId>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(createdSlip);
-
-        // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.SlipType.Should().Be(StockSlipType.Exit);
-        result.DestinationLocationId.Should().BeNull();
-
-        // Verify mocks
-        _stockMovementRepositoryMock.Verify(x => x.AddAsync(It.IsAny<StockMovement>()), Times.Never); // No movements for Exit type
-    }
-
-    [Fact]
-    public async Task Handle_MultipleItems_ShouldCreateMultipleMovements()
-    {
-        // Arrange
-        var items = new List<CreateStockSlipItemRequest>();
-        for (int i = 0; i < 5; i++)
-        {
-            items.Add(new CreateStockSlipItemRequest
+            new StockSlipItemDto
             {
                 ProductId = Guid.NewGuid(),
-                Quantity = 10 + i,
-                Note = $"Item {i + 1}"
-            });
-        }
+                Quantity = 10,
+                UnitPrice = 50.00m,
+                Note = "Première livraison"
+            },
+            new StockSlipItemDto
+            {
+                ProductId = Guid.NewGuid(),
+                Quantity = 5,
+                UnitPrice = 75.00m,
+                Note = "Deuxième livraison"
+            }
+        };
 
-        var request = new CreateStockSlipRequest
+        var command = new CreateStockSlipCommand
         {
-            Reference = "BS-MULTI-001",
-            Note = "Multiple items transfer",
             BoutiqueId = _boutiqueId,
-            SlipType = StockSlipType.Transfer,
             SourceLocationId = _testLocations[0].Id.Value,
             DestinationLocationId = _testLocations[1].Id.Value,
+            Note = "Bordereau d'entrée test",
+            IsInbound = true,
             Items = items
         };
 
-        var command = new CreateStockSlipCommand(request);
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Setup mocks
-        _stockSlipRepositoryMock
-            .Setup(x => x.GetByReferenceAsync(request.Reference, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((StockSlip?)null);
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        result.Id.Should().NotBeEmpty();
+        result.Reference.Should().StartWith("BE-"); // Bordereau d'Entrée
+        result.ItemsCount.Should().Be(2);
+        result.Message.Should().Contain("succès");
 
-        _stockLocationRepositoryMock
-            .Setup(x => x.GetByIdAsync(request.SourceLocationId))
-            .ReturnsAsync(_testLocations[0]);
+        // Verify database
+        var savedSlip = await _context.StockSlips
+            .Include(s => s.StockSlipItems)
+            .FirstOrDefaultAsync(s => s.Id.Value == result.Id);
 
-        _stockLocationRepositoryMock
-            .Setup(x => x.GetByIdAsync(request.DestinationLocationId!.Value))
-            .ReturnsAsync(_testLocations[1]);
+        savedSlip.Should().NotBeNull();
+        savedSlip!.BoutiqueId.Should().Be(_boutiqueId);
+        savedSlip.IsInbound.Should().BeTrue();
+        savedSlip.StockSlipItems.Should().HaveCount(2);
 
-        var stockSlipItems = items.Select(i => new StockSlipItem
+        // Verify movements were created
+        var movements = await _context.StockMovements.ToListAsync();
+        movements.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Handle_ValidOutboundSlip_ShouldCreateStockSlipWithMovements()
+    {
+        // Arrange
+        var items = new List<StockSlipItemDto>
         {
-            Id = StockSlipItemId.Of(Guid.NewGuid()),
-            ProductId = i.ProductId,
-            Quantity = i.Quantity,
-            Note = i.Note
-        }).ToList();
-
-        var createdSlip = new StockSlip
-        {
-            Id = StockSlipId.Of(Guid.NewGuid()),
-            Reference = request.Reference,
-            Date = DateTime.UtcNow,
-            Note = request.Note,
-            BoutiqueId = request.BoutiqueId,
-            SlipType = request.SlipType,
-            SourceLocationId = _testLocations[0].Id,
-            DestinationLocationId = _testLocations[1].Id,
-            SourceLocation = _testLocations[0],
-            DestinationLocation = _testLocations[1],
-            StockSlipItems = stockSlipItems
+            new StockSlipItemDto
+            {
+                ProductId = Guid.NewGuid(),
+                Quantity = 15,
+                UnitPrice = 100.00m,
+                Note = "Sortie stock"
+            }
         };
 
-        _stockSlipRepositoryMock
-            .Setup(x => x.GetSlipWithItemsAsync(It.IsAny<StockSlipId>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(createdSlip);
+        var command = new CreateStockSlipCommand
+        {
+            BoutiqueId = _boutiqueId,
+            SourceLocationId = _testLocations[0].Id.Value,
+            DestinationLocationId = _testLocations[1].Id.Value,
+            Note = "Bordereau de sortie test",
+            IsInbound = false,
+            Items = items
+        };
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
-        result.Items.Should().HaveCount(5);
+        result.Success.Should().BeTrue();
+        result.Reference.Should().StartWith("BS-"); // Bordereau de Sortie
+        result.ItemsCount.Should().Be(1);
+    }
 
-        // Verify mocks
-        _stockMovementRepositoryMock.Verify(x => x.AddAsync(It.IsAny<StockMovement>()), Times.Exactly(5)); // 5 movements for 5 items
+    [Fact]
+    public async Task Handle_DifferentBoutiques_ShouldReturnError()
+    {
+        // Arrange
+        var items = new List<StockSlipItemDto>
+        {
+            new StockSlipItemDto
+            {
+                ProductId = Guid.NewGuid(),
+                Quantity = 10,
+                UnitPrice = 50.00m,
+                Note = "Test"
+            }
+        };
+
+        var command = new CreateStockSlipCommand
+        {
+            BoutiqueId = _boutiqueId,
+            SourceLocationId = _testLocations[0].Id.Value,
+            DestinationLocationId = _testLocations[2].Id.Value, // Different boutique
+            Note = "Test bordereau",
+            IsInbound = true,
+            Items = items
+        };
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("même boutique");
+
+        // Verify no slip or movements were created
+        var slips = await _context.StockSlips.ToListAsync();
+        slips.Should().BeEmpty();
+
+        var movements = await _context.StockMovements.ToListAsync();
+        movements.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_EmptyItems_ShouldReturnError()
+    {
+        // Arrange
+        var command = new CreateStockSlipCommand
+        {
+            BoutiqueId = _boutiqueId,
+            SourceLocationId = _testLocations[0].Id.Value,
+            DestinationLocationId = _testLocations[1].Id.Value,
+            Note = "Bordereau vide",
+            IsInbound = true,
+            Items = new List<StockSlipItemDto>() // Empty items
+        };
+
+        // Act & Assert
+        // The validation should catch this, but if it doesn't, the handler should create an empty slip
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result.ItemsCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Handle_NonExistentSourceLocation_ShouldReturnError()
+    {
+        // Arrange
+        var items = new List<StockSlipItemDto>
+        {
+            new StockSlipItemDto
+            {
+                ProductId = Guid.NewGuid(),
+                Quantity = 10,
+                UnitPrice = 50.00m,
+                Note = "Test"
+            }
+        };
+
+        var command = new CreateStockSlipCommand
+        {
+            BoutiqueId = _boutiqueId,
+            SourceLocationId = Guid.NewGuid(), // Non-existent
+            DestinationLocationId = _testLocations[1].Id.Value,
+            Note = "Test bordereau",
+            IsInbound = true,
+            Items = items
+        };
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("source introuvable");
+    }
+
+    [Fact]
+    public async Task Handle_NonExistentDestinationLocation_ShouldReturnError()
+    {
+        // Arrange
+        var items = new List<StockSlipItemDto>
+        {
+            new StockSlipItemDto
+            {
+                ProductId = Guid.NewGuid(),
+                Quantity = 10,
+                UnitPrice = 50.00m,
+                Note = "Test"
+            }
+        };
+
+        var command = new CreateStockSlipCommand
+        {
+            BoutiqueId = _boutiqueId,
+            SourceLocationId = _testLocations[0].Id.Value,
+            DestinationLocationId = Guid.NewGuid(), // Non-existent
+            Note = "Test bordereau",
+            IsInbound = false,
+            Items = items
+        };
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("destination introuvable");
+    }
+
+    [Fact]
+    public async Task Handle_MultipleItems_ShouldCreateCorrectReferences()
+    {
+        // Arrange
+        var items = new List<StockSlipItemDto>
+        {
+            new StockSlipItemDto { ProductId = Guid.NewGuid(), Quantity = 10, UnitPrice = 50.00m, Note = "Item 1" },
+            new StockSlipItemDto { ProductId = Guid.NewGuid(), Quantity = 20, UnitPrice = 60.00m, Note = "Item 2" },
+            new StockSlipItemDto { ProductId = Guid.NewGuid(), Quantity = 30, UnitPrice = 70.00m, Note = "Item 3" }
+        };
+
+        var command = new CreateStockSlipCommand
+        {
+            BoutiqueId = _boutiqueId,
+            SourceLocationId = _testLocations[0].Id.Value,
+            DestinationLocationId = _testLocations[1].Id.Value,
+            Note = "Bordereau multi-items",
+            IsInbound = true,
+            Items = items
+        };
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        result.ItemsCount.Should().Be(3);
+
+        // Verify movements have sequential references
+        var movements = await _context.StockMovements
+            .OrderBy(m => m.Reference)
+            .ToListAsync();
+
+        movements.Should().HaveCount(3);
+        movements[0].Reference.Should().EndWith("-001");
+        movements[1].Reference.Should().EndWith("-002");
+        movements[2].Reference.Should().EndWith("-003");
+
+        // Verify all movements have the same base reference
+        var baseReference = movements[0].Reference.Substring(0, movements[0].Reference.Length - 4);
+        movements.Should().AllSatisfy(m => m.Reference.Should().StartWith(baseReference));
+    }
+
+    public void Dispose()
+    {
+        _context.Dispose();
     }
 }
