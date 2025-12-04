@@ -75,24 +75,74 @@ Prendre les issues de la colonne "Todo", les implémenter, créer une PR, la val
 │  6. Lire l'analyse et les specs Gherkin                     │
 │  7. Vérifier/Créer les projets de test si nécessaire        │
 │  8. Implémenter le code                                      │
-│  9. *** MIGRATION EF SI ENTITÉS MODIFIÉES ***   <-- NOUVEAU │
+│  9. *** MIGRATION EF SI ENTITÉS MODIFIÉES ***               │
 │     - Détecter changements d'entités                        │
 │     - Générer migration: dotnet ef migrations add           │
 │     - Analyser sécurité production                          │
 │     - Corriger automatiquement si possible                  │
 │     - BLOQUER si issues critiques non corrigeables          │
-│  10. Générer/Mettre à jour la documentation API             │
-│  11. Écrire les tests                                        │
-│  12. Vérifier compilation + tests passent                   │
-│  13. Commit + Push (inclure fichiers migration)             │
-│  14. DÉPLACER vers "In Review"                              │
-│  15. Créer la Pull Request                                   │
-│  16. Auto-review de la PR                                    │
-│  17. Valider (merge) la PR                                   │
-│  18. Supprimer la branche feature                           │
-│  19. DÉPLACER vers "A Tester"                               │
+│  10. Générer/Mettre à jour la documentation API (Swagger)   │
+│  11. *** METTRE À JOUR DOCUMENTATION AI ***  <-- CRITIQUE!  │
+│     - Mettre à jour agent-docs/ si microservice modifié     │
+│     - Documenter nouveaux endpoints/commands/queries        │
+│     - Vérifier cohérence avec doc existante                 │
+│  12. Écrire les tests                                        │
+│  13. Vérifier compilation + tests passent                   │
+│  14. Commit + Push (inclure fichiers migration + docs)      │
+│  15. DÉPLACER vers "In Review"                              │
+│  16. Créer la Pull Request                                   │
+│  17. Auto-review de la PR                                    │
+│  18. Valider (merge) la PR                                   │
+│  19. *** SUPPRIMER LA BRANCHE ***            <-- OBLIGATOIRE│
+│     - git branch -d feature/xxx (local)                     │
+│     - git push origin --delete feature/xxx (remote)         │
+│     - VÉRIFIER que la branche est supprimée                 │
+│  20. DÉPLACER vers "A Tester"                               │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
+```
+
+## ⚠️ RÈGLES CRITIQUES POST-MERGE
+
+### Suppression de branche OBLIGATOIRE
+Après chaque merge, la branche feature DOIT être supprimée:
+
+```powershell
+function Remove-FeatureBranch {
+    param([string]$BranchName)
+    
+    # Retourner sur main
+    git checkout main
+    git pull origin main
+    
+    # Supprimer la branche locale
+    git branch -d $BranchName
+    if ($LASTEXITCODE -ne 0) {
+        # Forcer si nécessaire
+        git branch -D $BranchName
+    }
+    
+    # Supprimer la branche distante
+    git push origin --delete $BranchName
+    
+    # Vérifier la suppression
+    $remoteBranches = git branch -r
+    if ($remoteBranches -match $BranchName) {
+        Write-Host "[ERREUR] Branche $BranchName non supprimée sur remote!" -ForegroundColor Red
+        throw "Échec suppression branche"
+    }
+    
+    Write-Host "[OK] Branche $BranchName supprimée (local + remote)" -ForegroundColor Green
+}
+```
+
+### Nettoyage des branches orphelines
+```powershell
+# Nettoyer les références de branches supprimées
+git fetch --prune
+
+# Lister les branches locales sans remote
+git branch -vv | Where-Object { $_ -match '\[.*: gone\]' }
 ```
 
 ## Configuration Git
@@ -812,6 +862,273 @@ function Update-ServiceDocumentation {
 }
 ```
 
+## Phase 4.1: Documentation AI (agent-docs) - OBLIGATOIRE
+
+### ⚠️ RÈGLE CRITIQUE
+Après TOUTE modification ou amélioration d'un microservice, la documentation AI (agent-docs) DOIT être mise à jour.
+Cette documentation est utilisée par les autres agents AI pour comprendre les services.
+
+### Structure de la documentation AI
+```
+Services/
+└── {ServiceName}/
+    └── {ServiceName}.Api/
+        └── agent-docs/                    # Documentation pour les AI
+            ├── README.md                  # Vue d'ensemble du service
+            ├── endpoints.md               # Liste des endpoints
+            ├── commands.md                # Liste des commandes CQRS
+            ├── queries.md                 # Liste des requêtes CQRS
+            ├── entities.md                # Entités du domaine
+            └── dtos.md                    # DTOs et modèles
+```
+
+### Fonction de mise à jour automatique
+```powershell
+function Update-AgentDocs {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ServiceName,
+        
+        [string[]]$ModifiedFiles
+    )
+    
+    $agentDocsPath = "Services\$ServiceName\$ServiceName.Api\agent-docs"
+    
+    # Créer le dossier s'il n'existe pas
+    if (-not (Test-Path $agentDocsPath)) {
+        New-Item -ItemType Directory -Path $agentDocsPath -Force
+        Write-Host "[AGENT-DOCS] Dossier créé: $agentDocsPath" -ForegroundColor Green
+    }
+    
+    # Analyser les fichiers modifiés pour déterminer ce qu'il faut mettre à jour
+    $updateEndpoints = $false
+    $updateCommands = $false
+    $updateQueries = $false
+    $updateEntities = $false
+    $updateDtos = $false
+    
+    foreach ($file in $ModifiedFiles) {
+        if ($file -match "Endpoints") { $updateEndpoints = $true }
+        if ($file -match "Commands") { $updateCommands = $true }
+        if ($file -match "Queries") { $updateQueries = $true }
+        if ($file -match "Entities") { $updateEntities = $true }
+        if ($file -match "DTOs|Dtos") { $updateDtos = $true }
+    }
+    
+    # Mettre à jour les fichiers concernés
+    if ($updateEndpoints) { Update-EndpointsDocs -ServiceName $ServiceName }
+    if ($updateCommands) { Update-CommandsDocs -ServiceName $ServiceName }
+    if ($updateQueries) { Update-QueriesDocs -ServiceName $ServiceName }
+    if ($updateEntities) { Update-EntitiesDocs -ServiceName $ServiceName }
+    if ($updateDtos) { Update-DtosDocs -ServiceName $ServiceName }
+    
+    # Toujours mettre à jour le README principal
+    Update-AgentDocsReadme -ServiceName $ServiceName
+    
+    Write-Host "[AGENT-DOCS] Documentation AI mise à jour pour $ServiceName" -ForegroundColor Green
+}
+```
+
+### Génération du README pour AI
+```powershell
+function Update-AgentDocsReadme {
+    param([string]$ServiceName)
+    
+    $readmePath = "Services\$ServiceName\$ServiceName.Api\agent-docs\README.md"
+    
+    # Scanner le service pour extraire les informations
+    $apiPath = "Services\$ServiceName\$ServiceName.Api"
+    $appPath = "Services\$ServiceName\$ServiceName.Application"
+    $domainPath = "Services\$ServiceName\$ServiceName.Domain"
+    
+    # Compter les éléments
+    $endpointCount = (Get-ChildItem "$apiPath\Endpoints" -Filter "*.cs" -Recurse -ErrorAction SilentlyContinue).Count
+    $commandCount = (Get-ChildItem "$appPath\Features\*\Commands" -Filter "*Command.cs" -Recurse -ErrorAction SilentlyContinue).Count
+    $queryCount = (Get-ChildItem "$appPath\Features\*\Queries" -Filter "*Query.cs" -Recurse -ErrorAction SilentlyContinue).Count
+    $entityCount = (Get-ChildItem "$domainPath\Entities" -Filter "*.cs" -Recurse -ErrorAction SilentlyContinue).Count
+    
+    $content = @"
+# $ServiceName - Documentation AI
+
+## Vue d'ensemble
+Ce document est généré automatiquement pour aider les agents AI à comprendre le service.
+
+## Statistiques
+| Élément | Nombre |
+|---------|--------|
+| Endpoints | $endpointCount |
+| Commands | $commandCount |
+| Queries | $queryCount |
+| Entités | $entityCount |
+
+## Architecture
+- **Pattern**: Clean Vertical Slice + CQRS
+- **Framework**: ASP.NET Core + Carter
+- **Base**: IDR.Library.BuildingBlocks
+
+## Fichiers de documentation
+- [endpoints.md](./endpoints.md) - Liste des endpoints API
+- [commands.md](./commands.md) - Commandes CQRS disponibles
+- [queries.md](./queries.md) - Requêtes CQRS disponibles
+- [entities.md](./entities.md) - Entités du domaine
+- [dtos.md](./dtos.md) - DTOs et modèles de données
+
+## Dernière mise à jour
+$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+"@
+    
+    $content | Out-File $readmePath -Encoding utf8
+}
+```
+
+### Génération des docs d'endpoints
+```powershell
+function Update-EndpointsDocs {
+    param([string]$ServiceName)
+    
+    $docsPath = "Services\$ServiceName\$ServiceName.Api\agent-docs\endpoints.md"
+    $endpointsPath = "Services\$ServiceName\$ServiceName.Api\Endpoints"
+    
+    $content = @"
+# Endpoints - $ServiceName
+
+## Liste des endpoints
+
+"@
+    
+    $endpointFiles = Get-ChildItem $endpointsPath -Filter "*.cs" -Recurse -ErrorAction SilentlyContinue
+    
+    foreach ($file in $endpointFiles) {
+        $fileContent = Get-Content $file.FullName -Raw
+        
+        # Extraire les routes
+        $routes = [regex]::Matches($fileContent, 'Map(Get|Post|Put|Delete|Patch)\("([^"]+)"')
+        
+        foreach ($route in $routes) {
+            $method = $route.Groups[1].Value.ToUpper()
+            $path = $route.Groups[2].Value
+            $content += "| ``$method`` | ``$path`` | $($file.BaseName) |`n"
+        }
+    }
+    
+    $content | Out-File $docsPath -Encoding utf8
+}
+```
+
+### Génération des docs de Commands
+```powershell
+function Update-CommandsDocs {
+    param([string]$ServiceName)
+    
+    $docsPath = "Services\$ServiceName\$ServiceName.Api\agent-docs\commands.md"
+    $appPath = "Services\$ServiceName\$ServiceName.Application"
+    
+    $content = @"
+# Commands CQRS - $ServiceName
+
+## Liste des commandes
+
+| Command | Handler | Validation |
+|---------|---------|------------|
+"@
+    
+    $commandFiles = Get-ChildItem "$appPath\Features\*\Commands" -Filter "*Command.cs" -Recurse -ErrorAction SilentlyContinue
+    
+    foreach ($file in $commandFiles) {
+        $commandName = $file.BaseName
+        $handlerExists = Test-Path ($file.FullName -replace "Command\.cs$", "Handler.cs")
+        $validatorExists = Test-Path ($file.FullName -replace "Command\.cs$", "Validator.cs")
+        
+        $content += "| ``$commandName`` | $(if($handlerExists){'✅'}else{'❌'}) | $(if($validatorExists){'✅'}else{'❌'}) |`n"
+    }
+    
+    $content | Out-File $docsPath -Encoding utf8
+}
+```
+
+### Génération des docs de Queries
+```powershell
+function Update-QueriesDocs {
+    param([string]$ServiceName)
+    
+    $docsPath = "Services\$ServiceName\$ServiceName.Api\agent-docs\queries.md"
+    $appPath = "Services\$ServiceName\$ServiceName.Application"
+    
+    $content = @"
+# Queries CQRS - $ServiceName
+
+## Liste des requêtes
+
+| Query | Handler | Response Type |
+|-------|---------|---------------|
+"@
+    
+    $queryFiles = Get-ChildItem "$appPath\Features\*\Queries" -Filter "*Query.cs" -Recurse -ErrorAction SilentlyContinue
+    
+    foreach ($file in $queryFiles) {
+        $queryName = $file.BaseName
+        $handlerExists = Test-Path ($file.FullName -replace "Query\.cs$", "Handler.cs")
+        
+        $content += "| ``$queryName`` | $(if($handlerExists){'✅'}else{'❌'}) | - |`n"
+    }
+    
+    $content | Out-File $docsPath -Encoding utf8
+}
+```
+
+### Mise à jour rétroactive (pour services existants)
+```powershell
+function Invoke-RetroactiveAgentDocsUpdate {
+    # Trouver tous les microservices
+    $services = Get-ChildItem "Services" -Directory | 
+        Where-Object { Test-Path "$($_.FullName)\$($_.Name).Api" }
+    
+    foreach ($service in $services) {
+        Write-Host "Mise à jour agent-docs pour $($service.Name)..." -ForegroundColor Yellow
+        
+        # Lister tous les fichiers du service
+        $allFiles = Get-ChildItem $service.FullName -Recurse -Filter "*.cs" | 
+            Select-Object -ExpandProperty FullName
+        
+        Update-AgentDocs -ServiceName $service.Name -ModifiedFiles $allFiles
+    }
+    
+    Write-Host "[OK] Documentation AI mise à jour pour tous les services" -ForegroundColor Green
+}
+```
+
+### Vérification de la documentation AI
+```powershell
+function Test-AgentDocsComplete {
+    param([string]$ServiceName)
+    
+    $agentDocsPath = "Services\$ServiceName\$ServiceName.Api\agent-docs"
+    
+    $requiredFiles = @(
+        "README.md",
+        "endpoints.md",
+        "commands.md",
+        "queries.md"
+    )
+    
+    $missing = @()
+    foreach ($file in $requiredFiles) {
+        if (-not (Test-Path "$agentDocsPath\$file")) {
+            $missing += $file
+        }
+    }
+    
+    if ($missing.Count -gt 0) {
+        Write-Host "[WARN] Documentation AI incomplète pour $ServiceName" -ForegroundColor Yellow
+        Write-Host "       Fichiers manquants: $($missing -join ', ')" -ForegroundColor Yellow
+        return $false
+    }
+    
+    Write-Host "[OK] Documentation AI complète pour $ServiceName" -ForegroundColor Green
+    return $true
+}
+```
+
 ## Phase 5: Migrations EF Core (CRITIQUE)
 
 ### ⚠️ RÈGLES DE SÉCURITÉ PRODUCTION
@@ -1381,11 +1698,382 @@ function Ensure-TestProject {
 - [ ] PR reviewée
 - [ ] PR approuvée
 
+### Phase Documentation AI (si microservice modifié)
+- [ ] Dossier agent-docs/ créé/existant
+- [ ] README.md mis à jour
+- [ ] endpoints.md mis à jour (si endpoints modifiés)
+- [ ] commands.md mis à jour (si commands modifiées)
+- [ ] queries.md mis à jour (si queries modifiées)
+- [ ] entities.md mis à jour (si entités modifiées)
+- [ ] Documentation AI vérifiée complète
+
 ### Phase Finalisation
 - [ ] PR mergée (squash)
-- [ ] Branche feature supprimée
+- [ ] **BRANCHE SUPPRIMÉE (LOCAL)**: git branch -d feature/xxx
+- [ ] **BRANCHE SUPPRIMÉE (REMOTE)**: git push origin --delete feature/xxx
+- [ ] **VÉRIFICATION**: branche n'existe plus sur remote
 - [ ] Issue déplacée vers "A Tester"
 - [ ] Commentaire final ajouté
+
+### ⚠️ RÈGLES POST-MERGE OBLIGATOIRES
+
+#### Suppression de branche (JAMAIS oublier)
+```powershell
+# Après chaque merge RÉUSSI
+git checkout main
+git pull origin main
+git branch -d feature/$IssueNumber-xxx      # Supprimer local
+git push origin --delete feature/$IssueNumber-xxx  # Supprimer remote
+git fetch --prune                            # Nettoyer références
+```
+
+#### Mise à jour documentation AI (si microservice)
+```powershell
+# Après TOUTE modification de microservice
+Update-AgentDocs -ServiceName "NomService" -ModifiedFiles @("fichiers modifiés")
+
+# Vérifier que la doc est complète
+Test-AgentDocsComplete -ServiceName "NomService"
+```
+
+## Phase 6: Gestion des Packages IDR (CRITIQUE)
+
+### Configuration repo packages
+```powershell
+$Owner_package = $env:GITHUB_OWNER_PACKAGE     # "KOMANSERVICE"
+$Repo_package = $env:GITHUB_REPO_PACKAGE       # "IDR.Library"
+$ProjectNumber_package = $env:PROJECT_NUMBER_PACKAGE  # 5
+```
+
+### 6.1 Regle IDR.Library.BuildingBlocks
+
+**TOUJOURS UTILISER les elements de ce package:**
+- `ICommand<TResponse>` - Pour les commandes
+- `IQuery<TResponse>` - Pour les requetes
+- `ICommandHandler<TCommand, TResponse>` - Pour les handlers de commandes
+- `IQueryHandler<TQuery, TResponse>` - Pour les handlers de requetes
+- `AbstractValidator<T>` - Pour la validation FluentValidation
+- `IAuthService` - Pour l'authentification
+- `ITokenService` - Pour la gestion des tokens
+- `IEncryptionService` - Pour le chiffrement
+- `IVaultService` - Pour les secrets
+
+**Creer issue UNIQUEMENT en cas d'erreur:**
+```powershell
+function New-BuildingBlocksErrorIssue {
+    param(
+        [string]$ErrorMessage,
+        [string]$StackTrace,
+        [string]$Context
+    )
+    
+    $body = @"
+## Bug detecte dans IDR.Library.BuildingBlocks
+
+### Contexte
+$Context
+
+### Message d'erreur
+``````
+$ErrorMessage
+``````
+
+### Stack trace
+``````
+$StackTrace
+``````
+
+### Version du package
+$(Get-IDRPackageVersion -PackageName "IDR.Library.BuildingBlocks")
+
+### Projet source
+- Owner: $($env:GITHUB_OWNER)
+- Repo: $($env:GITHUB_REPO)
+
+### Labels
+bug, IDR.Library.BuildingBlocks
+"@
+    
+    gh issue create --repo "$Owner_package/$Repo_package" `
+        --title "[Bug] IDR.Library.BuildingBlocks - Erreur detectee" `
+        --body $body `
+        --label "bug,IDR.Library.BuildingBlocks"
+}
+```
+
+### 6.2 Regle IDR.Library.Blazor - Composants reutilisables
+
+**REGLE FONDAMENTALE: Si un element se repete 3+ fois, il DOIT devenir un composant IDR**
+
+#### Detection des elements repetes
+```powershell
+function Test-RepeatedElement {
+    param(
+        [string]$ElementPattern,
+        [string]$ProjectPath = "FrontendAdmin"
+    )
+    
+    $files = Get-ChildItem -Path $ProjectPath -Filter "*.razor" -Recurse
+    $occurrences = @()
+    
+    foreach ($file in $files) {
+        $content = Get-Content $file.FullName -Raw
+        $matches = [regex]::Matches($content, $ElementPattern, 'Singleline,IgnoreCase')
+        
+        foreach ($match in $matches) {
+            $occurrences += @{
+                File = $file.Name
+                Line = ($content.Substring(0, $match.Index) -split "`n").Count
+                Content = $match.Value
+            }
+        }
+    }
+    
+    return @{
+        Count = $occurrences.Count
+        IsRepeated = $occurrences.Count -ge 3
+        Occurrences = $occurrences
+    }
+}
+```
+
+#### Verification si composant IDR existe
+```powershell
+function Test-IdrComponentExists {
+    param([string]$ComponentName)
+    
+    # Lire la documentation IDR.Library.Blazor
+    $docsPath = "$env:USERPROFILE\.nuget\packages\idr.library.blazor\*\contentFiles\any\any\agent-docs"
+    $docs = Get-ChildItem $docsPath -Filter "*.md" -ErrorAction SilentlyContinue
+    
+    foreach ($doc in $docs) {
+        $content = Get-Content $doc.FullName -Raw
+        if ($content -match "<Idr$ComponentName" -or $content -match "Idr$ComponentName") {
+            return $true
+        }
+    }
+    return $false
+}
+```
+
+#### Creation d'issue pour nouveau composant
+```powershell
+function New-IdrComponentIssue {
+    param(
+        [string]$ComponentName,
+        [string]$Description,
+        [string]$SampleCode,
+        [string[]]$UsageFiles,
+        [int]$UsageCount
+    )
+    
+    $body = @"
+## Nouveau composant a creer: Idr$ComponentName
+
+### Justification
+Element detecte **$UsageCount fois** dans le projet FrontendAdmin.
+Selon la regle des composants reutilisables, cet element doit devenir un composant IDR.
+
+### Fichiers concernes
+$($UsageFiles | ForEach-Object { "- ``$_``" } | Out-String)
+
+### Code source actuel (exemple)
+``````razor
+$SampleCode
+``````
+
+### Specifications suggerees
+
+#### Proprietes
+| Nom | Type | Required | Description |
+|-----|------|----------|-------------|
+| [A definir selon le code] | | | |
+
+#### Evenements
+| Nom | Type | Description |
+|-----|------|-------------|
+| [A definir selon le code] | | |
+
+### Criteres d'acceptation
+- [ ] Composant cree avec prefixe ``Idr``
+- [ ] Proprietes parametrables
+- [ ] Documentation ajoutee dans ``agent-docs/``
+- [ ] Tests bUnit ajoutes
+- [ ] Exemple d'utilisation documente
+
+### Origine
+Issue creee automatiquement par l'agent DashBoardAdmin (detection de code repete).
+"@
+    
+    $result = gh issue create --repo "$Owner_package/$Repo_package" `
+        --title "[Component] Nouveau composant: Idr$ComponentName" `
+        --body $body `
+        --label "enhancement,component,IDR.Library.Blazor"
+    
+    Write-Host "[ISSUE CREEE] Nouveau composant Idr$ComponentName: $result" -ForegroundColor Green
+    
+    # Ajouter au project board
+    if ($ProjectNumber_package) {
+        gh project item-add $ProjectNumber_package --owner $Owner_package --url $result
+    }
+    
+    return $result
+}
+```
+
+#### Remplacement apres mise a jour du package
+```powershell
+function Invoke-ReplaceLocalWithIdr {
+    param(
+        [string]$LocalComponentName,
+        [string]$IdrComponentName,
+        [string]$ProjectPath = "FrontendAdmin"
+    )
+    
+    Write-Host "Remplacement: $LocalComponentName -> $IdrComponentName" -ForegroundColor Yellow
+    
+    $files = Get-ChildItem -Path $ProjectPath -Filter "*.razor" -Recurse
+    $replacements = 0
+    $errors = @()
+    
+    foreach ($file in $files) {
+        $content = Get-Content $file.FullName -Raw
+        $original = $content
+        
+        # Remplacer les balises ouvrantes et fermantes
+        $content = $content -replace "<$LocalComponentName\b", "<$IdrComponentName"
+        $content = $content -replace "</$LocalComponentName>", "</$IdrComponentName>"
+        
+        if ($content -ne $original) {
+            try {
+                $content | Set-Content $file.FullName -Encoding utf8
+                $replacements++
+                Write-Host "  [OK] $($file.Name)" -ForegroundColor Green
+            }
+            catch {
+                $errors += @{
+                    File = $file.FullName
+                    Error = $_.Exception.Message
+                }
+                Write-Host "  [ERREUR] $($file.Name): $_" -ForegroundColor Red
+            }
+        }
+    }
+    
+    # Reporter les erreurs si necessaire
+    if ($errors.Count -gt 0) {
+        New-BlazorErrorIssue -ErrorType "ComponentReplacement" -Errors $errors -Context "Remplacement $LocalComponentName -> $IdrComponentName"
+    }
+    
+    # Supprimer le composant local (backup d'abord)
+    $localFile = Get-ChildItem -Path "$ProjectPath\*\Components" -Filter "$LocalComponentName.razor" -Recurse
+    if ($localFile) {
+        Copy-Item $localFile.FullName "$($localFile.FullName).backup"
+        Remove-Item $localFile.FullName
+        Write-Host "  [SUPPRIME] Composant local $LocalComponentName (backup cree)" -ForegroundColor DarkGray
+    }
+    
+    return @{
+        Replacements = $replacements
+        Errors = $errors
+    }
+}
+```
+
+#### Issue pour erreur de package Blazor
+```powershell
+function New-BlazorErrorIssue {
+    param(
+        [string]$ErrorType,
+        $Errors,
+        [string]$Context
+    )
+    
+    $errorDetails = $Errors | ForEach-Object {
+        if ($_ -is [hashtable]) { "- **$($_.File)**: $($_.Error)" }
+        else { "- $_" }
+    } | Out-String
+    
+    $body = @"
+## Erreur IDR.Library.Blazor - $ErrorType
+
+### Contexte
+$Context
+
+### Details des erreurs
+$errorDetails
+
+### Version du package
+$(Get-IDRPackageVersion -PackageName "IDR.Library.Blazor")
+
+### Projet source
+- Owner: $($env:GITHUB_OWNER)
+- Repo: $($env:GITHUB_REPO)
+"@
+    
+    gh issue create --repo "$Owner_package/$Repo_package" `
+        --title "[Bug] IDR.Library.Blazor - $ErrorType" `
+        --body $body `
+        --label "bug,IDR.Library.Blazor"
+}
+```
+
+### 6.3 Workflow d'implementation avec verification des composants
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│           WORKFLOW COMPOSANTS IDR (FRONTEND)                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. AVANT d'implementer du code Frontend:                       │
+│     a. Lire la doc IDR.Library.Blazor                           │
+│     b. Verifier si composant IDR existe pour le besoin          │
+│     c. SI EXISTE -> Utiliser le composant Idr*                  │
+│     d. SI N'EXISTE PAS -> Continuer                             │
+│                                                                  │
+│  2. PENDANT l'implementation:                                    │
+│     a. Detecter si element est repete 3+ fois                   │
+│     b. SI REPETE:                                                │
+│        - Verifier si composant IDR existe                       │
+│        - SI N'EXISTE PAS -> Creer issue dans repo packages      │
+│        - Utiliser composant local temporaire                    │
+│     c. Toujours preferer les composants IDR aux composants      │
+│        locaux                                                    │
+│                                                                  │
+│  3. APRES mise a jour IDR.Library.Blazor:                       │
+│     a. Lister les nouveaux composants disponibles               │
+│     b. Identifier les composants locaux a remplacer             │
+│     c. Remplacer automatiquement                                │
+│     d. Supprimer les composants locaux (avec backup)            │
+│     e. Si erreur -> Creer issue bug                             │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 6.4 Checklist packages IDR
+
+**Avant implementation:**
+- [ ] Documentation IDR.Library.BuildingBlocks lue
+- [ ] Documentation IDR.Library.Blazor lue
+- [ ] Composants IDR disponibles identifies
+
+**Pendant implementation Backend:**
+- [ ] ICommand/IQuery utilises (pas de classes custom)
+- [ ] ICommandHandler/IQueryHandler utilises
+- [ ] AbstractValidator<T> utilise pour validation
+- [ ] Si erreur package -> issue creee
+
+**Pendant implementation Frontend:**
+- [ ] Composants Idr* utilises quand disponibles
+- [ ] Elements repetes (3+) detectes
+- [ ] Issues creees pour nouveaux composants manquants
+- [ ] Pas de duplication de composants IDR existants
+
+**Apres mise a jour package:**
+- [ ] Composants locaux remplaces par IDR
+- [ ] Composants locaux supprimes (avec backup)
+- [ ] Compilation verifiee
+- [ ] Tests executes
 
 ## Format de réponse
 ```json
@@ -1398,6 +2086,36 @@ function Ensure-TestProject {
     "files_read": ["liste des fichiers lus"],
     "contradictions_found": false,
     "ready_to_implement": true
+  },
+  "idr_packages": {
+    "buildingblocks": {
+      "version": "2.0.0",
+      "elements_used": ["ICommand", "IQuery", "ICommandHandler", "AbstractValidator"],
+      "errors_found": false,
+      "issues_created": []
+    },
+    "blazor": {
+      "version": "1.5.0",
+      "components_used": ["IdrForm", "IdrInput", "IdrButton"],
+      "repeated_elements_detected": [
+        {
+          "pattern": "StatusBadge",
+          "count": 5,
+          "files": ["Page1.razor", "Page2.razor"],
+          "idr_component_exists": false,
+          "issue_created": "https://github.com/KOMANSERVICE/IDR.Library/issues/42"
+        }
+      ],
+      "local_components_replaced": [
+        {
+          "local": "CustomCard",
+          "idr": "IdrCard",
+          "files_updated": 3
+        }
+      ],
+      "errors_found": false,
+      "issues_created": []
+    }
   },
   "workflow_steps": {
     "code_analyzed": true,
@@ -1432,6 +2150,10 @@ function Ensure-TestProject {
   "documentation_changes": {
     "swagger_updated": true,
     "readme_updated": true
+  },
+  "package_issues_created": {
+    "components": ["https://github.com/KOMANSERVICE/IDR.Library/issues/42"],
+    "bugs": []
   },
   "final_status": "A Tester",
   "timestamp": "2024-01-15T14:30:00Z"

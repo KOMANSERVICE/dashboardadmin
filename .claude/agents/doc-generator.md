@@ -26,6 +26,263 @@ Assurer que chaque microservice expose une documentation API complète et access
 - **Swagger UI** à `/docs`
 - **OpenAPI JSON** à `/swagger/v1/swagger.json`
 - **README.md** dans chaque service
+- **agent-docs/** - Documentation pour les agents AI (OBLIGATOIRE)
+
+## ⚠️ Documentation AI (agent-docs) - CRITIQUE
+
+### Obligation
+**TOUTE modification de microservice DOIT déclencher une mise à jour de la documentation AI.**
+
+Cette documentation est utilisée par les autres agents pour:
+- Comprendre les services disponibles
+- Connaître les Commands/Queries
+- Identifier les endpoints
+- Générer du code compatible
+
+### Structure obligatoire
+```
+{ServiceName}.Api/
+└── agent-docs/
+    ├── README.md          # Vue d'ensemble
+    ├── endpoints.md       # Tous les endpoints
+    ├── commands.md        # Toutes les commands CQRS
+    ├── queries.md         # Toutes les queries CQRS
+    ├── entities.md        # Entités du domaine
+    └── dtos.md            # DTOs
+```
+
+### Génération automatique
+```powershell
+function New-FullAgentDocs {
+    param([string]$ServiceName)
+    
+    $basePath = "Services\$ServiceName\$ServiceName.Api"
+    $agentDocsPath = "$basePath\agent-docs"
+    
+    # Créer le dossier
+    New-Item -ItemType Directory -Path $agentDocsPath -Force | Out-Null
+    
+    # Générer chaque fichier
+    New-AgentDocsReadme -ServiceName $ServiceName -Path "$agentDocsPath\README.md"
+    New-AgentDocsEndpoints -ServiceName $ServiceName -Path "$agentDocsPath\endpoints.md"
+    New-AgentDocsCommands -ServiceName $ServiceName -Path "$agentDocsPath\commands.md"
+    New-AgentDocsQueries -ServiceName $ServiceName -Path "$agentDocsPath\queries.md"
+    New-AgentDocsEntities -ServiceName $ServiceName -Path "$agentDocsPath\entities.md"
+    New-AgentDocsDtos -ServiceName $ServiceName -Path "$agentDocsPath\dtos.md"
+    
+    Write-Host "[AGENT-DOCS] Documentation complète générée pour $ServiceName" -ForegroundColor Green
+}
+
+function New-AgentDocsReadme {
+    param([string]$ServiceName, [string]$Path)
+    
+    $apiPath = "Services\$ServiceName\$ServiceName.Api"
+    $appPath = "Services\$ServiceName\$ServiceName.Application"
+    $domainPath = "Services\$ServiceName\$ServiceName.Domain"
+    
+    # Compter les éléments
+    $stats = @{
+        Endpoints = (Get-ChildItem "$apiPath\Endpoints" -Filter "*.cs" -Recurse -ErrorAction SilentlyContinue).Count
+        Commands = (Get-ChildItem "$appPath\Features\*\Commands" -Filter "*Command.cs" -Recurse -ErrorAction SilentlyContinue).Count
+        Queries = (Get-ChildItem "$appPath\Features\*\Queries" -Filter "*Query.cs" -Recurse -ErrorAction SilentlyContinue).Count
+        Entities = (Get-ChildItem "$domainPath\Entities" -Filter "*.cs" -Recurse -ErrorAction SilentlyContinue).Count
+    }
+    
+    @"
+# $ServiceName - Documentation AI
+
+## Vue d'ensemble
+Documentation automatique pour les agents AI.
+
+## Statistiques actuelles
+| Type | Nombre |
+|------|--------|
+| Endpoints | $($stats.Endpoints) |
+| Commands | $($stats.Commands) |
+| Queries | $($stats.Queries) |
+| Entités | $($stats.Entities) |
+
+## Architecture
+- **Pattern**: Clean Vertical Slice + CQRS
+- **Base**: IDR.Library.BuildingBlocks
+- **Documentation API**: Swagger sur /docs
+
+## Fichiers
+- [endpoints.md](./endpoints.md)
+- [commands.md](./commands.md)
+- [queries.md](./queries.md)
+- [entities.md](./entities.md)
+- [dtos.md](./dtos.md)
+
+## Mise à jour
+- Générée: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+- Agent: doc-generator
+"@ | Out-File $Path -Encoding utf8
+}
+
+function New-AgentDocsEndpoints {
+    param([string]$ServiceName, [string]$Path)
+    
+    $endpointsPath = "Services\$ServiceName\$ServiceName.Api\Endpoints"
+    
+    $content = "# Endpoints - $ServiceName`n`n| Méthode | Route | Module | Description |`n|---------|-------|--------|-------------|`n"
+    
+    $files = Get-ChildItem $endpointsPath -Filter "*.cs" -Recurse -ErrorAction SilentlyContinue
+    foreach ($file in $files) {
+        $fileContent = Get-Content $file.FullName -Raw
+        $routes = [regex]::Matches($fileContent, 'Map(Get|Post|Put|Delete|Patch)\("([^"]+)"')
+        
+        foreach ($route in $routes) {
+            $method = $route.Groups[1].Value.ToUpper()
+            $path = $route.Groups[2].Value
+            $content += "| $method | ``$path`` | $($file.BaseName) | - |`n"
+        }
+    }
+    
+    $content | Out-File $Path -Encoding utf8
+}
+
+function New-AgentDocsCommands {
+    param([string]$ServiceName, [string]$Path)
+    
+    $appPath = "Services\$ServiceName\$ServiceName.Application"
+    
+    $content = "# Commands CQRS - $ServiceName`n`n| Command | Handler | Validator | Feature |`n|---------|---------|-----------|---------|`n"
+    
+    $files = Get-ChildItem "$appPath\Features\*\Commands" -Filter "*Command.cs" -Recurse -ErrorAction SilentlyContinue
+    foreach ($file in $files) {
+        $name = $file.BaseName
+        $feature = ($file.Directory.Parent.Parent.Name)
+        $handlerExists = Test-Path ($file.FullName -replace "Command\.cs$", "Handler.cs")
+        $validatorExists = Test-Path ($file.FullName -replace "Command\.cs$", "Validator.cs")
+        
+        $content += "| ``$name`` | $(if($handlerExists){'✅'}else{'❌'}) | $(if($validatorExists){'✅'}else{'⚠️'}) | $feature |`n"
+    }
+    
+    $content | Out-File $Path -Encoding utf8
+}
+
+function New-AgentDocsQueries {
+    param([string]$ServiceName, [string]$Path)
+    
+    $appPath = "Services\$ServiceName\$ServiceName.Application"
+    
+    $content = "# Queries CQRS - $ServiceName`n`n| Query | Handler | Feature |`n|-------|---------|---------|`n"
+    
+    $files = Get-ChildItem "$appPath\Features\*\Queries" -Filter "*Query.cs" -Recurse -ErrorAction SilentlyContinue
+    foreach ($file in $files) {
+        $name = $file.BaseName
+        $feature = ($file.Directory.Parent.Parent.Name)
+        $handlerExists = Test-Path ($file.FullName -replace "Query\.cs$", "Handler.cs")
+        
+        $content += "| ``$name`` | $(if($handlerExists){'✅'}else{'❌'}) | $feature |`n"
+    }
+    
+    $content | Out-File $Path -Encoding utf8
+}
+
+function New-AgentDocsEntities {
+    param([string]$ServiceName, [string]$Path)
+    
+    $domainPath = "Services\$ServiceName\$ServiceName.Domain\Entities"
+    
+    $content = "# Entités - $ServiceName`n`n"
+    
+    $files = Get-ChildItem $domainPath -Filter "*.cs" -ErrorAction SilentlyContinue
+    foreach ($file in $files) {
+        $content += "## $($file.BaseName)`n`n"
+        $content += "Fichier: ``$($file.Name)```n`n"
+    }
+    
+    $content | Out-File $Path -Encoding utf8
+}
+
+function New-AgentDocsDtos {
+    param([string]$ServiceName, [string]$Path)
+    
+    $appPath = "Services\$ServiceName\$ServiceName.Application"
+    
+    $content = "# DTOs - $ServiceName`n`n| DTO | Feature |`n|-----|---------|`n"
+    
+    $files = Get-ChildItem "$appPath\Features\*\DTOs" -Filter "*.cs" -Recurse -ErrorAction SilentlyContinue
+    foreach ($file in $files) {
+        $feature = ($file.Directory.Parent.Name)
+        $content += "| ``$($file.BaseName)`` | $feature |`n"
+    }
+    
+    $content | Out-File $Path -Encoding utf8
+}
+```
+
+### Mise à jour rétroactive (tous les services existants)
+```powershell
+function Invoke-AllAgentDocsUpdate {
+    Write-Host "=== Mise à jour rétroactive de la documentation AI ===" -ForegroundColor Cyan
+    
+    $services = Get-ChildItem "Services" -Directory | 
+        Where-Object { Test-Path "$($_.FullName)\$($_.Name).Api" }
+    
+    foreach ($service in $services) {
+        Write-Host ""
+        Write-Host "[$($service.Name)] Mise à jour..." -ForegroundColor Yellow
+        New-FullAgentDocs -ServiceName $service.Name
+    }
+    
+    Write-Host ""
+    Write-Host "[OK] Documentation AI mise à jour pour $($services.Count) services" -ForegroundColor Green
+}
+```
+
+### Vérification de la documentation AI
+```powershell
+function Test-AgentDocsComplete {
+    param([string]$ServiceName)
+    
+    $agentDocsPath = "Services\$ServiceName\$ServiceName.Api\agent-docs"
+    $requiredFiles = @("README.md", "endpoints.md", "commands.md", "queries.md")
+    
+    if (-not (Test-Path $agentDocsPath)) {
+        Write-Host "[MANQUANT] Dossier agent-docs absent pour $ServiceName" -ForegroundColor Red
+        return $false
+    }
+    
+    $missing = @()
+    foreach ($file in $requiredFiles) {
+        if (-not (Test-Path "$agentDocsPath\$file")) {
+            $missing += $file
+        }
+    }
+    
+    if ($missing.Count -gt 0) {
+        Write-Host "[INCOMPLET] $ServiceName - Fichiers manquants: $($missing -join ', ')" -ForegroundColor Yellow
+        return $false
+    }
+    
+    Write-Host "[OK] Documentation AI complète pour $ServiceName" -ForegroundColor Green
+    return $true
+}
+
+function Test-AllAgentDocs {
+    $services = Get-ChildItem "Services" -Directory | 
+        Where-Object { Test-Path "$($_.FullName)\$($_.Name).Api" }
+    
+    $results = @()
+    foreach ($service in $services) {
+        $results += @{
+            Service = $service.Name
+            Complete = Test-AgentDocsComplete -ServiceName $service.Name
+        }
+    }
+    
+    $incomplete = $results | Where-Object { -not $_.Complete }
+    if ($incomplete.Count -gt 0) {
+        Write-Host ""
+        Write-Host "[ACTION REQUISE] $($incomplete.Count) service(s) avec documentation AI incomplète" -ForegroundColor Red
+    }
+    
+    return $results
+}
+```
 
 ## Pourquoi c'est important
 

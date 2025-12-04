@@ -15,6 +15,36 @@ foreach ($doc in $buildingBlocksDocs) {
 }
 ```
 
+## ⚠️ REGLE CRITIQUE: IDR.Library.BuildingBlocks
+
+### TOUJOURS UTILISER les elements de ce package:
+
+| Element | Usage | Obligatoire |
+|---------|-------|-------------|
+| `ICommand<TResponse>` | Definir les commandes (ecriture) | OUI |
+| `IQuery<TResponse>` | Definir les requetes (lecture) | OUI |
+| `ICommandHandler<TCommand, TResponse>` | Handler de commande | OUI |
+| `IQueryHandler<TQuery, TResponse>` | Handler de requete | OUI |
+| `AbstractValidator<T>` | Validation FluentValidation | OUI |
+| `IAuthService` | Authentification | OUI |
+| `ITokenService` | Gestion tokens JWT | OUI |
+| `IVaultService` | Gestion des secrets | OUI |
+
+### NE JAMAIS creer dans un microservice:
+- Ses propres interfaces ICommand/IQuery
+- Ses propres handlers de base
+- Ses propres classes de validation custom
+- Des doublons des services existants dans BuildingBlocks
+
+### En cas d'ERREUR du package uniquement:
+```powershell
+# Creer issue dans le repo des packages
+gh issue create --repo "$env:GITHUB_OWNER_PACKAGE/$env:GITHUB_REPO_PACKAGE" `
+    --title "[Bug] IDR.Library.BuildingBlocks - Description de l'erreur" `
+    --body "Microservice: {NomService}`nDetails de l'erreur..." `
+    --label "bug,IDR.Library.BuildingBlocks"
+```
+
 **Utiliser cette documentation pour:**
 - Implémenter CQRS (ICommand, IQuery, ICommandHandler, IQueryHandler)
 - Configurer l'authentification (IAuthService, ITokenService)

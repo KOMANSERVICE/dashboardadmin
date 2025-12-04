@@ -1,10 +1,10 @@
 # Sub-agent: Analyseur FrontendAdmin - MAUI Blazor Hybrid
 
-Tu es un sub-agent spécialisé dans l'analyse du code Blazor Hybrid avec architecture partagée MAUI/Web.
+Tu es un sub-agent specialise dans l'analyse du code Blazor Hybrid avec architecture partagee MAUI/Web.
 
 ## ⚠️ LECTURE AUTOMATIQUE DOCUMENTATION IDR LIBRARY
 
-**OBLIGATOIRE AU DÉMARRAGE:** Lire la documentation des packages IDR avant toute analyse.
+**OBLIGATOIRE AU DEMARRAGE:** Lire la documentation des packages IDR avant toute analyse.
 
 ```powershell
 # Lire la documentation IDR.Library.Blazor (PRIORITAIRE pour FrontendAdmin)
@@ -14,7 +14,7 @@ foreach ($doc in $blazorDocs) {
     Get-Content $doc.FullName
 }
 
-# Lire aussi IDR.Library.BuildingBlocks (pour les services partagés)
+# Lire aussi IDR.Library.BuildingBlocks (pour les services partages)
 $buildingBlocksDocs = Get-ChildItem "$env:USERPROFILE\.nuget\packages\idr.library.buildingblocks\*\contentFiles\any\any\agent-docs\*" -ErrorAction SilentlyContinue
 foreach ($doc in $buildingBlocksDocs) {
     Write-Host "=== IDR.Library.BuildingBlocks: $($doc.Name) ===" -ForegroundColor Cyan
@@ -22,11 +22,159 @@ foreach ($doc in $buildingBlocksDocs) {
 }
 ```
 
-**Utiliser cette documentation pour:**
-- Utiliser les composants Blazor (préfixe Idr*): IdrForm, IdrInput, IdrSelect, IdrButton, etc.
+## ⚠️ REGLE CRITIQUE: COMPOSANTS REUTILISABLES
+
+### Principe fondamental
+**Si un element se repete 3 fois ou plus dans le projet, il DOIT devenir un composant dans IDR.Library.Blazor.**
+
+### Configuration repo packages
+```powershell
+$Owner_package = $env:GITHUB_OWNER_PACKAGE     # "KOMANSERVICE"
+$Repo_package = $env:GITHUB_REPO_PACKAGE       # "IDR.Library"
+$ProjectNumber_package = $env:PROJECT_NUMBER_PACKAGE  # 5
+```
+
+### Workflow de detection des composants repetes
+
+```powershell
+function Find-RepeatedElements {
+    param([string]$ProjectPath = "FrontendAdmin")
+    
+    $razorFiles = Get-ChildItem -Path $ProjectPath -Filter "*.razor" -Recurse
+    $elements = @{}
+    
+    foreach ($file in $razorFiles) {
+        $content = Get-Content $file.FullName -Raw
+        
+        # Patterns a detecter
+        $patterns = @(
+            # Boutons avec icones
+            '<button[^>]*class="[^"]*btn[^"]*"[^>]*>.*?</button>',
+            # Cards
+            '<div[^>]*class="[^"]*card[^"]*"[^>]*>.*?</div>',
+            # Formulaires similaires
+            '<EditForm[^>]*>.*?</EditForm>',
+            # Tables avec structure similaire
+            '<table[^>]*>.*?</table>',
+            # Modals
+            '<div[^>]*class="[^"]*modal[^"]*"[^>]*>.*?</div>',
+            # Badges/Status
+            '<span[^>]*class="[^"]*badge[^"]*"[^>]*>.*?</span>',
+            # Alerts
+            '<div[^>]*class="[^"]*alert[^"]*"[^>]*>.*?</div>',
+            # Loaders/Spinners
+            '<div[^>]*class="[^"]*spinner[^"]*"[^>]*>.*?</div>'
+        )
+        
+        foreach ($pattern in $patterns) {
+            $matches = [regex]::Matches($content, $pattern, 'Singleline,IgnoreCase')
+            foreach ($match in $matches) {
+                # Creer un hash pour identifier les elements similaires
+                $normalized = $match.Value -replace '\s+', ' ' -replace '"[^"]*"', '""'
+                $hash = $normalized.GetHashCode()
+                
+                if (-not $elements.ContainsKey($hash)) {
+                    $elements[$hash] = @{
+                        Count = 0
+                        Files = @()
+                        Sample = $match.Value.Substring(0, [Math]::Min(300, $match.Value.Length))
+                        Pattern = $pattern
+                    }
+                }
+                $elements[$hash].Count++
+                if ($file.Name -notin $elements[$hash].Files) {
+                    $elements[$hash].Files += $file.Name
+                }
+            }
+        }
+    }
+    
+    # Retourner elements repetes 3+ fois
+    return $elements.GetEnumerator() | 
+        Where-Object { $_.Value.Count -ge 3 } |
+        Sort-Object { $_.Value.Count } -Descending
+}
+```
+
+### Action requise si element repete detecte
+
+1. **Verifier si composant existe dans IDR.Library.Blazor**
+   ```powershell
+   # Lire la doc pour voir les composants disponibles
+   $blazorDocs = Get-ChildItem "$env:USERPROFILE\.nuget\packages\idr.library.blazor\*\contentFiles\any\any\agent-docs\*"
+   ```
+
+2. **Si composant N'EXISTE PAS -> Creer issue dans repo packages**
+   ```powershell
+   $issueBody = @"
+   ## Nouveau composant a creer: Idr{NomComposant}
+   
+   ### Justification
+   Element detecte **{Count} fois** dans FrontendAdmin.
+   
+   ### Fichiers concernes
+   {Liste des fichiers}
+   
+   ### Code source actuel (exemple)
+   ```razor
+   {Sample code}
+   ```
+   
+   ### Specifications suggerees
+   - Proprietes: [A definir]
+   - Evenements: [A definir]
+   
+   ### Criteres d'acceptation
+   - [ ] Composant cree avec prefixe Idr
+   - [ ] Documentation dans agent-docs/
+   - [ ] Tests bUnit
+   "@
+   
+   gh issue create --repo "$Owner_package/$Repo_package" `
+       --title "[Component] Nouveau: Idr{NomComposant}" `
+       --body $issueBody `
+       --label "enhancement,component,IDR.Library.Blazor"
+   ```
+
+3. **Si composant EXISTE -> Utiliser le composant IDR**
+   - Remplacer l'element local par le composant Idr*
+   - Ne pas recreer de composant local
+
+### Verification apres mise a jour IDR.Library.Blazor
+
+Apres chaque mise a jour du package:
+1. Detecter les composants locaux qui ont maintenant un equivalent IDR
+2. Remplacer automatiquement les composants locaux par les IDR
+3. Si erreur lors du remplacement -> creer issue bug
+
+```powershell
+function Invoke-PostBlazorUpdate {
+    # 1. Lister composants locaux
+    $localComponents = Get-ChildItem "FrontendAdmin\FrontendAdmin.Shared\Components\Custom" -Filter "*.razor" -ErrorAction SilentlyContinue
+    
+    # 2. Lister composants IDR disponibles (depuis la doc)
+    $idrComponents = @()  # Extraire de la documentation
+    
+    # 3. Pour chaque composant local, verifier si equivalent IDR existe
+    foreach ($local in $localComponents) {
+        $localName = $local.BaseName
+        $idrEquivalent = $idrComponents | Where-Object { $_ -like "*$localName*" -or $localName -like "*$($_.Replace('Idr',''))*" }
+        
+        if ($idrEquivalent) {
+            Write-Host "REMPLACEMENT: $localName -> $idrEquivalent"
+            # Remplacer dans tous les fichiers
+            # Si erreur -> creer issue
+        }
+    }
+}
+```
+
+## Utiliser la documentation IDR pour:
+- Utiliser les composants Blazor (prefixe Idr*): IdrForm, IdrInput, IdrSelect, IdrButton, etc.
 - Appliquer les layouts: IdrLayout, IdrNavMenu, IdrHeader
-- Comprendre les services d'authentification côté client
+- Comprendre les services d'authentification cote client
 - Mapper les ViewModels avec Mapster
+- **DETECTER les elements repetes et proposer des composants**
 
 ## Architecture du projet FrontendAdmin
 ```

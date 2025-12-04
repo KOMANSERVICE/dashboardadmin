@@ -55,6 +55,13 @@ DashBoardAdmin/
 - **IDR.Library.BuildingBlocks**: CQRS, Auth, Validation, Mapster, etc.
 - **IDR.Library.Blazor**: Composants Blazor partagés
 
+### Configuration repo packages
+```powershell
+$Owner_package = $env:GITHUB_OWNER_PACKAGE     # "KOMANSERVICE"
+$Repo_package = $env:GITHUB_REPO_PACKAGE       # "IDR.Library"  
+$ProjectNumber_package = $env:PROJECT_NUMBER_PACKAGE  # 5
+```
+
 ### Lecture Automatique de la Documentation
 La documentation des librairies IDR est lue **automatiquement** depuis les packages NuGet installés:
 
@@ -62,29 +69,37 @@ La documentation des librairies IDR est lue **automatiquement** depuis les packa
 # Chemin de la documentation (lecture automatique selon version installée)
 $buildingBlocksDocs = dir "$env:USERPROFILE\.nuget\packages\idr.library.buildingblocks\*\contentFiles\any\any\agent-docs\*"
 $blazorDocs = dir "$env:USERPROFILE\.nuget\packages\idr.library.blazor\*\contentFiles\any\any\agent-docs\*"
+```
 
-# Fonction pour lire la documentation
-function Read-IDRDocs {
-    param([string]$PackageName)
-    
-    $packagePath = "$env:USERPROFILE\.nuget\packages\$($PackageName.ToLower())"
-    $latestVersion = Get-ChildItem $packagePath -Directory | 
-        Sort-Object { [Version]($_.Name -replace '-.*$', '') } -Descending | 
-        Select-Object -First 1
-    
-    $docsPath = Join-Path $latestVersion.FullName "contentFiles\any\any\agent-docs"
-    
-    if (Test-Path $docsPath) {
-        Get-ChildItem $docsPath -File | ForEach-Object {
-            Write-Host "=== $($_.Name) ===" -ForegroundColor Cyan
-            Get-Content $_.FullName
-        }
-    }
-}
+### Regles CRITIQUES pour les packages IDR
 
-# Lire toute la documentation au démarrage
-Read-IDRDocs -PackageName "IDR.Library.BuildingBlocks"
-Read-IDRDocs -PackageName "IDR.Library.Blazor"
+#### IDR.Library.BuildingBlocks
+| Regle | Action |
+|-------|--------|
+| Utiliser ICommand/IQuery | OBLIGATOIRE pour toutes les operations |
+| Utiliser AbstractValidator<T> | OBLIGATOIRE pour la validation |
+| Utiliser IAuthService | OBLIGATOIRE pour l'authentification |
+| En cas d'erreur | CREER ISSUE dans repo packages |
+
+#### IDR.Library.Blazor - Composants reutilisables
+| Regle | Action |
+|-------|--------|
+| Element repete 3+ fois | DOIT devenir composant IDR |
+| Composant IDR existe | UTILISER le composant Idr* |
+| Composant IDR manquant | CREER ISSUE dans repo packages |
+| Apres mise a jour package | REMPLACER composants locaux par IDR |
+| Erreur lors remplacement | CREER ISSUE bug |
+
+#### Workflow composants Frontend
+```
+1. DETECTER element repete (3+ occurrences)
+2. VERIFIER si composant IDR existe
+3. SI EXISTE -> Utiliser Idr*
+4. SI N'EXISTE PAS -> Creer issue:
+   gh issue create --repo "$Owner_package/$Repo_package" \
+       --title "[Component] Idr{Nom}" \
+       --label "enhancement,component,IDR.Library.Blazor"
+5. APRES mise a jour package -> Remplacer composants locaux
 ```
 
 **IMPORTANT:** La documentation est injectée automatiquement dans les prompts par le script principal. Les agents doivent l'utiliser pour comprendre les interfaces et patterns disponibles.
@@ -172,6 +187,51 @@ Lors de toute modification d'entités (Domain/Entities):
 **Corrections automatiques:**
 - `AddColumn NOT NULL` → Ajouter `defaultValue` selon le type
 - `DropColumn/DropTable` → Ajouter commentaires d'avertissement
+
+## Règle 6: Suppression de branche OBLIGATOIRE
+
+Après chaque merge de PR, la branche feature DOIT être supprimée:
+
+```powershell
+# OBLIGATOIRE après chaque merge
+git checkout main
+git pull origin main
+git branch -d feature/$IssueNumber-xxx          # Supprimer local
+git push origin --delete feature/$IssueNumber-xxx  # Supprimer remote
+git fetch --prune                                # Nettoyer références
+```
+
+**JAMAIS laisser de branches orphelines sur le repository.**
+
+## Règle 7: Documentation AI (agent-docs) OBLIGATOIRE
+
+Après TOUTE modification de microservice, la documentation AI DOIT être mise à jour:
+
+| Modification | Action |
+|--------------|--------|
+| Nouveau endpoint | Mettre à jour `endpoints.md` |
+| Nouvelle command | Mettre à jour `commands.md` |
+| Nouvelle query | Mettre à jour `queries.md` |
+| Nouvelle entité | Mettre à jour `entities.md` |
+| Nouveau DTO | Mettre à jour `dtos.md` |
+| **TOUTE modif** | Mettre à jour `README.md` avec date |
+
+### Structure obligatoire
+```
+{Service}.Api/agent-docs/
+├── README.md      # Vue d'ensemble
+├── endpoints.md   # Endpoints API
+├── commands.md    # Commands CQRS
+├── queries.md     # Queries CQRS
+├── entities.md    # Entités
+└── dtos.md        # DTOs
+```
+
+### Mise à jour rétroactive
+Pour les services existants sans documentation AI:
+```powershell
+Invoke-AllAgentDocsUpdate  # Met à jour tous les services
+```
 
 ## Commandes
 - `/watch` - Surveillance continue

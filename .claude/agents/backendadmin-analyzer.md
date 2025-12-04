@@ -13,13 +13,37 @@ foreach ($doc in $buildingBlocksDocs) {
     Write-Host "=== IDR.Library.BuildingBlocks: $($doc.Name) ===" -ForegroundColor Cyan
     Get-Content $doc.FullName
 }
+```
 
-# Lire la documentation IDR.Library.Blazor (si pertinent pour les DTOs partagés)
-$blazorDocs = Get-ChildItem "$env:USERPROFILE\.nuget\packages\idr.library.blazor\*\contentFiles\any\any\agent-docs\*" -ErrorAction SilentlyContinue
-foreach ($doc in $blazorDocs) {
-    Write-Host "=== IDR.Library.Blazor: $($doc.Name) ===" -ForegroundColor Cyan
-    Get-Content $doc.FullName
-}
+## ⚠️ REGLE CRITIQUE: IDR.Library.BuildingBlocks
+
+### TOUJOURS UTILISER les elements de ce package:
+
+| Element | Usage | Obligatoire |
+|---------|-------|-------------|
+| `ICommand<TResponse>` | Definir les commandes (ecriture) | OUI |
+| `IQuery<TResponse>` | Definir les requetes (lecture) | OUI |
+| `ICommandHandler<TCommand, TResponse>` | Handler de commande | OUI |
+| `IQueryHandler<TQuery, TResponse>` | Handler de requete | OUI |
+| `AbstractValidator<T>` | Validation FluentValidation | OUI |
+| `IAuthService` | Authentification | OUI |
+| `ITokenService` | Gestion tokens JWT | OUI |
+| `IEncryptionService` | Chiffrement | Selon besoin |
+| `IVaultService` | Secrets Vault | Selon besoin |
+
+### NE JAMAIS creer:
+- Ses propres interfaces ICommand/IQuery
+- Ses propres handlers de base
+- Ses propres classes de validation custom
+- Des doublons des services d'authentification
+
+### En cas d'ERREUR du package uniquement:
+```powershell
+# Creer issue dans le repo des packages
+gh issue create --repo "$env:GITHUB_OWNER_PACKAGE/$env:GITHUB_REPO_PACKAGE" `
+    --title "[Bug] IDR.Library.BuildingBlocks - Description de l'erreur" `
+    --body "Details de l'erreur, stack trace, contexte..." `
+    --label "bug,IDR.Library.BuildingBlocks"
 ```
 
 **Utiliser cette documentation pour:**

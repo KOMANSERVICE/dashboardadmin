@@ -45,6 +45,13 @@ Services/
     │   │       └── {Feature}Endpoints.cs      # Carter Module
     │   ├── Properties/
     │   │   └── launchSettings.json
+    │   ├── agent-docs/                        # ⚠️ DOCUMENTATION AI (OBLIGATOIRE)
+    │   │   ├── README.md                      # Vue d'ensemble pour AI
+    │   │   ├── endpoints.md                   # Liste des endpoints
+    │   │   ├── commands.md                    # Commandes CQRS
+    │   │   ├── queries.md                     # Requêtes CQRS
+    │   │   ├── entities.md                    # Entités du domaine
+    │   │   └── dtos.md                        # DTOs
     │   ├── DependencyInjection.cs
     │   ├── Dockerfile
     │   ├── GlobalUsings.cs
@@ -574,6 +581,214 @@ function Test-NewServicePreconditions {
 }
 ```
 
+## ⚠️ Documentation AI (agent-docs) - OBLIGATOIRE
+
+### Lors de la création d'un nouveau microservice
+La documentation AI DOIT être générée automatiquement:
+
+```powershell
+function New-AgentDocsForService {
+    param(
+        [Parameter(Mandatory)]
+        [string]$ServiceName,
+        [string]$MainFeature,
+        [string]$MainEntity,
+        [string]$Description
+    )
+    
+    $agentDocsPath = "Services\$ServiceName\$ServiceName.Api\agent-docs"
+    
+    # Créer le dossier
+    New-Item -ItemType Directory -Path $agentDocsPath -Force | Out-Null
+    
+    # README.md principal
+    @"
+# $ServiceName - Documentation AI
+
+## Vue d'ensemble
+$Description
+
+## Architecture
+- **Pattern**: Clean Vertical Slice + CQRS
+- **Framework**: ASP.NET Core + Carter
+- **Base**: IDR.Library.BuildingBlocks
+
+## Feature principale
+- **Feature**: $MainFeature
+- **Entité**: $MainEntity
+
+## Fichiers de documentation
+- [endpoints.md](./endpoints.md) - Liste des endpoints API
+- [commands.md](./commands.md) - Commandes CQRS disponibles
+- [queries.md](./queries.md) - Requêtes CQRS disponibles
+- [entities.md](./entities.md) - Entités du domaine
+- [dtos.md](./dtos.md) - DTOs et modèles
+
+## Statut
+- Créé: $(Get-Date -Format "yyyy-MM-dd")
+- Documentation: Initiale
+"@ | Out-File "$agentDocsPath\README.md" -Encoding utf8
+
+    # endpoints.md
+    @"
+# Endpoints - $ServiceName
+
+## Liste des endpoints
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| GET | /api/$($MainFeature.ToLower()) | Liste tous les $($MainFeature.ToLower()) |
+| GET | /api/$($MainFeature.ToLower())/{id} | Récupère un $MainEntity par ID |
+| POST | /api/$($MainFeature.ToLower()) | Crée un nouveau $MainEntity |
+| PUT | /api/$($MainFeature.ToLower())/{id} | Met à jour un $MainEntity |
+| DELETE | /api/$($MainFeature.ToLower())/{id} | Supprime un $MainEntity |
+
+## Documentation Swagger
+Accessible sur: `/docs`
+"@ | Out-File "$agentDocsPath\endpoints.md" -Encoding utf8
+
+    # commands.md
+    @"
+# Commands CQRS - $ServiceName
+
+## Liste des commandes
+
+| Command | Description | Handler |
+|---------|-------------|---------|
+| Create${MainEntity}Command | Crée un nouveau $MainEntity | ✅ |
+| Update${MainEntity}Command | Met à jour un $MainEntity | ✅ |
+| Delete${MainEntity}Command | Supprime un $MainEntity | ✅ |
+
+## Validation
+Toutes les commandes utilisent AbstractValidator<T> de IDR.Library.BuildingBlocks.
+"@ | Out-File "$agentDocsPath\commands.md" -Encoding utf8
+
+    # queries.md
+    @"
+# Queries CQRS - $ServiceName
+
+## Liste des requêtes
+
+| Query | Description | Response |
+|-------|-------------|----------|
+| Get${MainFeature}Query | Liste les $MainFeature | List<${MainEntity}Dto> |
+| Get${MainEntity}ByIdQuery | Récupère un $MainEntity | ${MainEntity}Dto |
+
+## Pagination
+Les requêtes de liste supportent la pagination via:
+- PageNumber
+- PageSize
+"@ | Out-File "$agentDocsPath\queries.md" -Encoding utf8
+
+    # entities.md
+    @"
+# Entités - $ServiceName
+
+## $MainEntity
+
+Entité principale du service.
+
+### Propriétés
+| Propriété | Type | Description |
+|-----------|------|-------------|
+| Id | Guid | Identifiant unique |
+| CreatedAt | DateTime | Date de création |
+| UpdatedAt | DateTime? | Date de modification |
+
+### Relations
+[À compléter selon les besoins]
+"@ | Out-File "$agentDocsPath\entities.md" -Encoding utf8
+
+    # dtos.md
+    @"
+# DTOs - $ServiceName
+
+## ${MainEntity}Dto
+
+DTO principal pour l'entité $MainEntity.
+
+### Propriétés
+| Propriété | Type | Description |
+|-----------|------|-------------|
+| Id | Guid | Identifiant |
+| [Autres] | [Type] | [Description] |
+
+## Create${MainEntity}Request
+
+DTO pour la création.
+
+## Update${MainEntity}Request
+
+DTO pour la mise à jour.
+"@ | Out-File "$agentDocsPath\dtos.md" -Encoding utf8
+
+    Write-Host "[AGENT-DOCS] Documentation AI créée pour $ServiceName" -ForegroundColor Green
+    return $agentDocsPath
+}
+```
+
+### Mise à jour lors de modifications
+Après TOUTE modification du microservice, la doc AI doit être mise à jour:
+
+```powershell
+function Update-AgentDocsAfterChange {
+    param(
+        [string]$ServiceName,
+        [string[]]$ModifiedFiles
+    )
+    
+    # Analyser les fichiers modifiés
+    foreach ($file in $ModifiedFiles) {
+        if ($file -match "Endpoints") {
+            Update-EndpointsDoc -ServiceName $ServiceName
+        }
+        if ($file -match "Commands") {
+            Update-CommandsDoc -ServiceName $ServiceName
+        }
+        if ($file -match "Queries") {
+            Update-QueriesDoc -ServiceName $ServiceName
+        }
+        if ($file -match "Entities") {
+            Update-EntitiesDoc -ServiceName $ServiceName
+        }
+        if ($file -match "DTOs|Dtos") {
+            Update-DtosDoc -ServiceName $ServiceName
+        }
+    }
+    
+    # Mettre à jour le README avec la date
+    $readmePath = "Services\$ServiceName\$ServiceName.Api\agent-docs\README.md"
+    $content = Get-Content $readmePath -Raw
+    $content = $content -replace "Dernière mise à jour:.*", "Dernière mise à jour: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+    $content | Out-File $readmePath -Encoding utf8
+    
+    Write-Host "[AGENT-DOCS] Documentation mise à jour pour $ServiceName" -ForegroundColor Green
+}
+```
+
+### Mise à jour rétroactive pour services existants
+```powershell
+function Invoke-RetroactiveAgentDocs {
+    $services = Get-ChildItem "Services" -Directory | 
+        Where-Object { Test-Path "$($_.FullName)\$($_.Name).Api" }
+    
+    foreach ($service in $services) {
+        $agentDocsPath = "$($service.FullName)\$($service.Name).Api\agent-docs"
+        
+        if (-not (Test-Path $agentDocsPath)) {
+            Write-Host "Création agent-docs pour $($service.Name)..." -ForegroundColor Yellow
+            New-AgentDocsForService -ServiceName $service.Name -MainFeature "Feature" -MainEntity "Entity" -Description "Service $($service.Name)"
+        }
+        else {
+            Write-Host "Mise à jour agent-docs pour $($service.Name)..." -ForegroundColor Yellow
+            # Scanner et mettre à jour la doc
+            $allFiles = Get-ChildItem $service.FullName -Recurse -Filter "*.cs" | Select-Object -ExpandProperty FullName
+            Update-AgentDocsAfterChange -ServiceName $service.Name -ModifiedFiles $allFiles
+        }
+    }
+}
+```
+
 ## Format de réponse
 ```json
 {
@@ -586,7 +801,13 @@ function Test-NewServicePreconditions {
   "files_created": [
     "Services/AbonnementService/AbonnementService.Api/Program.cs",
     "Services/AbonnementService/AbonnementService.Api/Dockerfile",
-    "Services/AbonnementService/AbonnementService.Api/readme.md"
+    "Services/AbonnementService/AbonnementService.Api/readme.md",
+    "Services/AbonnementService/AbonnementService.Api/agent-docs/README.md",
+    "Services/AbonnementService/AbonnementService.Api/agent-docs/endpoints.md",
+    "Services/AbonnementService/AbonnementService.Api/agent-docs/commands.md",
+    "Services/AbonnementService/AbonnementService.Api/agent-docs/queries.md",
+    "Services/AbonnementService/AbonnementService.Api/agent-docs/entities.md",
+    "Services/AbonnementService/AbonnementService.Api/agent-docs/dtos.md"
   ],
   "structure_follows_template": true,
   "docker_compose_updated": true,
@@ -594,12 +815,19 @@ function Test-NewServicePreconditions {
   "documentation_generated": {
     "swagger_configured": true,
     "readme_created": true,
-    "http_test_file_created": true
+    "http_test_file_created": true,
+    "agent_docs_created": true
+  },
+  "agent_docs": {
+    "path": "Services/AbonnementService/AbonnementService.Api/agent-docs",
+    "files": ["README.md", "endpoints.md", "commands.md", "queries.md", "entities.md", "dtos.md"],
+    "status": "complete"
   },
   "next_steps": [
     "Configurer la chaîne de connexion",
     "Créer les migrations EF Core",
     "Compléter les entités",
+    "Mettre à jour agent-docs après chaque modification",
     "Tester les endpoints"
   ]
 }

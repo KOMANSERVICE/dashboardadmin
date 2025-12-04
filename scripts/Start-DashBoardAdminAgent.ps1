@@ -7,13 +7,21 @@ param(
     [int]$ProjectNumber = 5,
     [int]$PollingInterval = 60,
     
+    # Configuration du repo des packages IDR (pour les issues de composants/bugs)
+    [string]$Owner_package = "KOMANSERVICE",
+    [string]$Repo_package = "IDR.Library",
+    [int]$ProjectNumber_package = 4,
+    
+    # Polling
+    [int]$PollingInterval = 60,
+    
     # Modes de fonctionnement
     [switch]$AnalysisOnly,
     [switch]$CoderOnly,
     
     # Choix du modele Claude
     [ValidateSet("claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-3-5-sonnet-20241022")]
-    [string]$Model = "claude-opus-4-20250514",
+    [string]$Model = "claude-sonnet-4-20250514",
     
     # Options avancees
     [switch]$DryRun,
@@ -26,9 +34,16 @@ $ErrorActionPreference = "Stop"
 # CONFIGURATION
 # ============================================
 
+# Variables projet principal
 $env:GITHUB_OWNER = $Owner
 $env:GITHUB_REPO = $Repo
 $env:PROJECT_NUMBER = $ProjectNumber
+
+# Variables repo packages IDR
+$env:GITHUB_OWNER_PACKAGE = $Owner_package
+$env:GITHUB_REPO_PACKAGE = $Repo_package
+$env:PROJECT_NUMBER_PACKAGE = $ProjectNumber_package
+
 $env:CLAUDE_MODEL = $Model
 
 # Colonnes du Project Board
@@ -55,9 +70,17 @@ Write-Host "  - BackendAdmin (Clean Vertical Slice)                           " 
 Write-Host "  - FrontendAdmin (MAUI Blazor Hybrid)                            " -ForegroundColor Gray
 Write-Host "  - Microservices (MagasinService, MenuService, etc.)             " -ForegroundColor Gray
 Write-Host "==================================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  [PROJET PRINCIPAL]" -ForegroundColor White
 Write-Host "  Owner: $Owner" -ForegroundColor White
 Write-Host "  Repo: $Repo" -ForegroundColor White
 Write-Host "  Project: #$ProjectNumber" -ForegroundColor White
+Write-Host ""
+Write-Host "  [REPO PACKAGES IDR]" -ForegroundColor Yellow
+Write-Host "  Owner: $Owner_package" -ForegroundColor Yellow
+Write-Host "  Repo: $Repo_package" -ForegroundColor Yellow
+Write-Host "  Project: #$ProjectNumber_package" -ForegroundColor Yellow
+Write-Host ""
 Write-Host "  Model: $Model" -ForegroundColor White
 Write-Host "  Polling: toutes les $PollingInterval secondes" -ForegroundColor White
 Write-Host "==================================================================" -ForegroundColor Cyan
@@ -129,7 +152,7 @@ catch {
 
 if (-not $allPrereqsMet) {
     Write-Host ""
-    Write-Host "[ERREUR] Certains prerequis manquent. Installez-les avant de continuer." -ForegroundColor Red
+    Write-Host "[ERREUR] Certains prerequis manquent." -ForegroundColor Red
     exit 1
 }
 
@@ -152,7 +175,6 @@ Write-Host "[IDR] Lecture automatique de la documentation IDR Library..." -Foreg
 
 $script:IDRDocsContent = ""
 
-# Fonction pour lire la documentation d'un package
 function Read-IDRPackageDocs {
     param([string]$PackageName)
     
@@ -163,7 +185,6 @@ function Read-IDRPackageDocs {
         return @{ Success = $false; Error = "Package non installe"; Content = "" }
     }
     
-    # Trouver la version la plus recente
     $versions = Get-ChildItem -Path $basePath -Directory -ErrorAction SilentlyContinue | 
         Where-Object { $_.Name -match '^\d+\.\d+' } |
         Sort-Object { 
@@ -182,7 +203,6 @@ function Read-IDRPackageDocs {
         return @{ Success = $false; Error = "Dossier agent-docs non trouve"; Version = $latestVersion.Name; Content = "" }
     }
     
-    # Lire tous les fichiers de documentation
     $docFiles = Get-ChildItem -Path $docsPath -File -Recurse -ErrorAction SilentlyContinue
     $allContent = @()
     
@@ -226,6 +246,44 @@ if ($blazorDocs.Success) {
 }
 else {
     Write-Host "   [!] IDR.Library.Blazor: $($blazorDocs.Error)" -ForegroundColor Yellow
+}
+
+# ============================================
+# FONCTIONS POUR GESTION DES PACKAGES IDR
+# ============================================
+
+function New-PackageIssue {
+    param(
+        [string]$Title,
+        [string]$Body,
+        [string]$IssueType = "enhancement"
+    )
+    
+    $issueFile = Join-Path $env:TEMP "package-issue-$([Guid]::NewGuid().ToString('N').Substring(0,8)).md"
+    $Body | Out-File $issueFile -Encoding utf8
+    
+    try {
+        $result = gh issue create `
+            --repo "$Owner_package/$Repo_package" `
+            --title $Title `
+            --body-file $issueFile `
+            --label $IssueType
+        
+        Write-Host "   [ISSUE] Creee: $result" -ForegroundColor Green
+        
+        if ($ProjectNumber_package -gt 0) {
+            gh project item-add $ProjectNumber_package --owner $Owner_package --url $result 2>$null
+        }
+        
+        return $result
+    }
+    catch {
+        Write-Host "   [ERREUR] Creation issue: $_" -ForegroundColor Red
+        return $null
+    }
+    finally {
+        Remove-Item $issueFile -ErrorAction SilentlyContinue
+    }
 }
 
 # ============================================
@@ -282,7 +340,6 @@ function Add-ProcessedIssue {
     }
 }
 
-# Initialiser les fichiers s'ils n'existent pas
 if (-not (Test-Path $processedAnalysisFile)) {
     "[]" | Out-File $processedAnalysisFile -Encoding utf8
 }
@@ -324,7 +381,7 @@ function Get-IssuesInColumn {
         return $issues
     }
     catch {
-        Write-Host "   [WARN] Erreur lors de la recuperation des issues: $_" -ForegroundColor Yellow
+        Write-Host "   [WARN] Erreur recuperation issues: $_" -ForegroundColor Yellow
         return @()
     }
 }
@@ -341,7 +398,6 @@ function Invoke-AnalysisAgent {
     
     $issueJson = gh issue view $IssueNumber --repo "$Owner/$Repo" --json number,title,body,labels
     
-    # Creer le fichier prompt temporaire
     $promptFile = Join-Path $env:TEMP "analysis-prompt-$IssueNumber.txt"
     
     $promptContent = @"
@@ -353,40 +409,56 @@ $issueJson
 ## Documentation IDR Library (LECTURE AUTOMATIQUE)
 $script:IDRDocsContent
 
+## Configuration Repo Packages IDR
+- Owner: $Owner_package
+- Repo: $Repo_package  
+- Project: $ProjectNumber_package
+
 ## Instructions
-1. Lis les fichiers d'agents suivants pour comprendre ton role:
+1. Lis les fichiers d'agents:
    - .claude/agents/orchestrator.md
    - .claude/agents/backendadmin-analyzer.md
    - .claude/agents/frontendadmin-analyzer.md
    - .claude/agents/microservice-analyzer.md
-   - .claude/agents/microservice-creator.md
-   - .claude/agents/gherkin-generator.md
-   - .claude/agents/github-manager.md
+   - .claude/agents/package-manager.md (NOUVEAU - gestion composants IDR)
    - .claude/agents/migration-manager.md
 
 2. REGLES CRITIQUES:
-   - COMPRENDRE le code existant avant de proposer des modifications
+   - COMPRENDRE le code existant avant modification
    - NE JAMAIS contredire la logique existante
    - NE JAMAIS inventer si information manquante -> BLOQUER
-   - NE PAS modifier les packages sauf IDR.Library.* (toujours a jour)
-   - UTILISER la documentation IDR Library ci-dessus
+   - UTILISER les elements de IDR.Library.BuildingBlocks (CQRS, Auth, Validation)
+   - UTILISER les composants de IDR.Library.Blazor (IdrForm, IdrInput, etc.)
 
-3. Analyse cette issue en suivant le workflow:
-   a. Determine le scope (BackendAdmin/FrontendAdmin/Microservice/Nouveau)
-   b. Lis et analyse le code existant concerne
-   c. Verifie: pas de contradiction, pas de redondance, infos suffisantes
-   d. Si entites modifiees: identifier tables/colonnes impactees
+3. REGLES COMPOSANTS FRONTEND:
+   - Si un element se repete 3+ fois -> doit devenir un composant
+   - Si composant reutilisable detecte -> creer issue dans $Owner_package/$Repo_package
+   - Apres mise a jour IDR.Library.Blazor -> remplacer composants locaux
+   
+4. REGLES PACKAGES IDR:
+   - IDR.Library.BuildingBlocks: utiliser ses elements, creer issue UNIQUEMENT si erreur
+   - IDR.Library.Blazor: utiliser ses composants, proposer nouveaux si manquants
 
-4. Selon ton analyse:
-   - Si VALIDE: Genere les scenarios Gherkin, commente l'issue, deplace vers Todo
-   - Si BLOQUEE: Commente avec la raison precise, deplace vers AnalyseBlock
+5. Analyse:
+   a. Determine le scope (BackendAdmin/FrontendAdmin/Microservice)
+   b. Pour Frontend: detecter elements repetes -> suggerer composants
+   c. Verifie coherence avec packages IDR
+   d. Si entites modifiees: identifier migrations
+
+6. Actions:
+   - Si VALIDE: Genere Gherkin, commente, deplace vers Todo
+   - Si BLOQUEE: Commente raison, deplace vers AnalyseBlock
+   - Si COMPOSANT MANQUANT: Creer issue dans repo packages
 
 Variables:
 - GITHUB_OWNER: $Owner
 - GITHUB_REPO: $Repo
 - PROJECT_NUMBER: $ProjectNumber
+- GITHUB_OWNER_PACKAGE: $Owner_package
+- GITHUB_REPO_PACKAGE: $Repo_package
+- PROJECT_NUMBER_PACKAGE: $ProjectNumber_package
 
-Commence l'analyse maintenant.
+Commence l'analyse.
 "@
 
     $promptContent | Out-File $promptFile -Encoding utf8
@@ -394,7 +466,7 @@ Commence l'analyse maintenant.
     Write-Host "     [ANALYSE] En cours avec $Model..." -ForegroundColor Yellow
     
     if ($DryRun) {
-        Write-Host "     [DRY RUN] Simulation - pas d'execution reelle" -ForegroundColor Magenta
+        Write-Host "     [DRY RUN] Simulation" -ForegroundColor Magenta
         Remove-Item $promptFile -ErrorAction SilentlyContinue
         return $true
     }
@@ -427,7 +499,6 @@ function Invoke-CoderAgent {
     
     $issueJson = gh issue view $IssueNumber --repo "$Owner/$Repo" --json number,title,body,labels,comments
     
-    # Creer le fichier prompt temporaire
     $promptFile = Join-Path $env:TEMP "coder-prompt-$IssueNumber.txt"
     
     $promptContent = @"
@@ -439,41 +510,63 @@ $issueJson
 ## Documentation IDR Library (LECTURE AUTOMATIQUE)
 $script:IDRDocsContent
 
+## Configuration Repo Packages IDR (pour issues composants/bugs)
+- Owner: $Owner_package
+- Repo: $Repo_package
+- Project: $ProjectNumber_package
+
 ## Instructions
-1. Lis le fichier .claude/agents/coder.md pour comprendre ton role complet.
-   Lis aussi .claude/agents/migration-manager.md pour les migrations EF Core.
+1. Lis les fichiers:
+   - .claude/agents/coder.md
+   - .claude/agents/package-manager.md
+   - .claude/agents/migration-manager.md
 
 2. REGLES CRITIQUES:
    - LIRE et COMPRENDRE le code existant AVANT de modifier
-   - NE JAMAIS contredire la logique existante -> BLOQUER si detecte
-   - NE JAMAIS inventer si information manquante
-   - NE PAS modifier les packages sauf IDR.Library.* (toujours a jour)
-   - DOCUMENTER les microservices (Swagger/OpenAPI)
-   - MIGRATIONS EF CORE OBLIGATOIRES si entites modifiees
-   - UTILISER la documentation IDR Library ci-dessus
+   - NE JAMAIS contredire la logique existante
+   - UTILISER IDR.Library.BuildingBlocks pour CQRS, Auth, Validation
+   - UTILISER IDR.Library.Blazor pour composants UI
 
-3. Workflow a suivre:
-   a. Lire et comprendre le code existant concerne
-   b. Creer une branche feature: feature/$IssueNumber-slug
-   c. Deplacer l'issue vers "In Progress"
-   d. Lire l'analyse dans les commentaires
-   e. Implementer selon l'architecture (Clean Vertical Slice / Blazor Hybrid)
-   f. SI ENTITES MODIFIEES -> MIGRATION EF CORE
-   g. Ecrire les tests (Xunit.Gherkin.Quick)
-   h. Commit + Push + PR + Merge
-   i. Deplacer vers "A Tester"
+3. REGLES COMPOSANTS (FRONTEND):
+   - Si element repete 3+ fois -> DOIT devenir composant
+   - Verifier si composant existe dans IDR.Library.Blazor
+   - Si existe -> utiliser le composant IDR (prefixe Idr*)
+   - Si n'existe pas -> creer issue dans $Owner_package/$Repo_package:
+     gh issue create --repo "$Owner_package/$Repo_package" --title "[Component] Nouveau: NomComposant" --body "..."
+   - Apres mise a jour package -> remplacer composants locaux par IDR
 
-4. MIGRATIONS EF CORE - SECURITE PRODUCTION:
-   - DropTable/DropColumn -> BLOQUER
-   - AddColumn NOT NULL sans default -> Ajouter defaultValue
-   - AlterColumn (type) -> WARNING
+4. REGLES PACKAGES IDR:
+   - IDR.Library.BuildingBlocks: 
+     * TOUJOURS utiliser ICommand, IQuery, ICommandHandler, IQueryHandler
+     * TOUJOURS utiliser AbstractValidator<T>
+     * En cas d'ERREUR uniquement -> creer issue dans repo packages
+   - IDR.Library.Blazor:
+     * TOUJOURS utiliser composants Idr* disponibles
+     * Si composant manquant -> creer issue pour nouveau composant
+
+5. Workflow:
+   a. Lire code existant
+   b. Creer branche feature/$IssueNumber-slug
+   c. Implementer avec composants IDR
+   d. Si element repete -> proposer composant IDR
+   e. Si erreur package IDR -> creer issue dans repo packages
+   f. Si entites modifiees -> migration EF Core
+   g. Tests + Commit + PR + Merge
+
+6. CREATION ISSUE PACKAGE (si necessaire):
+   Pour nouveau composant:
+   gh issue create --repo "$Owner_package/$Repo_package" --title "[Component] Idr{Nom}" --label "enhancement,component"
+   
+   Pour bug/erreur:
+   gh issue create --repo "$Owner_package/$Repo_package" --title "[Bug] {Description}" --label "bug"
 
 Variables:
 - GITHUB_OWNER: $Owner
 - GITHUB_REPO: $Repo
-- PROJECT_NUMBER: $ProjectNumber
+- GITHUB_OWNER_PACKAGE: $Owner_package
+- GITHUB_REPO_PACKAGE: $Repo_package
 
-Commence l'implementation maintenant.
+Commence l'implementation.
 "@
 
     $promptContent | Out-File $promptFile -Encoding utf8
@@ -481,7 +574,7 @@ Commence l'implementation maintenant.
     Write-Host "     [CODER] En cours avec $Model..." -ForegroundColor Magenta
     
     if ($DryRun) {
-        Write-Host "     [DRY RUN] Simulation - pas d'execution reelle" -ForegroundColor Magenta
+        Write-Host "     [DRY RUN] Simulation" -ForegroundColor Magenta
         Remove-Item $promptFile -ErrorAction SilentlyContinue
         return $true
     }
@@ -521,9 +614,7 @@ while ($true) {
     Write-Host "[$timestamp] [CHECK] Iteration #$iteration" -ForegroundColor DarkCyan
     
     try {
-        # ============================================
         # AGENT ANALYSE
-        # ============================================
         if (-not $CoderOnly) {
             Write-Host "[$timestamp] [ANALYSE] Verification colonne '$($Columns.Analyse)'..." -ForegroundColor Blue
             
@@ -532,30 +623,28 @@ while ($true) {
             $newAnalysisIssues = @($analysisIssues | Where-Object { $_.IssueNumber -notin $processedAnalysis })
             
             if ($newAnalysisIssues.Count -eq 0) {
-                Write-Host "[$timestamp] [ANALYSE] Aucune nouvelle issue a analyser" -ForegroundColor DarkGray
+                Write-Host "[$timestamp] [ANALYSE] Aucune nouvelle issue" -ForegroundColor DarkGray
             }
             else {
-                Write-Host "[$timestamp] [ANALYSE] $($newAnalysisIssues.Count) issue(s) a analyser" -ForegroundColor Green
+                Write-Host "[$timestamp] [ANALYSE] $($newAnalysisIssues.Count) issue(s)" -ForegroundColor Green
                 
                 foreach ($issue in $newAnalysisIssues) {
-                    Write-Host "[$timestamp]   -> Issue #$($issue.IssueNumber): $($issue.Title)" -ForegroundColor White
+                    Write-Host "[$timestamp]   -> #$($issue.IssueNumber): $($issue.Title)" -ForegroundColor White
                     
                     $success = Invoke-AnalysisAgent -IssueNumber $issue.IssueNumber -Title $issue.Title
                     
                     if ($success) {
                         Add-ProcessedIssue -FilePath $processedAnalysisFile -IssueNumber $issue.IssueNumber
-                        Write-Host "[$timestamp]   [OK] Issue #$($issue.IssueNumber) analysee" -ForegroundColor Green
+                        Write-Host "[$timestamp]   [OK] #$($issue.IssueNumber) analysee" -ForegroundColor Green
                     }
                     else {
-                        Write-Host "[$timestamp]   [ERREUR] Echec analyse issue #$($issue.IssueNumber)" -ForegroundColor Red
+                        Write-Host "[$timestamp]   [ERREUR] #$($issue.IssueNumber)" -ForegroundColor Red
                     }
                 }
             }
         }
         
-        # ============================================
         # AGENT CODEUR
-        # ============================================
         if (-not $AnalysisOnly) {
             Write-Host "[$timestamp] [CODER] Verification colonne '$($Columns.Todo)'..." -ForegroundColor Magenta
             
@@ -564,23 +653,22 @@ while ($true) {
             $newTodoIssues = @($todoIssues | Where-Object { $_.IssueNumber -notin $processedCoder })
             
             if ($newTodoIssues.Count -eq 0) {
-                Write-Host "[$timestamp] [CODER] Aucune nouvelle issue a coder" -ForegroundColor DarkGray
+                Write-Host "[$timestamp] [CODER] Aucune nouvelle issue" -ForegroundColor DarkGray
             }
             else {
-                Write-Host "[$timestamp] [CODER] $($newTodoIssues.Count) issue(s) a coder" -ForegroundColor Green
+                Write-Host "[$timestamp] [CODER] $($newTodoIssues.Count) issue(s)" -ForegroundColor Green
                 
-                # Traiter une seule issue a la fois pour le codeur
                 $issue = $newTodoIssues[0]
-                Write-Host "[$timestamp]   -> Issue #$($issue.IssueNumber): $($issue.Title)" -ForegroundColor White
+                Write-Host "[$timestamp]   -> #$($issue.IssueNumber): $($issue.Title)" -ForegroundColor White
                 
                 $success = Invoke-CoderAgent -IssueNumber $issue.IssueNumber -Title $issue.Title
                 
                 if ($success) {
                     Add-ProcessedIssue -FilePath $processedCoderFile -IssueNumber $issue.IssueNumber
-                    Write-Host "[$timestamp]   [OK] Issue #$($issue.IssueNumber) implementee" -ForegroundColor Green
+                    Write-Host "[$timestamp]   [OK] #$($issue.IssueNumber) implementee" -ForegroundColor Green
                 }
                 else {
-                    Write-Host "[$timestamp]   [ERREUR] Echec implementation issue #$($issue.IssueNumber)" -ForegroundColor Red
+                    Write-Host "[$timestamp]   [ERREUR] #$($issue.IssueNumber)" -ForegroundColor Red
                 }
             }
         }
@@ -589,6 +677,7 @@ while ($true) {
         Write-Host "[$timestamp] [ERREUR] Exception: $_" -ForegroundColor Red
     }
     
-    Write-Host "[$timestamp] [WAIT] Prochaine verification dans $PollingInterval secondes..." -ForegroundColor DarkGray
+    Write-Host "[$timestamp] [WAIT] Prochaine verification dans $PollingInterval sec..." -ForegroundColor DarkGray
     Start-Sleep -Seconds $PollingInterval
 }
+
