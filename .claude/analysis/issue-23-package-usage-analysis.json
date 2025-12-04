@@ -1,0 +1,193 @@
+{
+  "issue_number": 23,
+  "title": "utilisation package",
+  "analysis_timestamp": "2024-12-03T10:00:00Z",
+  "agent": "orchestrator",
+  "status": "valid",
+  "scope": "frontendadmin",
+  "confidence": 0.95,
+
+  "code_analysis": {
+    "files_analyzed": [
+      "FrontendAdmin/FrontendAdmin.Shared/_Imports.razor",
+      "FrontendAdmin/FrontendAdmin.Shared/Pages/Applications/Components/CreateAppComponent.razor",
+      "FrontendAdmin/FrontendAdmin.Shared/Pages/Menus/Components/CreateMenuComponent.razor",
+      "FrontendAdmin/FrontendAdmin.Shared/Pages/Applications/ListApp.razor",
+      "FrontendAdmin/FrontendAdmin.Shared/Pages/Menus/ListeMenu.razor"
+    ],
+    "understanding_confirmed": true
+  },
+
+  "current_state": {
+    "idr_library_blazor_used": true,
+    "current_version": "3.0.3",
+    "components_from_idr": [
+      "LoadingPage",
+      "ErrorsSummary",
+      "TextInput",
+      "Button",
+      "Modal",
+      "AuthInitializer",
+      "RouteGuard",
+      "RouteGuardNotConnected",
+      "ToastService"
+    ],
+    "custom_components": [
+      "PageTitleComponent",
+      "LoadingData",
+      "InfoCard",
+      "ActionCard",
+      "HeaderActions",
+      "ResponsiveDataTable",
+      "HeaderPage",
+      "Icon",
+      "InputCheckbox"
+    ]
+  },
+
+  "components_to_replace": [
+    {
+      "current": "InputCheckbox",
+      "replace_with": "Checkbox",
+      "namespace": "IDR.Library.Blazor.Inputs",
+      "action": "Replace component usage",
+      "files_affected": [
+        "FrontendAdmin/FrontendAdmin.Shared/Pages/Auths/Login.razor"
+      ]
+    },
+    {
+      "current": "LoadingData",
+      "replace_with": "Spinner or Skeleton",
+      "namespace": "IDR.Library.Blazor.Feedback",
+      "action": "Replace with appropriate loading component",
+      "files_affected": [
+        "FrontendAdmin/FrontendAdmin.Shared/Pages/Applications/ListApp.razor"
+      ]
+    },
+    {
+      "current": "ToastService (custom)",
+      "replace_with": "IToastService",
+      "namespace": "IDR.Library.Blazor.Toasts",
+      "action": "Use IDR toast service",
+      "note": "Already imported but custom service might be used"
+    }
+  ],
+
+  "missing_components_in_idr": [
+    {
+      "name": "IdrPageTitle",
+      "description": "Component for page titles",
+      "usage_count": 3,
+      "priority": "high",
+      "files_using": [
+        "Pages/Applications/ListApp.razor",
+        "Pages/Menus/ListeMenu.razor",
+        "Pages/Weather.razor"
+      ]
+    },
+    {
+      "name": "IdrInfoCard",
+      "description": "Information card with title, subtitle, icon, metadata and link",
+      "usage_count": 1,
+      "priority": "medium",
+      "files_using": [
+        "Pages/Applications/ListApp.razor"
+      ]
+    },
+    {
+      "name": "IdrActionCard",
+      "description": "Action card with click handler",
+      "usage_count": 1,
+      "priority": "medium",
+      "files_using": [
+        "Pages/Applications/ListApp.razor"
+      ]
+    },
+    {
+      "name": "IdrHeaderPage",
+      "description": "Page header with title and subtitle",
+      "usage_count": 1,
+      "priority": "medium",
+      "files_using": [
+        "Pages/Menus/ListeMenu.razor"
+      ]
+    },
+    {
+      "name": "IdrResponsiveDataTable",
+      "description": "Responsive data table with mobile/desktop views, toolbar, templates",
+      "usage_count": 1,
+      "priority": "high",
+      "files_using": [
+        "Pages/Menus/ListeMenu.razor"
+      ],
+      "features": [
+        "Toolbar slot",
+        "DesktopHeader slot",
+        "RowTemplate slot",
+        "MobileCardTemplate slot",
+        "Footer slot",
+        "Responsive design",
+        "Generic type support"
+      ]
+    },
+    {
+      "name": "IdrIcon",
+      "description": "Generic icon component supporting SVG and font icons",
+      "usage_count": 2,
+      "priority": "low",
+      "files_using": [
+        "Pages/Menus/ListeMenu.razor"
+      ]
+    }
+  ],
+
+  "actions_required": [
+    {
+      "type": "replace_component",
+      "description": "Replace InputCheckbox with Checkbox from IDR.Library.Blazor",
+      "files": ["Pages/Auths/Login.razor"],
+      "effort": "low"
+    },
+    {
+      "type": "replace_component",
+      "description": "Replace LoadingData with Spinner or Skeleton from IDR.Library.Blazor",
+      "files": ["Pages/Applications/ListApp.razor"],
+      "effort": "low"
+    },
+    {
+      "type": "create_issue",
+      "description": "Create issue for IdrPageTitle component in IDR.Library repo",
+      "priority": "high"
+    },
+    {
+      "type": "create_issue",
+      "description": "Create issue for IdrResponsiveDataTable component in IDR.Library repo",
+      "priority": "high"
+    },
+    {
+      "type": "create_issue",
+      "description": "Create issue for IdrInfoCard component in IDR.Library repo",
+      "priority": "medium"
+    },
+    {
+      "type": "create_issue",
+      "description": "Create issue for IdrActionCard component in IDR.Library repo",
+      "priority": "medium"
+    },
+    {
+      "type": "create_issue",
+      "description": "Create issue for IdrHeaderPage component in IDR.Library repo",
+      "priority": "medium"
+    },
+    {
+      "type": "create_issue",
+      "description": "Create issue for IdrIcon component in IDR.Library repo",
+      "priority": "low"
+    }
+  ],
+
+  "recommendation": "L'analyse montre que le projet utilise déjà IDR.Library.Blazor v3.0.3. Cependant, certains composants personnalisés peuvent être remplacés par des composants IDR existants, et plusieurs composants manquants devraient être ajoutés à la bibliothèque IDR pour une meilleure réutilisabilité.",
+
+  "decision": "proceed",
+  "reason": "Les actions sont claires : remplacer les composants existants et créer des issues pour les composants manquants dans IDR.Library"
+}

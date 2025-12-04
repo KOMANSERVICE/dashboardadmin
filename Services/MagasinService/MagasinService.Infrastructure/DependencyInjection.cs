@@ -61,6 +61,12 @@ public static class DependencyInjection
 
         services.AddScoped<IMagasinServiceDbContext, MagasinServiceDbContext>();
 
+        // Register custom repositories
+        services.AddScoped<IStockLocationRepository, StockLocationRepository>();
+        services.AddScoped<IStockMovementRepository, StockMovementRepository>();
+        services.AddScoped<IStockSlipRepository, StockSlipRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
         return services;
     }
 }

@@ -9,3 +9,7 @@ global using MagasinService.Infrastructure.Data;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
 global using MagasinService.Application.Commons.Data;
+global using MagasinService.Application.Commons.Interfaces;
+global using IDR.Library.BuildingBlocks.Repositories;
+global using MagasinService.Domain.Enums;
+global using MagasinService.Infrastructure.Repositories;

@@ -7,3 +7,8 @@ global using Microsoft.EntityFrameworkCore;
 global using IDR.Library.BuildingBlocks.CQRS;
 global using IDR.Library.BuildingBlocks.Repositories;
 global using Mapster;
+global using MagasinService.Application.Commons.Interfaces;
+global using MagasinService.Domain.ValueObjects;
+global using MagasinService.Domain.Enums;
+global using MagasinService.Application.Features.StockSlips.DTOs;
+global using MagasinService.Application.Features.Magasins.DTOs;

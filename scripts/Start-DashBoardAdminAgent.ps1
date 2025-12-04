@@ -8,12 +8,10 @@ param(
     [int]$PollingInterval = 60,
     
     # Configuration du repo des packages IDR (pour les issues de composants/bugs)
-    [string]$Owner_package = "KOMANSERVICE",
-    [string]$Repo_package = "IDR.Library",
-    [int]$ProjectNumber_package = 4,
+    [string]$OwnerPackage = "KOMANSERVICE",
+    [string]$RepoPackage = "IDR.Library",
+    [int]$ProjectNumberPackage = 4,
     
-    # Polling
-    [int]$PollingInterval = 60,
     
     # Modes de fonctionnement
     [switch]$AnalysisOnly,
@@ -21,7 +19,7 @@ param(
     
     # Choix du modele Claude
     [ValidateSet("claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-3-5-sonnet-20241022")]
-    [string]$Model = "claude-sonnet-4-20250514",
+    [string]$Model = "claude-opus-4-20250514",
     
     # Options avancees
     [switch]$DryRun,
@@ -40,9 +38,9 @@ $env:GITHUB_REPO = $Repo
 $env:PROJECT_NUMBER = $ProjectNumber
 
 # Variables repo packages IDR
-$env:GITHUB_OWNER_PACKAGE = $Owner_package
-$env:GITHUB_REPO_PACKAGE = $Repo_package
-$env:PROJECT_NUMBER_PACKAGE = $ProjectNumber_package
+$env:GITHUB_OwnerPackage = $OwnerPackage
+$env:GITHUB_REPO_PACKAGE = $RepoPackage
+$env:PROJECT_NUMBER_PACKAGE = $ProjectNumberPackage
 
 $env:CLAUDE_MODEL = $Model
 
@@ -77,9 +75,9 @@ Write-Host "  Repo: $Repo" -ForegroundColor White
 Write-Host "  Project: #$ProjectNumber" -ForegroundColor White
 Write-Host ""
 Write-Host "  [REPO PACKAGES IDR]" -ForegroundColor Yellow
-Write-Host "  Owner: $Owner_package" -ForegroundColor Yellow
-Write-Host "  Repo: $Repo_package" -ForegroundColor Yellow
-Write-Host "  Project: #$ProjectNumber_package" -ForegroundColor Yellow
+Write-Host "  Owner: $OwnerPackage" -ForegroundColor Yellow
+Write-Host "  Repo: $RepoPackage" -ForegroundColor Yellow
+Write-Host "  Project: #$ProjectNumberPackage" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  Model: $Model" -ForegroundColor White
 Write-Host "  Polling: toutes les $PollingInterval secondes" -ForegroundColor White
@@ -264,15 +262,15 @@ function New-PackageIssue {
     
     try {
         $result = gh issue create `
-            --repo "$Owner_package/$Repo_package" `
+            --repo "$OwnerPackage/$RepoPackage" `
             --title $Title `
             --body-file $issueFile `
             --label $IssueType
         
         Write-Host "   [ISSUE] Creee: $result" -ForegroundColor Green
         
-        if ($ProjectNumber_package -gt 0) {
-            gh project item-add $ProjectNumber_package --owner $Owner_package --url $result 2>$null
+        if ($ProjectNumberPackage -gt 0) {
+            gh project item-add $ProjectNumberPackage --owner $OwnerPackage --url $result 2>$null
         }
         
         return $result
@@ -410,9 +408,9 @@ $issueJson
 $script:IDRDocsContent
 
 ## Configuration Repo Packages IDR
-- Owner: $Owner_package
-- Repo: $Repo_package  
-- Project: $ProjectNumber_package
+- Owner: $OwnerPackage
+- Repo: $RepoPackage  
+- Project: $ProjectNumberPackage
 
 ## Instructions
 1. Lis les fichiers d'agents:
@@ -432,7 +430,7 @@ $script:IDRDocsContent
 
 3. REGLES COMPOSANTS FRONTEND:
    - Si un element se repete 3+ fois -> doit devenir un composant
-   - Si composant reutilisable detecte -> creer issue dans $Owner_package/$Repo_package
+   - Si composant reutilisable detecte -> creer issue dans $OwnerPackage/$RepoPackage
    - Apres mise a jour IDR.Library.Blazor -> remplacer composants locaux
    
 4. REGLES PACKAGES IDR:
@@ -454,9 +452,9 @@ Variables:
 - GITHUB_OWNER: $Owner
 - GITHUB_REPO: $Repo
 - PROJECT_NUMBER: $ProjectNumber
-- GITHUB_OWNER_PACKAGE: $Owner_package
-- GITHUB_REPO_PACKAGE: $Repo_package
-- PROJECT_NUMBER_PACKAGE: $ProjectNumber_package
+- GITHUB_OwnerPackage: $OwnerPackage
+- GITHUB_REPO_PACKAGE: $RepoPackage
+- PROJECT_NUMBER_PACKAGE: $ProjectNumberPackage
 
 Commence l'analyse.
 "@
@@ -511,9 +509,9 @@ $issueJson
 $script:IDRDocsContent
 
 ## Configuration Repo Packages IDR (pour issues composants/bugs)
-- Owner: $Owner_package
-- Repo: $Repo_package
-- Project: $ProjectNumber_package
+- Owner: $OwnerPackage
+- Repo: $RepoPackage
+- Project: $ProjectNumberPackage
 
 ## Instructions
 1. Lis les fichiers:
@@ -531,8 +529,8 @@ $script:IDRDocsContent
    - Si element repete 3+ fois -> DOIT devenir composant
    - Verifier si composant existe dans IDR.Library.Blazor
    - Si existe -> utiliser le composant IDR (prefixe Idr*)
-   - Si n'existe pas -> creer issue dans $Owner_package/$Repo_package:
-     gh issue create --repo "$Owner_package/$Repo_package" --title "[Component] Nouveau: NomComposant" --body "..."
+   - Si n'existe pas -> creer issue dans ${OwnerPackage/$RepoPackage}:
+     gh issue create --repo "$OwnerPackage/$RepoPackage" --title "[Component] Nouveau: NomComposant" --body "..."
    - Apres mise a jour package -> remplacer composants locaux par IDR
 
 4. REGLES PACKAGES IDR:
@@ -555,16 +553,16 @@ $script:IDRDocsContent
 
 6. CREATION ISSUE PACKAGE (si necessaire):
    Pour nouveau composant:
-   gh issue create --repo "$Owner_package/$Repo_package" --title "[Component] Idr{Nom}" --label "enhancement,component"
+   gh issue create --repo "$OwnerPackage/$RepoPackage" --title "[Component] Idr{Nom}" --label "enhancement,component"
    
    Pour bug/erreur:
-   gh issue create --repo "$Owner_package/$Repo_package" --title "[Bug] {Description}" --label "bug"
+   gh issue create --repo "$OwnerPackage/$RepoPackage" --title "[Bug] {Description}" --label "bug"
 
 Variables:
 - GITHUB_OWNER: $Owner
 - GITHUB_REPO: $Repo
-- GITHUB_OWNER_PACKAGE: $Owner_package
-- GITHUB_REPO_PACKAGE: $Repo_package
+- GITHUB_OwnerPackage: $OwnerPackage
+- GITHUB_REPO_PACKAGE: $RepoPackage
 
 Commence l'implementation.
 "@

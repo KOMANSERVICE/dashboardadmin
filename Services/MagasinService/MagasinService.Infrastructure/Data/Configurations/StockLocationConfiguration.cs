@@ -13,6 +13,24 @@ public class StockLocationConfiguration : IEntityTypeConfiguration<StockLocation
             )
             .ValueGeneratedOnAdd();
 
-       
+        builder.HasMany(e => e.SourceMovements)
+            .WithOne(e => e.SourceLocation)
+            .HasForeignKey(e => e.SourceLocationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(e => e.DestinationMovements)
+            .WithOne(e => e.DestinationLocation)
+            .HasForeignKey(e => e.DestinationLocationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(e => e.SourceSlips)
+            .WithOne(e => e.SourceLocation)
+            .HasForeignKey(e => e.SourceLocationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(e => e.DestinationSlips)
+            .WithOne(e => e.DestinationLocation!)
+            .HasForeignKey(e => e.DestinationLocationId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
