@@ -19,7 +19,7 @@ param(
     
     # Choix du modele Claude
     [ValidateSet("claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-3-5-sonnet-20241022")]
-    [string]$Model = "claude-sonnet-4-20250514",
+    [string]$Model = "claude-opus-4-20250514",
     
     # Options avancees
     [switch]$DryRun,
