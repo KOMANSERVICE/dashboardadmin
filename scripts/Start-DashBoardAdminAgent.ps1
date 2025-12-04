@@ -5,7 +5,7 @@ param(
     [string]$Owner = "KOMANSERVICE",
     [string]$Repo = "dashboardadmin",
     [int]$ProjectNumber = 5,
-    [int]$PollingInterval = 60,
+    [int]$PollingInterval = 600,
     
     # Configuration du repo des packages IDR (pour les issues de composants/bugs)
     [string]$Owner_package = "KOMANSERVICE",
