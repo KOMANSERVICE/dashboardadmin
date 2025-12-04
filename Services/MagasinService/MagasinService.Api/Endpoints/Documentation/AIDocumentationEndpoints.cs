@@ -92,6 +92,10 @@ public class AIDocumentationEndpoints : ICarterModule
                 "/api/magasin/{BoutiqueId} (GET) - Récupère tous les magasins d'une boutique",
                 "/api/magasin/{BoutiqueId} (POST) - Crée un nouveau magasin",
                 "/api/magasin/{BoutiqueId}/{StockLocationId} (PATCH) - Met à jour un magasin",
+                "/api/magasin/{id} (GET) - Récupère un magasin spécifique",
+                "/api/stock-movements (POST) - Crée un mouvement de stock",
+                "/api/stock-movements (GET) - Récupère les mouvements de stock",
+                "/api/stock-slips (POST) - Crée un bordereau de mouvement",
                 "/api/docs/ai/manifest (GET) - Récupère le manifest de documentation",
                 "/api/docs/ai (GET) - Récupère la documentation complète",
                 "/api/docs/ai/endpoints/{name} (GET) - Récupère les détails d'un endpoint",
@@ -335,8 +339,8 @@ public class AIDocumentationEndpoints : ICarterModule
             DocumentationComplete = true,
             LastUpdated = DateTime.UtcNow,
             Version = ServiceVersion,
-            EndpointCount = 3, // Excluding documentation endpoints
-            ModelCount = 2
+            EndpointCount = 7, // Excluding documentation endpoints
+            ModelCount = 6
         };
 
         return TypedResults.Ok(health);
@@ -347,8 +351,12 @@ public class AIDocumentationEndpoints : ICarterModule
         return new List<EndpointSummary>
         {
             new() { Name = "GetAllMagasin", Method = "GET", Path = "/api/magasin/{BoutiqueId}", Description = "Récupère tous les magasins d'une boutique" },
+            new() { Name = "GetOneMagasin", Method = "GET", Path = "/api/magasin/{id}", Description = "Récupère un magasin spécifique" },
             new() { Name = "CreateMagasin", Method = "POST", Path = "/api/magasin/{BoutiqueId}", Description = "Crée un nouveau magasin" },
-            new() { Name = "UpdateMagasin", Method = "PATCH", Path = "/api/magasin/{BoutiqueId}/{StockLocationId}", Description = "Met à jour un magasin existant" }
+            new() { Name = "UpdateMagasin", Method = "PATCH", Path = "/api/magasin/{BoutiqueId}/{StockLocationId}", Description = "Met à jour un magasin existant" },
+            new() { Name = "CreateStockMovement", Method = "POST", Path = "/api/stock-movements", Description = "Crée un mouvement de stock entre deux magasins" },
+            new() { Name = "GetStockMovements", Method = "GET", Path = "/api/stock-movements", Description = "Récupère les mouvements de stock avec filtres" },
+            new() { Name = "CreateStockSlip", Method = "POST", Path = "/api/stock-slips", Description = "Crée un bordereau de mouvement avec plusieurs produits" }
         };
     }
 
@@ -357,7 +365,11 @@ public class AIDocumentationEndpoints : ICarterModule
         return new List<ModelSummary>
         {
             new() { Name = "StockLocationDTO", Type = "object", Description = "Représentation complète d'un magasin" },
-            new() { Name = "StockLocationUpdateDTO", Type = "object", Description = "Données de mise à jour d'un magasin" }
+            new() { Name = "StockLocationUpdateDTO", Type = "object", Description = "Données de mise à jour d'un magasin" },
+            new() { Name = "CreateStockMovementRequest", Type = "object", Description = "Demande de création d'un mouvement de stock" },
+            new() { Name = "StockMovementDto", Type = "object", Description = "Représentation d'un mouvement de stock" },
+            new() { Name = "CreateStockSlipRequest", Type = "object", Description = "Demande de création d'un bordereau de mouvement" },
+            new() { Name = "StockSlipItemRequest", Type = "object", Description = "Article d'un bordereau de mouvement" }
         };
     }
 

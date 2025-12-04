@@ -9,7 +9,9 @@ public class MagasinServiceDbContext : DbContext, IMagasinServiceDbContext
     {
     }
     public DbSet<StockLocation> StockLocations => Set<StockLocation>();
-
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<StockSlip> StockSlips => Set<StockSlip>();
+    public DbSet<StockSlipItem> StockSlipItems => Set<StockSlipItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
