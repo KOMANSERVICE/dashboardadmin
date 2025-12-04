@@ -1,0 +1,12 @@
+global using Xunit;
+global using FluentAssertions;
+global using NSubstitute;
+global using Microsoft.EntityFrameworkCore;
+global using MagasinService.Domain.Entities;
+global using MagasinService.Domain.ValueObjects;
+global using MagasinService.Domain.Enums;
+global using MagasinService.Domain.Exceptions;
+global using MagasinService.Application.Features.StockMovements.Commands.CreateStockMovement;
+global using MagasinService.Application.Features.StockSlips.Commands.CreateStockSlip;
+global using MagasinService.Infrastructure.Data;
+global using MagasinService.Application.Commons.Data;
