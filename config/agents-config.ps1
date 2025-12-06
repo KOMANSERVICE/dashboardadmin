@@ -47,6 +47,35 @@ $Config = @{
     }
     
     # ============================================
+    # PRIORITÉ DE TRAITEMENT DES ISSUES
+    # ============================================
+    
+    ProcessingPriority = @(
+        @{ Column = "In Review"; Action = "FinishMerge"; Description = "Terminer le merge" }
+        @{ Column = "In Progress"; Action = "ContinueDev"; Description = "Terminer le développement" }
+        @{ Column = "Analyse"; Action = "Analyze"; Description = "Analyser l'issue" }
+        @{ Column = "Todo"; Action = "StartDev"; Description = "Commencer le développement" }
+    )
+    
+    # ============================================
+    # RÈGLES DE DÉPLACEMENT DES CARTES
+    # ============================================
+    
+    ColumnTransitions = @{
+        # Après analyse
+        AnalyseValid = "Todo"
+        AnalyseBlocked = "AnalyseBlock"
+        
+        # Après développement
+        DevStarted = "In Progress"
+        PRCreated = "In Review"
+        MergeCompleted = "A Tester"
+        
+        # Le testeur fermera l'issue
+        # Done est géré manuellement
+    }
+    
+    # ============================================
     # INTERVALLES DE POLLING
     # ============================================
     
@@ -436,6 +465,204 @@ function Show-IDRDocumentation {
     Write-Host ""
 }
 
+# ============================================
+# FONCTIONS DE DÉPLACEMENT DES CARTES (CASE-INSENSITIVE)
+# ============================================
+
+<#
+.SYNOPSIS
+    Compare deux noms de colonne de manière case-insensitive
+.PARAMETER Actual
+    Nom de colonne actuel
+.PARAMETER Expected
+    Nom de colonne attendu
+.EXAMPLE
+    Compare-ColumnName -Actual "a tester" -Expected "A Tester"  # Retourne $true
+#>
+function Compare-ColumnName {
+    param(
+        [string]$Actual,
+        [string]$Expected
+    )
+    
+    # Normaliser: trim, lowercase, remplacer espaces multiples
+    $normalizedActual = ($Actual -replace '\s+', ' ').Trim().ToLower()
+    $normalizedExpected = ($Expected -replace '\s+', ' ').Trim().ToLower()
+    
+    return $normalizedActual -eq $normalizedExpected
+}
+
+<#
+.SYNOPSIS
+    Déplace une issue vers une colonne spécifique (case-insensitive)
+.PARAMETER IssueNumber
+    Numéro de l'issue
+.PARAMETER TargetColumn
+    Nom de la colonne cible
+.EXAMPLE
+    Move-IssueToColumn -IssueNumber 42 -TargetColumn "A Tester"
+#>
+function Move-IssueToColumn {
+    param(
+        [Parameter(Mandatory)]
+        [int]$IssueNumber,
+        
+        [Parameter(Mandatory)]
+        [string]$TargetColumn
+    )
+    
+    $Owner = $env:GITHUB_OWNER
+    $Repo = $env:GITHUB_REPO
+    $ProjectNumber = $env:PROJECT_NUMBER
+    
+    try {
+        Write-Host "[MOVE] Déplacement issue #$IssueNumber vers '$TargetColumn'..." -ForegroundColor Cyan
+        
+        # Récupérer le project ID
+        $projectQuery = "query { organization(login: `"$Owner`") { projectV2(number: $ProjectNumber) { id } } }"
+        $projectResult = gh api graphql -f query="$projectQuery" 2>$null | ConvertFrom-Json
+        $projectId = $projectResult.data.organization.projectV2.id
+        
+        if (-not $projectId) {
+            # Essayer avec user au lieu de organization
+            $projectQuery = "query { user(login: `"$Owner`") { projectV2(number: $ProjectNumber) { id } } }"
+            $projectResult = gh api graphql -f query="$projectQuery" 2>$null | ConvertFrom-Json
+            $projectId = $projectResult.data.user.projectV2.id
+        }
+        
+        if (-not $projectId) {
+            Write-Host "   [ERROR] Project non trouvé" -ForegroundColor Red
+            return $false
+        }
+        
+        # Récupérer l'item ID de l'issue dans le project
+        $itemQuery = @"
+query {
+    repository(owner: "$Owner", name: "$Repo") {
+        issue(number: $IssueNumber) {
+            projectItems(first: 10) {
+                nodes { id project { id number } }
+            }
+        }
+    }
+}
+"@
+        $itemResult = gh api graphql -f query="$itemQuery" 2>$null | ConvertFrom-Json
+        $itemId = $itemResult.data.repository.issue.projectItems.nodes | 
+            Where-Object { $_.project.number -eq $ProjectNumber } | 
+            Select-Object -First 1 -ExpandProperty id
+        
+        if (-not $itemId) {
+            Write-Host "   [ERROR] Issue #$IssueNumber non trouvée dans le project" -ForegroundColor Red
+            return $false
+        }
+        
+        # Récupérer le field Status et les options
+        $fieldQuery = @"
+query {
+    node(id: "$projectId") {
+        ... on ProjectV2 {
+            field(name: "Status") {
+                ... on ProjectV2SingleSelectField {
+                    id
+                    options { id name }
+                }
+            }
+        }
+    }
+}
+"@
+        $fieldResult = gh api graphql -f query="$fieldQuery" 2>$null | ConvertFrom-Json
+        $statusFieldId = $fieldResult.data.node.field.id
+        
+        # Trouver l'option avec comparaison CASE-INSENSITIVE
+        $targetOption = $fieldResult.data.node.field.options | 
+            Where-Object { Compare-ColumnName -Actual $_.name -Expected $TargetColumn } | 
+            Select-Object -First 1
+        
+        if (-not $targetOption) {
+            Write-Host "   [ERROR] Colonne '$TargetColumn' non trouvée" -ForegroundColor Red
+            Write-Host "   Colonnes disponibles:" -ForegroundColor Yellow
+            $fieldResult.data.node.field.options | ForEach-Object { Write-Host "      - $($_.name)" }
+            return $false
+        }
+        
+        # Déplacer l'item
+        $moveQuery = @"
+mutation {
+    updateProjectV2ItemFieldValue(input: {
+        projectId: "$projectId"
+        itemId: "$itemId"
+        fieldId: "$statusFieldId"
+        value: { singleSelectOptionId: "$($targetOption.id)" }
+    }) {
+        projectV2Item { id }
+    }
+}
+"@
+        gh api graphql -f query="$moveQuery" 2>$null | Out-Null
+        
+        Write-Host "   [OK] Issue #$IssueNumber déplacée vers '$TargetColumn'" -ForegroundColor Green
+        return $true
+    }
+    catch {
+        Write-Host "   [ERROR] Échec: $_" -ForegroundColor Red
+        return $false
+    }
+}
+
+<#
+.SYNOPSIS
+    Récupère la colonne actuelle d'une issue
+.PARAMETER IssueNumber
+    Numéro de l'issue
+.EXAMPLE
+    Get-IssueColumn -IssueNumber 42
+#>
+function Get-IssueColumn {
+    param([int]$IssueNumber)
+    
+    $Owner = $env:GITHUB_OWNER
+    $Repo = $env:GITHUB_REPO
+    $ProjectNumber = $env:PROJECT_NUMBER
+    
+    try {
+        $result = gh project item-list $ProjectNumber --owner $Owner --format json 2>$null
+        $items = $result | ConvertFrom-Json
+        
+        $item = $items.items | Where-Object { 
+            $_.content.type -eq "Issue" -and $_.content.number -eq $IssueNumber 
+        } | Select-Object -First 1
+        
+        if ($item) {
+            return $item.status
+        }
+        return $null
+    }
+    catch {
+        return $null
+    }
+}
+
+<#
+.SYNOPSIS
+    Vérifie si une issue est dans une colonne spécifique (case-insensitive)
+.EXAMPLE
+    Test-IssueInColumn -IssueNumber 42 -ColumnName "a tester"  # Fonctionne même si la colonne est "A Tester"
+#>
+function Test-IssueInColumn {
+    param(
+        [int]$IssueNumber,
+        [string]$ColumnName
+    )
+    
+    $currentColumn = Get-IssueColumn -IssueNumber $IssueNumber
+    if ($currentColumn) {
+        return Compare-ColumnName -Actual $currentColumn -Expected $ColumnName
+    }
+    return $false
+}
+
 # Export
 Export-ModuleMember -Variable Config -Function @(
     'Get-AgentConfig',
@@ -447,5 +674,9 @@ Export-ModuleMember -Variable Config -Function @(
     'Read-AllIDRLibraryDocs',
     'Get-IDRDocsPath',
     'Get-IDRDocsFiles',
-    'Show-IDRDocumentation'
+    'Show-IDRDocumentation',
+    'Compare-ColumnName',
+    'Move-IssueToColumn',
+    'Get-IssueColumn',
+    'Test-IssueInColumn'
 )
