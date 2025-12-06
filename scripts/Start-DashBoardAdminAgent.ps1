@@ -5,7 +5,7 @@ param(
     [string]$Owner = "KOMANSERVICE",
     [string]$Repo = "dashboardadmin",
     [int]$ProjectNumber = 5,
-    [int]$PollingInterval = 600,
+    [int]$PollingInterval = 60,
     
     # Configuration du repo des packages IDR (pour les issues de composants/bugs)
     [string]$Owner_package = "KOMANSERVICE",
@@ -18,8 +18,8 @@ param(
     [switch]$CoderOnly,
     
     # Choix du modele Claude
-    [ValidateSet("claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-3-5-sonnet-20241022")]
-    [string]$Model = "claude-opus-4-20250514",
+    [ValidateSet("claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-opus-4-5-20251101", "claude-3-5-sonnet-20241022")]
+    [string]$Model = "claude-opus-4-5-20251101",
     
     # Options avancees
     [switch]$DryRun,
