@@ -513,51 +513,67 @@ function Move-IssueToColumn {
     
     $Owner = $env:GITHUB_OWNER
     $Repo = $env:GITHUB_REPO
-    $ProjectNumber = $env:PROJECT_NUMBER
+    $ProjectNumber = [int]$env:PROJECT_NUMBER
     
     try {
-        Write-Host "[MOVE] Déplacement issue #$IssueNumber vers '$TargetColumn'..." -ForegroundColor Cyan
+        Write-Host "[MOVE] Deplacement issue #$IssueNumber vers '$TargetColumn'..." -ForegroundColor Cyan
         
-        # Récupérer le project ID
-        $projectQuery = "query { organization(login: `"$Owner`") { projectV2(number: $ProjectNumber) { id } } }"
-        $projectResult = gh api graphql -f query="$projectQuery" 2>$null | ConvertFrom-Json
-        $projectId = $projectResult.data.organization.projectV2.id
-        
-        if (-not $projectId) {
-            # Essayer avec user au lieu de organization
-            $projectQuery = "query { user(login: `"$Owner`") { projectV2(number: $ProjectNumber) { id } } }"
-            $projectResult = gh api graphql -f query="$projectQuery" 2>$null | ConvertFrom-Json
-            $projectId = $projectResult.data.user.projectV2.id
-        }
-        
-        if (-not $projectId) {
-            Write-Host "   [ERROR] Project non trouvé" -ForegroundColor Red
+        # Recuperer l'item via gh project item-list (plus fiable)
+        $result = gh project item-list $ProjectNumber --owner $Owner --format json 2>$null
+        if ([string]::IsNullOrWhiteSpace($result)) {
+            Write-Host "   [ERROR] Impossible de lister les items du project" -ForegroundColor Red
             return $false
         }
         
-        # Récupérer l'item ID de l'issue dans le project
-        $itemQuery = @"
-query {
-    repository(owner: "$Owner", name: "$Repo") {
-        issue(number: $IssueNumber) {
-            projectItems(first: 10) {
-                nodes { id project { id number } }
+        $items = $result | ConvertFrom-Json
+        $item = $items.items | Where-Object { 
+            $_.content.type -eq "Issue" -and $_.content.number -eq $IssueNumber 
+        } | Select-Object -First 1
+        
+        if (-not $item) {
+            Write-Host "   [ERROR] Issue #$IssueNumber non trouvee dans le project" -ForegroundColor Red
+            return $false
+        }
+        
+        # Verifier si deja dans la bonne colonne
+        if (Compare-ColumnName -Actual $item.status -Expected $TargetColumn) {
+            Write-Host "   [OK] Issue #$IssueNumber deja dans '$TargetColumn'" -ForegroundColor Green
+            return $true
+        }
+        
+        # Essayer d'abord avec organization
+        $projectId = $null
+        $orgQuery = @"
+query { organization(login: "$Owner") { projectV2(number: $ProjectNumber) { id } } }
+"@
+        $orgResult = gh api graphql -f query="$orgQuery" 2>$null
+        if ($orgResult) {
+            $orgData = $orgResult | ConvertFrom-Json
+            if ($orgData.data.organization.projectV2) {
+                $projectId = $orgData.data.organization.projectV2.id
             }
         }
-    }
-}
-"@
-        $itemResult = gh api graphql -f query="$itemQuery" 2>$null | ConvertFrom-Json
-        $itemId = $itemResult.data.repository.issue.projectItems.nodes | 
-            Where-Object { $_.project.number -eq $ProjectNumber } | 
-            Select-Object -First 1 -ExpandProperty id
         
-        if (-not $itemId) {
-            Write-Host "   [ERROR] Issue #$IssueNumber non trouvée dans le project" -ForegroundColor Red
+        # Si pas trouve, essayer avec user
+        if (-not $projectId) {
+            $userQuery = @"
+query { user(login: "$Owner") { projectV2(number: $ProjectNumber) { id } } }
+"@
+            $userResult = gh api graphql -f query="$userQuery" 2>$null
+            if ($userResult) {
+                $userData = $userResult | ConvertFrom-Json
+                if ($userData.data.user.projectV2) {
+                    $projectId = $userData.data.user.projectV2.id
+                }
+            }
+        }
+        
+        if (-not $projectId) {
+            Write-Host "   [ERROR] Project non trouve pour $Owner" -ForegroundColor Red
             return $false
         }
         
-        # Récupérer le field Status et les options
+        # Recuperer le field Status et les options
         $fieldQuery = @"
 query {
     node(id: "$projectId") {
@@ -572,27 +588,38 @@ query {
     }
 }
 "@
-        $fieldResult = gh api graphql -f query="$fieldQuery" 2>$null | ConvertFrom-Json
-        $statusFieldId = $fieldResult.data.node.field.id
+        $fieldResult = gh api graphql -f query="$fieldQuery" 2>$null
+        if (-not $fieldResult) {
+            Write-Host "   [ERROR] Impossible de recuperer le champ Status" -ForegroundColor Red
+            return $false
+        }
+        
+        $fieldData = $fieldResult | ConvertFrom-Json
+        if (-not $fieldData.data.node.field) {
+            Write-Host "   [ERROR] Champ 'Status' non trouve" -ForegroundColor Red
+            return $false
+        }
+        
+        $statusFieldId = $fieldData.data.node.field.id
         
         # Trouver l'option avec comparaison CASE-INSENSITIVE
-        $targetOption = $fieldResult.data.node.field.options | 
+        $targetOption = $fieldData.data.node.field.options | 
             Where-Object { Compare-ColumnName -Actual $_.name -Expected $TargetColumn } | 
             Select-Object -First 1
         
         if (-not $targetOption) {
-            Write-Host "   [ERROR] Colonne '$TargetColumn' non trouvée" -ForegroundColor Red
+            Write-Host "   [ERROR] Colonne '$TargetColumn' non trouvee" -ForegroundColor Red
             Write-Host "   Colonnes disponibles:" -ForegroundColor Yellow
-            $fieldResult.data.node.field.options | ForEach-Object { Write-Host "      - $($_.name)" }
+            $fieldData.data.node.field.options | ForEach-Object { Write-Host "      - $($_.name)" }
             return $false
         }
         
-        # Déplacer l'item
+        # Deplacer l'item
         $moveQuery = @"
 mutation {
     updateProjectV2ItemFieldValue(input: {
         projectId: "$projectId"
-        itemId: "$itemId"
+        itemId: "$($item.id)"
         fieldId: "$statusFieldId"
         value: { singleSelectOptionId: "$($targetOption.id)" }
     }) {

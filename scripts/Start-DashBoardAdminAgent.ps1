@@ -12,7 +12,6 @@ param(
     [string]$Repo_package = "IDR.Library",
     [int]$ProjectNumber_package = 4,
     
-
     # Modes de fonctionnement
     [switch]$AnalysisOnly,
     [switch]$CoderOnly,
@@ -124,6 +123,11 @@ function Move-IssueToColumn {
         
         # Recuperer l'ID de l'item dans le project
         $result = gh project item-list $ProjectNumber --owner $Owner --format json 2>$null
+        if ([string]::IsNullOrWhiteSpace($result)) {
+            Write-Host "   [ERROR] Impossible de lister les items du project" -ForegroundColor Red
+            return $false
+        }
+        
         $items = $result | ConvertFrom-Json
         
         $item = $items.items | Where-Object { 
@@ -141,53 +145,118 @@ function Move-IssueToColumn {
             return $true
         }
         
-        # Deplacer l'item
-        $fieldId = gh project field-list $ProjectNumber --owner $Owner --format json 2>$null | 
-            ConvertFrom-Json | 
-            Where-Object { $_.name -eq "Status" } | 
-            Select-Object -ExpandProperty id
+        Write-Host "   [INFO] Colonne actuelle: '$($item.status)'" -ForegroundColor DarkGray
         
-        if (-not $fieldId) {
-            Write-Host "   [ERROR] Champ 'Status' non trouve dans le project" -ForegroundColor Red
+        # Essayer d'abord avec organization (plus courant pour les entreprises)
+        $projectId = $null
+        $orgQuery = @"
+query { organization(login: "$Owner") { projectV2(number: $ProjectNumber) { id } } }
+"@
+        $orgResult = gh api graphql -f query="$orgQuery" 2>$null
+        if ($orgResult) {
+            $orgData = $orgResult | ConvertFrom-Json
+            if ($orgData.data.organization.projectV2) {
+                $projectId = $orgData.data.organization.projectV2.id
+                Write-Host "   [INFO] Project trouve (organization)" -ForegroundColor DarkGray
+            }
+        }
+        
+        # Si pas trouve, essayer avec user
+        if (-not $projectId) {
+            $userQuery = @"
+query { user(login: "$Owner") { projectV2(number: $ProjectNumber) { id } } }
+"@
+            $userResult = gh api graphql -f query="$userQuery" 2>$null
+            if ($userResult) {
+                $userData = $userResult | ConvertFrom-Json
+                if ($userData.data.user.projectV2) {
+                    $projectId = $userData.data.user.projectV2.id
+                    Write-Host "   [INFO] Project trouve (user)" -ForegroundColor DarkGray
+                }
+            }
+        }
+        
+        if (-not $projectId) {
+            Write-Host "   [ERROR] Project non trouve pour $Owner" -ForegroundColor Red
             return $false
         }
         
-        # Executer le deplacement
-        gh project item-edit --project-id (gh project list --owner $Owner --format json | ConvertFrom-Json | Where-Object { $_.number -eq $ProjectNumber } | Select-Object -ExpandProperty id) --id $item.id --field-id $fieldId --single-select-option-id $TargetColumn 2>$null
-        
-        # Methode alternative plus simple via GraphQL
-        $projectId = gh api graphql -f query="query { user(login: `"$Owner`") { projectV2(number: $ProjectNumber) { id } } }" --jq '.data.user.projectV2.id' 2>$null
-        if (-not $projectId) {
-            $projectId = gh api graphql -f query="query { organization(login: `"$Owner`") { projectV2(number: $ProjectNumber) { id } } }" --jq '.data.organization.projectV2.id' 2>$null
-        }
-        
-        if ($projectId) {
-            # Obtenir le field ID pour Status
-            $fieldData = gh api graphql -f query="query { node(id: `"$projectId`") { ... on ProjectV2 { field(name: `"Status`") { ... on ProjectV2SingleSelectField { id options { id name } } } } } }" 2>$null | ConvertFrom-Json
-            
-            $statusFieldId = $fieldData.data.node.field.id
-            $targetOption = $fieldData.data.node.field.options | Where-Object { 
-                Compare-ColumnName -Actual $_.name -Expected $TargetColumn 
-            } | Select-Object -First 1
-            
-            if ($targetOption) {
-                $mutation = "mutation { updateProjectV2ItemFieldValue(input: { projectId: `"$projectId`", itemId: `"$($item.id)`", fieldId: `"$statusFieldId`", value: { singleSelectOptionId: `"$($targetOption.id)`" } }) { projectV2Item { id } } }"
-                
-                gh api graphql -f query="$mutation" 2>$null | Out-Null
-                
-                Write-Host "   [OK] Issue #$IssueNumber deplacee vers '$TargetColumn'" -ForegroundColor Green
-                return $true
-            }
-            else {
-                Write-Host "   [ERROR] Colonne '$TargetColumn' non trouvee" -ForegroundColor Red
-                return $false
+        # Obtenir le field ID pour Status et ses options
+        $fieldQuery = @"
+query {
+    node(id: "$projectId") {
+        ... on ProjectV2 {
+            field(name: "Status") {
+                ... on ProjectV2SingleSelectField {
+                    id
+                    options {
+                        id
+                        name
+                    }
+                }
             }
         }
+    }
+}
+"@
+        $fieldResult = gh api graphql -f query="$fieldQuery" 2>$null
+        if (-not $fieldResult) {
+            Write-Host "   [ERROR] Impossible de recuperer le champ Status" -ForegroundColor Red
+            return $false
+        }
         
-        return $false
+        $fieldData = $fieldResult | ConvertFrom-Json
+        
+        if (-not $fieldData.data.node.field) {
+            Write-Host "   [ERROR] Champ 'Status' non trouve dans le project" -ForegroundColor Red
+            Write-Host "   [DEBUG] Reponse: $fieldResult" -ForegroundColor DarkGray
+            return $false
+        }
+        
+        $statusFieldId = $fieldData.data.node.field.id
+        $options = $fieldData.data.node.field.options
+        
+        Write-Host "   [INFO] Options disponibles: $($options.name -join ', ')" -ForegroundColor DarkGray
+        
+        # Trouver l'option cible (case-insensitive)
+        $targetOption = $options | Where-Object { 
+            Compare-ColumnName -Actual $_.name -Expected $TargetColumn 
+        } | Select-Object -First 1
+        
+        if (-not $targetOption) {
+            Write-Host "   [ERROR] Colonne '$TargetColumn' non trouvee parmi: $($options.name -join ', ')" -ForegroundColor Red
+            return $false
+        }
+        
+        Write-Host "   [INFO] Option trouvee: $($targetOption.name) (ID: $($targetOption.id))" -ForegroundColor DarkGray
+        
+        # Executer la mutation pour deplacer l'item
+        $mutation = @"
+mutation {
+    updateProjectV2ItemFieldValue(input: {
+        projectId: "$projectId"
+        itemId: "$($item.id)"
+        fieldId: "$statusFieldId"
+        value: { singleSelectOptionId: "$($targetOption.id)" }
+    }) {
+        projectV2Item {
+            id
+        }
+    }
+}
+"@
+        $mutationResult = gh api graphql -f query="$mutation" 2>&1
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "   [ERROR] Echec de la mutation: $mutationResult" -ForegroundColor Red
+            return $false
+        }
+        
+        Write-Host "   [OK] Issue #$IssueNumber deplacee vers '$TargetColumn'" -ForegroundColor Green
+        return $true
     }
     catch {
-        Write-Host "   [ERROR] Echec deplacement issue #$IssueNumber : $_" -ForegroundColor Red
+        Write-Host "   [ERROR] Exception: $_" -ForegroundColor Red
         return $false
     }
 }
@@ -1067,4 +1136,5 @@ while ($true) {
     Write-Host "[$timestamp] [WAIT] Prochaine verification dans $PollingInterval sec..." -ForegroundColor DarkGray
     Start-Sleep -Seconds $PollingInterval
 }
+
 
