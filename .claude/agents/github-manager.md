@@ -21,6 +21,44 @@ $columns = @{
 }
 ```
 
+## ⚠️ RÈGLE CRITIQUE: Déplacement des cartes OBLIGATOIRE
+
+### Comparaison CASE-INSENSITIVE
+Les noms de colonnes sont comparés **SANS tenir compte de la casse**:
+- "a tester" = "A Tester" = "A TESTER" ✅
+- "in progress" = "In Progress" = "IN PROGRESS" ✅
+- "analyseblock" = "AnalyseBlock" = "ANALYSEBLOCK" ✅
+
+### Fonction de comparaison
+```powershell
+function Compare-ColumnName {
+    param(
+        [string]$Actual,
+        [string]$Expected
+    )
+    
+    # Normaliser: trim, lowercase, remplacer espaces multiples
+    $normalizedActual = ($Actual -replace '\s+', ' ').Trim().ToLower()
+    $normalizedExpected = ($Expected -replace '\s+', ' ').Trim().ToLower()
+    
+    return $normalizedActual -eq $normalizedExpected
+}
+```
+
+### Déplacements obligatoires
+| Action | Colonne cible |
+|--------|---------------|
+| Analyse valide | **Todo** |
+| Analyse bloquée | **AnalyseBlock** |
+| Début développement | **In Progress** |
+| PR créée | **In Review** |
+| Merge terminé | **A Tester** |
+
+### JAMAIS:
+- ❌ Fermer l'issue (le testeur la fermera)
+- ❌ Laisser l'issue dans la mauvaise colonne
+- ❌ Terminer sans déplacer
+
 ## Commandes GitHub CLI (PowerShell)
 
 ### Récupérer les détails d'une issue

@@ -145,6 +145,107 @@ git fetch --prune
 git branch -vv | Where-Object { $_ -match '\[.*: gone\]' }
 ```
 
+## ⚠️ DÉPLACEMENT DES CARTES - OBLIGATOIRE
+
+### Règle absolue
+L'issue DOIT être déplacée à CHAQUE étape du workflow. Ne JAMAIS terminer une action sans déplacer l'issue.
+
+### Colonnes et transitions (CASE-INSENSITIVE)
+| Étape | Colonne source | Colonne cible |
+|-------|----------------|---------------|
+| Début développement | Todo | **In Progress** |
+| PR créée | In Progress | **In Review** |
+| Merge terminé | In Review | **A Tester** |
+
+**Note:** La comparaison est CASE-INSENSITIVE: "a tester" = "A Tester" = "A TESTER"
+
+### Commande de déplacement
+```powershell
+function Move-IssueToColumn {
+    param(
+        [int]$IssueNumber,
+        [string]$TargetColumn  # "In Progress", "In Review", "A Tester"
+    )
+    
+    # Récupérer l'item dans le project
+    $projectId = gh api graphql -f query='
+        query { organization(login: "'"$env:GITHUB_OWNER"'") { 
+            projectV2(number: '"$env:PROJECT_NUMBER"') { id } 
+        } }
+    ' --jq '.data.organization.projectV2.id'
+    
+    # Obtenir l'item ID de l'issue
+    $itemData = gh api graphql -f query='
+        query { repository(owner: "'"$env:GITHUB_OWNER"'", name: "'"$env:GITHUB_REPO"'") {
+            issue(number: '$IssueNumber') {
+                projectItems(first: 10) {
+                    nodes { id project { id number } }
+                }
+            }
+        } }
+    ' | ConvertFrom-Json
+    
+    $itemId = $itemData.data.repository.issue.projectItems.nodes | 
+        Where-Object { $_.project.number -eq $env:PROJECT_NUMBER } | 
+        Select-Object -First 1 -ExpandProperty id
+    
+    # Obtenir le field Status et les options
+    $fieldData = gh api graphql -f query='
+        query { node(id: "'"$projectId"'") {
+            ... on ProjectV2 {
+                field(name: "Status") {
+                    ... on ProjectV2SingleSelectField {
+                        id options { id name }
+                    }
+                }
+            }
+        } }
+    ' | ConvertFrom-Json
+    
+    $statusFieldId = $fieldData.data.node.field.id
+    # Comparaison CASE-INSENSITIVE
+    $optionId = $fieldData.data.node.field.options | 
+        Where-Object { $_.name.ToLower() -eq $TargetColumn.ToLower() } | 
+        Select-Object -First 1 -ExpandProperty id
+    
+    # Déplacer l'item
+    gh api graphql -f query='
+        mutation { updateProjectV2ItemFieldValue(input: {
+            projectId: "'"$projectId"'"
+            itemId: "'"$itemId"'"
+            fieldId: "'"$statusFieldId"'"
+            value: { singleSelectOptionId: "'"$optionId"'" }
+        }) { projectV2Item { id } } }
+    '
+    
+    Write-Host "[OK] Issue #$IssueNumber déplacée vers $TargetColumn" -ForegroundColor Green
+}
+```
+
+### Appels obligatoires
+```powershell
+# 1. Au début du développement (automatique par le script principal)
+#    L'issue est déjà déplacée vers "In Progress"
+
+# 2. Après création de la PR
+Move-IssueToColumn -IssueNumber $IssueNumber -TargetColumn "In Review"
+
+# 3. Après le merge
+Move-IssueToColumn -IssueNumber $IssueNumber -TargetColumn "A Tester"
+```
+
+### Ce qu'il ne faut JAMAIS faire
+- ❌ Terminer sans déplacer l'issue
+- ❌ Fermer l'issue (le testeur la fermera)
+- ❌ Laisser l'issue dans la mauvaise colonne
+- ❌ Ignorer le déplacement en cas d'erreur
+
+### Confirmation dans les commentaires
+Après chaque déplacement, ajouter un commentaire:
+```powershell
+gh issue comment $IssueNumber --repo "$env:GITHUB_OWNER/$env:GITHUB_REPO" --body "🔄 Issue déplacée vers: **$TargetColumn**"
+```
+
 ## Configuration Git
 ```powershell
 # Variables

@@ -132,11 +132,30 @@ Détermine si l'issue concerne:
 
 ### Étape 4: Consolider les analyses
 Attendre les résultats des sub-agents et décider:
-- ✅ **Valide** → Spawn `gherkin-generator` puis `github-manager`
-- 🚫 **Bloquée** → Spawn `github-manager` avec raison du blocage
+- ✅ **Valide** → Spawn `gherkin-generator` puis `github-manager` → **DÉPLACER vers "Todo"**
+- 🚫 **Bloquée** → Spawn `github-manager` avec raison du blocage → **DÉPLACER vers "AnalyseBlock"**
 - ❓ **Clarification nécessaire** → Demander plus d'informations
 
-### Étape 5: Documentation
+### Étape 5: Déplacement des cartes (OBLIGATOIRE)
+
+**⚠️ RÈGLE ABSOLUE:** L'issue DOIT TOUJOURS être déplacée à la fin de l'analyse.
+
+| Résultat | Colonne cible |
+|----------|---------------|
+| Analyse valide | **Todo** |
+| Analyse bloquée | **AnalyseBlock** |
+
+**Commande de déplacement:**
+```powershell
+# Utiliser gh project pour déplacer
+# La comparaison de colonne est CASE-INSENSITIVE (a tester = A Tester)
+```
+
+**NE JAMAIS:**
+- Terminer sans déplacer l'issue
+- Laisser l'issue dans "Analyse" après traitement
+
+### Étape 6: Documentation
 Pour les microservices, s'assurer que:
 - La documentation OpenAPI/Swagger est générée
 - L'endpoint `/docs` est accessible

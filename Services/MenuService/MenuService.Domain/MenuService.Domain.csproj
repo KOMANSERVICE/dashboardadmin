@@ -7,7 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="IDR.Library.BuildingBlocks" Version="3.0.3" />
+    <PackageReference Include="IDR.Library.BuildingBlocks" Version="3.1.4" />
   </ItemGroup>
+
 
 </Project>
