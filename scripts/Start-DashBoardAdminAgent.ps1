@@ -760,7 +760,7 @@ $script:IDRDocsContent
    - Si element repete 3+ fois -> DOIT devenir composant
    - Verifier si composant existe dans IDR.Library.Blazor
    - Si existe -> utiliser le composant IDR (prefixe Idr*)
-   - Si n'existe pas -> creer issue dans $Owner_package/$Repo_package:
+   - Si n'existe pas -> creer issue dans ${Owner_package/$Repo_package}:
      gh issue create --repo "$Owner_package/$Repo_package" --title "[Component] Nouveau: NomComposant" --body "..."
    - Apres mise a jour package -> remplacer composants locaux par IDR
 
