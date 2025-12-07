@@ -115,49 +115,83 @@ Prendre les issues de la colonne "Todo", les implémenter, créer une PR, la val
 │      - Documenter nouveaux endpoints/commands/queries               │
 │                                                                      │
 │  ═══════════════════════════════════════════════════════════════    │
+│  PHASE 3.5: DEBUG ET ANALYSE APPROFONDIE (OBLIGATOIRE)              │
+│  ═══════════════════════════════════════════════════════════════    │
+│  *** AVANT LES TESTS, ANALYSER LE CODE EN PROFONDEUR ***            │
+│                                                                      │
+│  15. Analyse statique du code:                                       │
+│      - Parcourir CHAQUE fichier modifié ligne par ligne             │
+│      - Vérifier cohérence des types et signatures                   │
+│      - Vérifier les null references potentielles                    │
+│      - Vérifier conditions aux limites (off-by-one)                 │
+│                                                                      │
+│  16. Détection des erreurs de logique:                              │
+│      - Logique métier correspond aux specs Gherkin?                 │
+│      - Conditions if/else dans le bon sens?                         │
+│      - Boucles: conditions d'arrêt correctes?                       │
+│      - Comparaisons: ==, !=, <, >, <=, >= correctes?               │
+│      - Opérateurs logiques: &&, ||, ! correctes?                    │
+│                                                                      │
+│  17. Patterns de bugs courants:                                      │
+│      - Variables non initialisées                                   │
+│      - Ressources non fermées (using manquants)                     │
+│      - Exceptions mal gérées                                        │
+│      - Problèmes threading/concurrence                              │
+│      - Fuites mémoire potentielles                                  │
+│      - Injections SQL/XSS potentielles                              │
+│                                                                      │
+│  18. Trace du flux de données:                                       │
+│      - Suivre données de l'entrée à la sortie                       │
+│      - Vérifier transformations de données                          │
+│      - Vérifier validations manquantes                              │
+│                                                                      │
+│  *** SI BUG TROUVÉ → CORRIGER ET RECOMMENCER L'ANALYSE ***         │
+│  *** SI BUG NON TROUVÉ → NE PAS DÉPLACER, LAISSER EN PROGRESS ***  │
+│                                                                      │
+│  ═══════════════════════════════════════════════════════════════    │
 │  PHASE 4: TESTS ET VALIDATION                                        │
 │  ═══════════════════════════════════════════════════════════════    │
-│  15. Écrire les tests unitaires                                      │
-│  16. Exécuter TOUS les tests                                         │
+│  19. Écrire les tests unitaires                                      │
+│  20. Exécuter TOUS les tests                                         │
 │      dotnet test                                                     │
-│  17. *** SI TESTS ÉCHOUENT → CORRIGER ET RÉESSAYER ***              │
-│      - Ne PAS continuer si des tests échouent                       │
-│      - Corriger le code ou les tests                                │
-│      - Relancer les tests jusqu'à ce qu'ils passent                 │
-│  18. Vérifier la compilation complète                               │
+│  21. *** SI TESTS ÉCHOUENT → DEBUGGER (retour PHASE 3.5) ***        │
+│      - Analyser le message d'erreur                                 │
+│      - Identifier la cause (code ou test?)                          │
+│      - Corriger et RÉESSAYER                                        │
+│  22. Vérifier la compilation complète                               │
 │      dotnet build                                                    │
 │                                                                      │
 │  ═══════════════════════════════════════════════════════════════    │
 │  PHASE 5: COMMIT ET PUSH                                             │
 │  ═══════════════════════════════════════════════════════════════    │
-│  19. Commit avec message descriptif                                  │
+│  23. Commit avec message descriptif                                  │
 │      git add .                                                       │
 │      git commit -m "feat(#$IssueNumber): description"               │
-│  20. Push la branche                                                 │
+│  24. Push la branche                                                 │
 │      git push -u origin feature/$IssueNumber-description            │
 │                                                                      │
 │  ═══════════════════════════════════════════════════════════════    │
 │  PHASE 6: PULL REQUEST                                               │
 │  ═══════════════════════════════════════════════════════════════    │
-│  21. DÉPLACER l'issue vers "In Review"                              │
-│  22. Créer la Pull Request                                           │
+│  25. DÉPLACER l'issue vers "In Review"                              │
+│  26. Créer la Pull Request                                           │
 │      gh pr create --title "feat(#$IssueNumber): ..." --body "..."   │
-│  23. Auto-review de la PR (vérifier les changements)                │
+│  27. Auto-review de la PR (vérifier les changements)                │
 │                                                                      │
 │  ═══════════════════════════════════════════════════════════════    │
 │  PHASE 7: MERGE ET FINALISATION                                      │
 │  ═══════════════════════════════════════════════════════════════    │
-│  24. Valider (merge) la PR                                           │
+│  28. Valider (merge) la PR                                           │
 │      gh pr merge --squash --delete-branch                           │
-│  25. Retourner sur main et pull                                     │
+│  29. Retourner sur main et pull                                     │
 │      git checkout main                                               │
 │      git pull origin main                                            │
-│  26. *** SUPPRIMER LA BRANCHE ***                <-- OBLIGATOIRE    │
+│  30. *** SUPPRIMER LA BRANCHE ***                <-- OBLIGATOIRE    │
 │      - git branch -d feature/xxx (local)                            │
 │      - git push origin --delete feature/xxx (remote si pas fait)    │
 │      - git fetch --prune                                             │
-│  27. DÉPLACER l'issue vers "A Tester"                               │
-│  28. *** NE PAS FERMER L'ISSUE ***               <-- IMPORTANT!     │
+│  31. DÉPLACER l'issue vers "A Tester"                               │
+│  32. *** NE PAS FERMER L'ISSUE ***               <-- IMPORTANT!     │
 │      - Le testeur fermera l'issue après validation                  │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
@@ -1124,6 +1158,313 @@ public class {Action}Endpoint : ICarterModule
         return Results.Created($"/api/{feature}/{result.Id}", result);
     }
 }
+```
+
+## Phase 3.6: DEBUG - Analyse approfondie du code (OBLIGATOIRE)
+
+### ⚠️ CETTE PHASE EST OBLIGATOIRE AVANT LES TESTS
+
+L'agent DOIT analyser le code en profondeur pour détecter les bugs AVANT d'exécuter les tests.
+C'est particulièrement critique quand l'issue concerne un bug à trouver.
+
+### Fonction d'analyse statique
+```powershell
+function Invoke-CodeAnalysis {
+    param(
+        [string]$FilePath,
+        [switch]$Verbose
+    )
+    
+    Write-Host "=== ANALYSE STATIQUE: $FilePath ===" -ForegroundColor Cyan
+    
+    $content = Get-Content $FilePath -Raw
+    $lines = Get-Content $FilePath
+    $issues = @()
+    
+    # 1. Vérifier les null references
+    $lineNum = 0
+    foreach ($line in $lines) {
+        $lineNum++
+        
+        # Accès sans vérification null
+        if ($line -match '\.\w+\.' -and $line -notmatch '\?\.' -and $line -notmatch 'if.*!=.*null' -and $line -notmatch 'if.*==.*null') {
+            if ($line -notmatch 'nameof|typeof|string\.|int\.|bool\.') {
+                $issues += @{
+                    Line = $lineNum
+                    Type = "NullReference"
+                    Message = "Accès potentiel sans vérification null"
+                    Code = $line.Trim()
+                }
+            }
+        }
+        
+        # Variables non initialisées
+        if ($line -match '^\s*(var|string|int|bool|object)\s+\w+\s*;') {
+            $issues += @{
+                Line = $lineNum
+                Type = "Uninitialized"
+                Message = "Variable potentiellement non initialisée"
+                Code = $line.Trim()
+            }
+        }
+        
+        # Ressources non disposées
+        if ($line -match 'new\s+(FileStream|StreamReader|StreamWriter|HttpClient|SqlConnection)' -and $line -notmatch 'using') {
+            $issues += @{
+                Line = $lineNum
+                Type = "ResourceLeak"
+                Message = "Ressource potentiellement non disposée (using manquant)"
+                Code = $line.Trim()
+            }
+        }
+    }
+    
+    # 2. Vérifier les patterns dangereux
+    if ($content -match 'catch\s*\(\s*\)' -or $content -match 'catch\s*\(\s*Exception\s*\)') {
+        $issues += @{
+            Line = 0
+            Type = "ExceptionHandling"
+            Message = "Catch générique détecté - risque de masquer les erreurs"
+            Code = "catch (Exception) ou catch ()"
+        }
+    }
+    
+    # 3. Vérifier les comparaisons dangereuses
+    if ($content -match '==\s*null' -and $content -notmatch 'is\s+null') {
+        Write-Host "[INFO] Préférer 'is null' à '== null' pour les comparaisons" -ForegroundColor Yellow
+    }
+    
+    # Afficher les résultats
+    if ($issues.Count -gt 0) {
+        Write-Host "[DEBUG] $($issues.Count) problème(s) potentiel(s) détecté(s):" -ForegroundColor Yellow
+        foreach ($issue in $issues) {
+            Write-Host "  Ligne $($issue.Line): [$($issue.Type)] $($issue.Message)" -ForegroundColor Yellow
+            Write-Host "    Code: $($issue.Code)" -ForegroundColor DarkGray
+        }
+        return $issues
+    }
+    else {
+        Write-Host "[OK] Aucun problème détecté dans l'analyse statique" -ForegroundColor Green
+        return @()
+    }
+}
+```
+
+### Fonction de détection des erreurs de logique
+```powershell
+function Test-BusinessLogic {
+    param(
+        [string]$FilePath,
+        [string]$GherkinSpec
+    )
+    
+    Write-Host "=== VÉRIFICATION LOGIQUE MÉTIER: $FilePath ===" -ForegroundColor Cyan
+    
+    $content = Get-Content $FilePath -Raw
+    $issues = @()
+    
+    # 1. Vérifier les conditions inversées
+    # Exemple: if (x > y) devrait être if (x < y)
+    $conditions = [regex]::Matches($content, 'if\s*\([^)]+\)')
+    foreach ($cond in $conditions) {
+        Write-Host "[CHECK] Condition: $($cond.Value)" -ForegroundColor DarkGray
+    }
+    
+    # 2. Vérifier les boucles infinies potentielles
+    if ($content -match 'while\s*\(\s*true\s*\)' -and $content -notmatch 'break') {
+        $issues += @{
+            Type = "InfiniteLoop"
+            Message = "Boucle while(true) sans break détectée"
+        }
+    }
+    
+    # 3. Vérifier les off-by-one
+    if ($content -match 'for.*<\s*\w+\.Length' -or $content -match 'for.*<=\s*\w+\.Length') {
+        Write-Host "[WARN] Vérifier les conditions de boucle for avec .Length" -ForegroundColor Yellow
+    }
+    
+    # 4. Comparer avec les specs Gherkin si disponibles
+    if ($GherkinSpec) {
+        Write-Host "[GHERKIN] Vérification avec les specs..." -ForegroundColor Cyan
+        # Extraire les Then/Expect du Gherkin
+        $expectations = [regex]::Matches($GherkinSpec, '(?:Then|And|Expect)\s+(.+)')
+        foreach ($exp in $expectations) {
+            Write-Host "  Expected: $($exp.Groups[1].Value)" -ForegroundColor DarkGray
+        }
+    }
+    
+    return $issues
+}
+```
+
+### Fonction de trace du flux de données
+```powershell
+function Trace-DataFlow {
+    param(
+        [string]$FilePath,
+        [string]$EntryPoint
+    )
+    
+    Write-Host "=== TRACE FLUX DE DONNÉES: $FilePath ===" -ForegroundColor Cyan
+    
+    $content = Get-Content $FilePath -Raw
+    
+    # 1. Identifier les entrées (paramètres de méthode)
+    $methods = [regex]::Matches($content, 'public\s+\w+\s+(\w+)\s*\(([^)]*)\)')
+    foreach ($method in $methods) {
+        $methodName = $method.Groups[1].Value
+        $params = $method.Groups[2].Value
+        
+        Write-Host "  Méthode: $methodName" -ForegroundColor White
+        Write-Host "    Entrées: $params" -ForegroundColor DarkGray
+        
+        # 2. Vérifier si les paramètres sont validés
+        if ($params -and $params -notmatch 'void') {
+            $paramNames = [regex]::Matches($params, '(\w+)\s+(\w+)')
+            foreach ($p in $paramNames) {
+                $paramName = $p.Groups[2].Value
+                
+                # Chercher validation
+                if ($content -notmatch "if.*$paramName.*null" -and $content -notmatch "$paramName\s*\?\." -and $content -notmatch "Guard\." -and $content -notmatch "Validator") {
+                    Write-Host "    [WARN] Paramètre '$paramName' potentiellement non validé" -ForegroundColor Yellow
+                }
+            }
+        }
+    }
+}
+```
+
+### Checklist de debug (À EXÉCUTER MANUELLEMENT)
+```powershell
+function Start-DebugChecklist {
+    param([string]$IssueNumber)
+    
+    Write-Host "╔═══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+    Write-Host "║            CHECKLIST DEBUG - Issue #$IssueNumber                     ║" -ForegroundColor Cyan
+    Write-Host "╚═══════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+    
+    $checklist = @(
+        "[ ] Analyse statique de tous les fichiers modifiés",
+        "[ ] Vérification des null references",
+        "[ ] Vérification des conditions (if/else)",
+        "[ ] Vérification des boucles (for/while/foreach)",
+        "[ ] Vérification des comparaisons (==, !=, <, >, etc.)",
+        "[ ] Vérification des opérateurs logiques (&&, ||, !)",
+        "[ ] Vérification des ressources (using, dispose)",
+        "[ ] Trace du flux de données entrée -> sortie",
+        "[ ] Comparaison avec les specs Gherkin",
+        "[ ] Tests unitaires passent"
+    )
+    
+    foreach ($item in $checklist) {
+        Write-Host "  $item" -ForegroundColor White
+    }
+    
+    Write-Host ""
+    Write-Host "[RÈGLE] Si bug trouvé -> corriger et continuer" -ForegroundColor Green
+    Write-Host "[RÈGLE] Si bug NON trouvé -> NE PAS déplacer le ticket" -ForegroundColor Yellow
+}
+```
+
+### Workflow de debug complet
+```powershell
+function Invoke-FullDebugWorkflow {
+    param(
+        [int]$IssueNumber,
+        [string[]]$ModifiedFiles
+    )
+    
+    Write-Host ""
+    Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Magenta
+    Write-Host " DEBUG COMPLET - Issue #$IssueNumber" -ForegroundColor Magenta
+    Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Magenta
+    
+    $allIssues = @()
+    
+    # 1. Analyser chaque fichier modifié
+    foreach ($file in $ModifiedFiles) {
+        if (Test-Path $file) {
+            Write-Host ""
+            Write-Host ">>> Analyse de: $file" -ForegroundColor White
+            
+            # Analyse statique
+            $staticIssues = Invoke-CodeAnalysis -FilePath $file
+            $allIssues += $staticIssues
+            
+            # Vérification logique
+            $logicIssues = Test-BusinessLogic -FilePath $file
+            $allIssues += $logicIssues
+            
+            # Trace données
+            Trace-DataFlow -FilePath $file
+        }
+    }
+    
+    # 2. Résumé
+    Write-Host ""
+    Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Magenta
+    Write-Host " RÉSUMÉ DEBUG" -ForegroundColor Magenta
+    Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Magenta
+    
+    if ($allIssues.Count -gt 0) {
+        Write-Host "[BUG TROUVÉ] $($allIssues.Count) problème(s) détecté(s)" -ForegroundColor Red
+        Write-Host "[ACTION] Corriger les bugs et relancer l'analyse" -ForegroundColor Yellow
+        return @{
+            BugFound = $true
+            Issues = $allIssues
+        }
+    }
+    else {
+        Write-Host "[OK] Aucun bug détecté par l'analyse automatique" -ForegroundColor Green
+        Write-Host "[ACTION] Vérification manuelle recommandée avant de continuer" -ForegroundColor Yellow
+        return @{
+            BugFound = $false
+            Issues = @()
+        }
+    }
+}
+```
+
+### ⚠️ RÈGLE CRITIQUE POUR LES BUGS
+
+**SI L'ISSUE CONCERNE UN BUG À TROUVER:**
+
+1. Exécuter `Invoke-FullDebugWorkflow` sur tous les fichiers concernés
+2. **SI bug trouvé**: 
+   - Documenter le bug dans un commentaire GitHub
+   - Corriger le bug
+   - Relancer l'analyse pour confirmer la correction
+   - Continuer le workflow normal (tests, PR, merge)
+   - Déplacer vers "In Review" puis "A Tester"
+
+3. **SI bug NON trouvé après analyse complète**:
+   - **NE PAS déplacer le ticket**
+   - Ajouter un commentaire expliquant ce qui a été analysé
+   - Laisser l'issue dans "In Progress" pour révision humaine
+   - Mentionner les fichiers analysés et les vérifications effectuées
+
+```powershell
+# Exemple de commentaire si bug non trouvé
+$comment = @"
+## Analyse de debug effectuée
+
+### Fichiers analysés:
+- path/to/file1.cs
+- path/to/file2.cs
+
+### Vérifications effectuées:
+- [x] Analyse statique
+- [x] Vérification null references
+- [x] Vérification conditions logiques
+- [x] Trace flux de données
+- [x] Comparaison specs Gherkin
+
+### Résultat:
+Aucun bug détecté par l'analyse automatique.
+**L'issue reste en "In Progress" pour révision humaine.**
+"@
+
+gh issue comment $IssueNumber --repo "$Owner/$Repo" --body $comment
 ```
 
 ## Phase 4: Documentation API (pour Microservices)

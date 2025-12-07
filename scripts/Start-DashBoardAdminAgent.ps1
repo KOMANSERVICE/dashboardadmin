@@ -59,11 +59,12 @@ $env:PROJECT_NUMBER_PACKAGE = $ProjectNumber_package
 $env:CLAUDE_MODEL = $Model
 
 # Colonnes du Project Board (noms canoniques)
-# Note: La comparaison sera CASE-INSENSITIVE
+# Note: La comparaison sera CASE-INSENSITIVE et IGNORE les espaces
 $Columns = @{
     Analyse = "Analyse"
     Todo = "Todo"
-    AnalyseBlock = "Analyse Block"
+    AnalyseBlock = "AnalyseBlock"
+    Debug = "Debug"              # Nouvelle colonne pour debug approfondi
     InProgress = "In Progress"
     Review = "In Review"
     ATester = "A Tester"
@@ -352,7 +353,7 @@ function Invoke-ClaudeInProject {
 }
 
 # ============================================
-# FONCTIONS DE GESTION DES COLONNES (CASE-INSENSITIVE)
+# FONCTIONS DE GESTION DES COLONNES (CASE-INSENSITIVE + IGNORE ESPACES)
 # ============================================
 
 function Compare-ColumnName {
@@ -361,9 +362,10 @@ function Compare-ColumnName {
         [string]$Expected
     )
     
-    # Normaliser: trim, lowercase, remplacer espaces multiples
-    $normalizedActual = ($Actual -replace '\s+', ' ').Trim().ToLower()
-    $normalizedExpected = ($Expected -replace '\s+', ' ').Trim().ToLower()
+    # Normaliser: supprimer TOUS les espaces, lowercase
+    # Exemple: "Analyse Block" = "AnalyseBlock" = "analyse block"
+    $normalizedActual = ($Actual -replace '\s+', '').Trim().ToLower()
+    $normalizedExpected = ($Expected -replace '\s+', '').Trim().ToLower()
     
     return $normalizedActual -eq $normalizedExpected
 }
@@ -1132,42 +1134,102 @@ $script:IDRDocsContent
 8. Si entites modifiees -> migration EF Core
 9. Mettre a jour agent-docs/ si microservice modifie
 
+### PHASE 2.5: DEBUG ET ANALYSE APPROFONDIE (OBLIGATOIRE)
+**AVANT de passer aux tests, tu DOIS analyser le code en profondeur:**
+
+10. **Analyse statique du code:**
+    - Parcourir CHAQUE fichier modifie ligne par ligne
+    - Verifier la coherence des types et des signatures
+    - Verifier les null references potentielles
+    - Verifier les conditions aux limites (off-by-one, bornes de tableaux)
+
+11. **Detection des erreurs de logique:**
+    - Verifier que la logique metier correspond aux specs Gherkin
+    - Verifier les conditions if/else (sont-elles dans le bon sens?)
+    - Verifier les boucles (conditions d'arret correctes?)
+    - Verifier les comparaisons (==, !=, <, >, <=, >= correctes?)
+    - Verifier les operateurs logiques (&&, ||, ! correctes?)
+
+12. **Verification des patterns courants de bugs:**
+    - Variables non initialisees
+    - Ressources non fermees (using manquants)
+    - Exceptions non gerees ou mal gerees
+    - Problemes de threading/concurrence
+    - Fuites memoire potentielles
+    - Injections SQL ou XSS potentielles
+
+13. **Trace du flux de donnees:**
+    - Suivre le chemin des donnees de l'entree a la sortie
+    - Verifier les transformations de donnees
+    - Verifier les validations manquantes
+
+14. **SI UN BUG EST TROUVE:**
+    - Documenter le bug trouve dans un commentaire
+    - CORRIGER le bug
+    - Recommencer l'analyse pour verifier la correction
+    - Continuer vers la phase suivante
+
+15. **SI AUCUN BUG TROUVE APRES ANALYSE COMPLETE:**
+    - Continuer vers les tests
+    - NE PAS mentionner "aucun bug trouve" sans avoir fait l'analyse
+
 ### PHASE 3: TESTS (OBLIGATOIRE AVANT PR)
-10. Executer TOUS les tests: dotnet test
-11. SI TESTS ECHOUENT -> CORRIGER ET REESSAYER
+16. Executer TOUS les tests: dotnet test
+17. SI TESTS ECHOUENT:
+    - Analyser le message d'erreur
+    - Identifier la cause (code ou test?)
+    - DEBUGGER le code avec l'analyse de la PHASE 2.5
+    - Corriger et REESSAYER
     - Ne PAS continuer si des tests echouent
-    - Corriger le code ou les tests
-    - Relancer jusqu'a ce que TOUS les tests passent
-12. Verifier la compilation: dotnet build
+18. Verifier la compilation: dotnet build
 
 ### PHASE 4: COMMIT ET PUSH (SEULEMENT SI TESTS OK)
-13. Commit: git add . && git commit -m "feat(#$IssueNumber): description"
-14. Push: git push -u origin feature/$IssueNumber-description
+19. Commit: git add . && git commit -m "feat(#$IssueNumber): description"
+20. Push: git push -u origin feature/$IssueNumber-description
 
 ### PHASE 5: PULL REQUEST
-15. DEPLACER l'issue vers "In Review"
-16. Creer la PR: gh pr create --title "feat(#$IssueNumber): ..." --body "Closes #$IssueNumber"
+21. DEPLACER l'issue vers "In Review"
+22. Creer la PR: gh pr create --title "feat(#$IssueNumber): ..." --body "Closes #$IssueNumber"
 
 ### PHASE 6: MERGE ET FINALISATION
-17. Merger la PR: gh pr merge --squash --delete-branch
-18. Retourner sur main: git checkout main && git pull origin main
-19. Supprimer la branche locale: git branch -d feature/$IssueNumber-description
-20. Nettoyer: git fetch --prune
-21. DEPLACER l'issue vers "A Tester"
-22. NE PAS FERMER L'ISSUE - Ajouter un commentaire de confirmation
+23. Merger la PR: gh pr merge --squash --delete-branch
+24. Retourner sur main: git checkout main && git pull origin main
+25. Supprimer la branche locale: git branch -d feature/$IssueNumber-description
+26. Nettoyer: git fetch --prune
+27. DEPLACER l'issue vers "A Tester"
+28. NE PAS FERMER L'ISSUE - Ajouter un commentaire de confirmation
+
+## REGLES IMPORTANTES POUR LE DEBUG
+
+**SI L'ISSUE CONCERNE UN BUG A TROUVER:**
+- Tu dois analyser le code en profondeur (PHASE 2.5)
+- Si tu trouves le bug -> le corriger et continuer le workflow
+- Si tu NE TROUVES PAS le bug apres analyse complete:
+  - NE PAS deplacer l'issue
+  - Ajouter un commentaire expliquant ce qui a ete analyse
+  - Laisser l'issue dans la colonne actuelle pour revision humaine
+
+**CHECKLIST DEBUG:**
+- [ ] Analyse statique complete
+- [ ] Verification logique metier
+- [ ] Trace du flux de donnees
+- [ ] Verification des patterns de bugs courants
+- [ ] Tests unitaires passes
 
 ## DEPLACEMENTS DES CARTES - OBLIGATOIRE
 
 | Etape | Action | Colonne |
 |-------|--------|---------|
 | Debut dev | Issue recue | In Progress (deja fait) |
+| Bug trouve et corrige | Deplacer | In Review |
+| Bug NON trouve | NE PAS deplacer | In Progress |
 | PR creee | Deplacer | In Review |
 | Merge OK | Deplacer | A Tester |
 | JAMAIS | NE PAS fermer | - |
 
 ## COMMANDES GH POUR DEPLACER
 Utiliser gh api graphql avec les variables pour deplacer les issues.
-La comparaison est CASE-INSENSITIVE (a tester = A Tester).
+La comparaison est CASE-INSENSITIVE et IGNORE les espaces (a tester = ATester = A Tester).
 
 Variables:
 - GITHUB_OWNER: $Owner
@@ -1186,6 +1248,154 @@ Commence l'implementation en suivant EXACTEMENT ce workflow.
     }
     
     $success = Invoke-ClaudeInProject -PromptFile $promptFile -TaskDescription "Codage issue #$IssueNumber"
+    return $success
+}
+
+# ============================================
+# AGENT DEBUG - ANALYSE APPROFONDIE DES BUGS
+# ============================================
+
+function Invoke-DebugAgent {
+    param(
+        [int]$IssueNumber,
+        [string]$Title
+    )
+    
+    $issueJson = gh issue view $IssueNumber --repo "$Owner/$Repo" --json number,title,body,labels,comments
+    
+    $promptFile = Join-Path $env:TEMP "debug-prompt-$IssueNumber.txt"
+    
+    $promptContent = @"
+Tu es l'agent DEBUG specialise dans l'analyse approfondie des bugs incomprehensibles.
+
+## Issue a debugger
+$issueJson
+
+## Documentation IDR Library
+$script:IDRDocsContent
+
+## MISSION CRITIQUE
+Cette issue est dans la colonne "Debug" car le bug est difficile a identifier.
+Tu dois effectuer une analyse EXHAUSTIVE du code pour trouver le probleme.
+
+## METHODOLOGIE DE DEBUG APPROFONDI
+
+### ETAPE 1: COMPREHENSION DU PROBLEME
+1. Lire ATTENTIVEMENT la description du bug
+2. Identifier les symptomes decrits
+3. Comprendre le comportement attendu vs le comportement actuel
+4. Noter les conditions de reproduction si disponibles
+
+### ETAPE 2: LOCALISATION DU CODE CONCERNE
+1. Identifier les fichiers/classes/methodes impliques
+2. Lire le code source COMPLETEMENT (pas juste survoler)
+3. Comprendre le flux d'execution complet
+4. Identifier les dependances et interactions
+
+### ETAPE 3: ANALYSE LIGNE PAR LIGNE
+Pour CHAQUE fichier concerne, analyser:
+
+**3.1 Erreurs de logique:**
+- Conditions if/else inversees
+- Operateurs de comparaison incorrects (< au lieu de <=, == au lieu de !=)
+- Operateurs logiques incorrects (&& au lieu de ||)
+- Boucles infinies ou qui ne s'executent jamais
+- Off-by-one errors (i < count vs i <= count)
+
+**3.2 Erreurs de types et null:**
+- Null reference exceptions potentielles
+- Cast incorrects
+- Types incompatibles
+- Variables non initialisees
+
+**3.3 Erreurs de flux de donnees:**
+- Donnees perdues entre les appels
+- Transformations incorrectes
+- Validations manquantes
+- Ordre d'execution incorrect
+
+**3.4 Erreurs de concurrence:**
+- Race conditions
+- Deadlocks potentiels
+- Acces non thread-safe
+
+**3.5 Erreurs de ressources:**
+- Fuites memoire
+- Connexions non fermees
+- Fichiers non liberes
+
+### ETAPE 4: TESTS ET VERIFICATION
+1. Ecrire des tests unitaires cibleant le bug
+2. Ajouter des logs de debug temporaires
+3. Tracer les valeurs des variables
+
+### ETAPE 5: CORRECTION
+Si bug trouve:
+1. Documenter EXACTEMENT le bug trouve
+2. Expliquer POURQUOI c'est un bug
+3. Corriger le code
+4. Verifier que la correction n'introduit pas de regression
+5. Executer les tests: dotnet test
+
+## REGLES DE DEPLACEMENT
+
+### SI BUG TROUVE ET CORRIGE:
+1. Commenter l'issue avec:
+   - Description du bug trouve
+   - Explication de la cause racine
+   - Description de la correction
+2. Commiter: git add . && git commit -m "fix(#$IssueNumber): description du fix"
+3. Pousser: git push
+4. Creer PR si necessaire
+5. DEPLACER vers "In Review" ou "Todo" selon la correction
+
+### SI BUG NON TROUVE APRES ANALYSE COMPLETE:
+1. **NE PAS DEPLACER L'ISSUE** - Laisser en "Debug"
+2. Commenter l'issue avec:
+   - Liste des fichiers analyses
+   - Verifications effectuees
+   - Hypotheses testees et eliminees
+   - Suggestions pour investigation supplementaire
+3. L'issue reste pour revision humaine
+
+## COMMANDES UTILES
+
+# Voir les modifications recentes
+git log --oneline -20
+git diff HEAD~5
+
+# Chercher dans le code
+grep -r "pattern" --include="*.cs" .
+
+# Executer les tests
+dotnet test --filter "Category=UnitTest"
+
+# Voir les logs
+cat logs/*.log
+
+## Variables
+- GITHUB_OWNER: $Owner
+- GITHUB_REPO: $Repo
+- PROJECT_NUMBER: $ProjectNumber
+
+## IMPORTANT
+- Prends le temps necessaire pour analyser EN PROFONDEUR
+- Ne te precipite pas vers une conclusion
+- Documente chaque etape de ton analyse
+- Si tu ne trouves pas le bug, c'est OK - documente ce que tu as analyse
+
+Commence l'analyse approfondie maintenant.
+"@
+
+    $promptContent | Out-File $promptFile -Encoding utf8
+    
+    if ($DryRun) {
+        Write-Host "     [DRY RUN] Simulation debug" -ForegroundColor Magenta
+        Remove-Item $promptFile -ErrorAction SilentlyContinue
+        return $true
+    }
+    
+    $success = Invoke-ClaudeInProject -PromptFile $promptFile -TaskDescription "Debug approfondi issue #$IssueNumber"
     return $success
 }
 
@@ -1293,8 +1503,9 @@ Write-Host ""
 Write-Host "[INFO] PRIORITE DE TRAITEMENT:" -ForegroundColor Yellow
 Write-Host "   1. Issues 'In Review' -> Terminer le merge" -ForegroundColor Yellow
 Write-Host "   2. Issues 'In Progress' -> Terminer le developpement" -ForegroundColor Yellow
-Write-Host "   3. Issues 'Analyse' -> Nouvelles analyses" -ForegroundColor Yellow
-Write-Host "   4. Issues 'Todo' -> Nouvelles implementations" -ForegroundColor Yellow
+Write-Host "   3. Issues 'Debug' -> Analyse approfondie des bugs" -ForegroundColor Yellow
+Write-Host "   4. Issues 'Analyse' -> Nouvelles analyses" -ForegroundColor Yellow
+Write-Host "   5. Issues 'Todo' -> Nouvelles implementations" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "   Appuyez sur Ctrl+C pour arreter"
 Write-Host ""
@@ -1444,10 +1655,60 @@ while ($true) {
         }
         
         # ============================================
-        # PRIORITE 3: AGENT D'ANALYSE (Nouvelles analyses)
+        # PRIORITE 3: AGENT DEBUG (Analyse approfondie des bugs)
+        # ============================================
+        if (-not $AnalysisOnly -and -not $script:ClaudeLimitReached) {
+            Write-Host "[$timestamp] [PRIORITE 3] Verification colonne 'Debug'..." -ForegroundColor Red
+            
+            $debugIssues = @(Get-IssuesInColumn -ColumnName $Columns.Debug)
+            
+            if ($debugIssues.Count -eq 0) {
+                Write-Host "[$timestamp] [DEBUG] Aucune issue a debugger" -ForegroundColor DarkGray
+            }
+            else {
+                Write-Host "[$timestamp] [DEBUG] $($debugIssues.Count) issue(s) a debugger" -ForegroundColor Red
+                
+                $issue = $debugIssues[0]  # Traiter une seule issue a la fois (debug prend du temps)
+                Write-Host "[$timestamp]   -> #$($issue.IssueNumber): $($issue.Title)" -ForegroundColor White
+                
+                # Verifier la limite AVANT de traiter
+                if ($script:ClaudeLimitReached) {
+                    Write-Host "[$timestamp]   [LIMIT] Limite atteinte - debug reporte" -ForegroundColor Red
+                }
+                else {
+                    # Lancer le debug approfondi
+                    $success = Invoke-DebugAgent -IssueNumber $issue.IssueNumber -Title $issue.Title
+                    
+                    # Verifier si limite atteinte PENDANT le traitement
+                    if ($script:ClaudeLimitReached) {
+                        Write-Host "[$timestamp]   [LIMIT] Limite atteinte PENDANT le debug" -ForegroundColor Red
+                        # L'issue reste en Debug pour la prochaine iteration
+                    }
+                    elseif ($success) {
+                        # Verifier si l'issue a ete deplacee par l'agent
+                        $currentColumn = Get-CurrentIssueColumn -IssueNumber $issue.IssueNumber
+                        
+                        if (Compare-ColumnName -Actual $currentColumn -Expected $Columns.Debug) {
+                            # Toujours en Debug = bug non trouve
+                            Write-Host "[$timestamp]   [INFO] Bug non trouve - issue reste en 'Debug' pour revision humaine" -ForegroundColor Yellow
+                        }
+                        else {
+                            Write-Host "[$timestamp]   [OK] #$($issue.IssueNumber) debug termine - deplacee vers '$currentColumn'" -ForegroundColor Green
+                        }
+                    }
+                    else {
+                        Write-Host "[$timestamp]   [ERREUR] #$($issue.IssueNumber) - erreur lors du debug" -ForegroundColor Red
+                        # En cas d'erreur, l'issue reste en Debug
+                    }
+                }
+            }
+        }
+        
+        # ============================================
+        # PRIORITE 4: AGENT D'ANALYSE (Nouvelles analyses)
         # ============================================
         if (-not $CoderOnly -and -not $script:ClaudeLimitReached) {
-            Write-Host "[$timestamp] [PRIORITE 3] Verification colonne 'Analyse'..." -ForegroundColor Blue
+            Write-Host "[$timestamp] [PRIORITE 4] Verification colonne 'Analyse'..." -ForegroundColor Blue
             
             $analysisIssues = @(Get-IssuesInColumn -ColumnName $Columns.Analyse)
             $processedAnalysis = @(Get-ProcessedIssues -FilePath $processedAnalysisFile)
@@ -1498,10 +1759,10 @@ while ($true) {
         }
         
         # ============================================
-        # PRIORITE 4: AGENT CODEUR (Nouvelles implementations)
+        # PRIORITE 5: AGENT CODEUR (Nouvelles implementations)
         # ============================================
         if (-not $AnalysisOnly -and -not $script:ClaudeLimitReached) {
-            Write-Host "[$timestamp] [PRIORITE 4] Verification colonne 'Todo'..." -ForegroundColor Magenta
+            Write-Host "[$timestamp] [PRIORITE 5] Verification colonne 'Todo'..." -ForegroundColor Magenta
             
             $todoIssues = @(Get-IssuesInColumn -ColumnName $Columns.Todo)
             $processedCoder = @(Get-ProcessedIssues -FilePath $processedCoderFile)
