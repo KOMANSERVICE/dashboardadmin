@@ -59,47 +59,233 @@ Prendre les issues de la colonne "Todo", les implémenter, créer une PR, la val
 4. **Ne JAMAIS inventer** - Si information manquante, DEMANDER
 5. **Respecter les packages** - Ne pas modifier sauf IDR.Library.*
 6. **Documenter les microservices** - Swagger/OpenAPI obligatoire
+7. **Ne JAMAIS fermer l'issue** - Le testeur fermera l'issue après validation
 
 ## Workflow complet
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    WORKFLOW CODEUR                           │
-│                                                              │
-│  COLONNES: Todo → In Progress → In Review → A Tester        │
-│                                                              │
-│  1. Récupérer une issue "Todo"                              │
-│  2. LIRE et COMPRENDRE le code existant      <-- CRITIQUE!  │
-│  3. DÉPLACER vers "In Progress"                             │
-│  4. git checkout main && git pull origin main               │
-│  5. Créer une branche feature depuis main                   │
-│  6. Lire l'analyse et les specs Gherkin                     │
-│  7. Vérifier/Créer les projets de test si nécessaire        │
-│  8. Implémenter le code                                      │
-│  9. *** MIGRATION EF SI ENTITÉS MODIFIÉES ***               │
-│     - Détecter changements d'entités                        │
-│     - Générer migration: dotnet ef migrations add           │
-│     - Analyser sécurité production                          │
-│     - Corriger automatiquement si possible                  │
-│     - BLOQUER si issues critiques non corrigeables          │
-│  10. Générer/Mettre à jour la documentation API (Swagger)   │
-│  11. *** METTRE À JOUR DOCUMENTATION AI ***  <-- CRITIQUE!  │
-│     - Mettre à jour agent-docs/ si microservice modifié     │
-│     - Documenter nouveaux endpoints/commands/queries        │
-│     - Vérifier cohérence avec doc existante                 │
-│  12. Écrire les tests                                        │
-│  13. Vérifier compilation + tests passent                   │
-│  14. Commit + Push (inclure fichiers migration + docs)      │
-│  15. DÉPLACER vers "In Review"                              │
-│  16. Créer la Pull Request                                   │
-│  17. Auto-review de la PR                                    │
-│  18. Valider (merge) la PR                                   │
-│  19. *** SUPPRIMER LA BRANCHE ***            <-- OBLIGATOIRE│
-│     - git branch -d feature/xxx (local)                     │
-│     - git push origin --delete feature/xxx (remote)         │
-│     - VÉRIFIER que la branche est supprimée                 │
-│  20. DÉPLACER vers "A Tester"                               │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                       WORKFLOW CODEUR COMPLET                        │
+│                                                                      │
+│  COLONNES: Todo → In Progress → In Review → A Tester                │
+│                                                                      │
+│  ═══════════════════════════════════════════════════════════════    │
+│  PHASE 0: PRÉPARATION (OBLIGATOIRE AVANT TOUTE ACTION)              │
+│  ═══════════════════════════════════════════════════════════════    │
+│   1. Vérifier s'il y a des modifications en cours                   │
+│      git status                                                      │
+│   2. Si modifications en cours → COMMIT et PUSH d'abord             │
+│      git add .                                                       │
+│      git commit -m "WIP: sauvegarde avant nouvelle tâche"           │
+│      git push                                                        │
+│   3. Retourner sur main et récupérer la dernière version            │
+│      git checkout main                                               │
+│      git pull origin main                                            │
+│                                                                      │
+│  ═══════════════════════════════════════════════════════════════    │
+│  PHASE 1: DÉMARRAGE                                                  │
+│  ═══════════════════════════════════════════════════════════════    │
+│   4. Récupérer une issue "Todo"                                     │
+│   5. LIRE et COMPRENDRE le code existant         <-- CRITIQUE!      │
+│   6. DÉPLACER l'issue vers "In Progress"                            │
+│                                                                      │
+│  ═══════════════════════════════════════════════════════════════    │
+│  PHASE 2: CRÉATION DE BRANCHE (TOUJOURS DEPUIS MAIN)                │
+│  ═══════════════════════════════════════════════════════════════    │
+│   7. S'assurer d'être sur main                                      │
+│      git checkout main                                               │
+│      git pull origin main                                            │
+│   8. Créer la branche feature DEPUIS main                           │
+│      git checkout -b feature/$IssueNumber-description               │
+│                                                                      │
+│  ═══════════════════════════════════════════════════════════════    │
+│  PHASE 3: DÉVELOPPEMENT                                              │
+│  ═══════════════════════════════════════════════════════════════    │
+│   9. Lire l'analyse et les specs Gherkin                            │
+│  10. Vérifier/Créer les projets de test si nécessaire               │
+│  11. Implémenter le code                                             │
+│  12. *** MIGRATION EF SI ENTITÉS MODIFIÉES ***                      │
+│      - Détecter changements d'entités                               │
+│      - Générer migration: dotnet ef migrations add                  │
+│      - Analyser sécurité production                                 │
+│      - Corriger automatiquement si possible                         │
+│      - BLOQUER si issues critiques non corrigeables                 │
+│  13. Générer/Mettre à jour la documentation API (Swagger)           │
+│  14. *** METTRE À JOUR DOCUMENTATION AI ***      <-- CRITIQUE!      │
+│      - Mettre à jour agent-docs/ si microservice modifié            │
+│      - Documenter nouveaux endpoints/commands/queries               │
+│                                                                      │
+│  ═══════════════════════════════════════════════════════════════    │
+│  PHASE 4: TESTS ET VALIDATION                                        │
+│  ═══════════════════════════════════════════════════════════════    │
+│  15. Écrire les tests unitaires                                      │
+│  16. Exécuter TOUS les tests                                         │
+│      dotnet test                                                     │
+│  17. *** SI TESTS ÉCHOUENT → CORRIGER ET RÉESSAYER ***              │
+│      - Ne PAS continuer si des tests échouent                       │
+│      - Corriger le code ou les tests                                │
+│      - Relancer les tests jusqu'à ce qu'ils passent                 │
+│  18. Vérifier la compilation complète                               │
+│      dotnet build                                                    │
+│                                                                      │
+│  ═══════════════════════════════════════════════════════════════    │
+│  PHASE 5: COMMIT ET PUSH                                             │
+│  ═══════════════════════════════════════════════════════════════    │
+│  19. Commit avec message descriptif                                  │
+│      git add .                                                       │
+│      git commit -m "feat(#$IssueNumber): description"               │
+│  20. Push la branche                                                 │
+│      git push -u origin feature/$IssueNumber-description            │
+│                                                                      │
+│  ═══════════════════════════════════════════════════════════════    │
+│  PHASE 6: PULL REQUEST                                               │
+│  ═══════════════════════════════════════════════════════════════    │
+│  21. DÉPLACER l'issue vers "In Review"                              │
+│  22. Créer la Pull Request                                           │
+│      gh pr create --title "feat(#$IssueNumber): ..." --body "..."   │
+│  23. Auto-review de la PR (vérifier les changements)                │
+│                                                                      │
+│  ═══════════════════════════════════════════════════════════════    │
+│  PHASE 7: MERGE ET FINALISATION                                      │
+│  ═══════════════════════════════════════════════════════════════    │
+│  24. Valider (merge) la PR                                           │
+│      gh pr merge --squash --delete-branch                           │
+│  25. Retourner sur main et pull                                     │
+│      git checkout main                                               │
+│      git pull origin main                                            │
+│  26. *** SUPPRIMER LA BRANCHE ***                <-- OBLIGATOIRE    │
+│      - git branch -d feature/xxx (local)                            │
+│      - git push origin --delete feature/xxx (remote si pas fait)    │
+│      - git fetch --prune                                             │
+│  27. DÉPLACER l'issue vers "A Tester"                               │
+│  28. *** NE PAS FERMER L'ISSUE ***               <-- IMPORTANT!     │
+│      - Le testeur fermera l'issue après validation                  │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## ⚠️ FONCTIONS POWERSHELL OBLIGATOIRES
+
+### Préparation avant nouvelle tâche
+```powershell
+function Start-NewTask {
+    param([int]$IssueNumber, [string]$Description)
+    
+    # 1. Vérifier s'il y a des modifications en cours
+    $status = git status --porcelain
+    if ($status) {
+        Write-Host "[WARN] Modifications en cours detectees, commit en cours..." -ForegroundColor Yellow
+        git add .
+        git commit -m "WIP: sauvegarde avant issue #$IssueNumber"
+        git push
+    }
+    
+    # 2. Retourner sur main et récupérer la dernière version
+    git checkout main
+    if ($LASTEXITCODE -ne 0) {
+        throw "Impossible de checkout main"
+    }
+    
+    git pull origin main
+    if ($LASTEXITCODE -ne 0) {
+        throw "Impossible de pull main"
+    }
+    
+    Write-Host "[OK] Main a jour" -ForegroundColor Green
+    
+    # 3. Créer la branche depuis main
+    $branchName = "feature/$IssueNumber-$Description"
+    git checkout -b $branchName
+    if ($LASTEXITCODE -ne 0) {
+        throw "Impossible de creer la branche $branchName"
+    }
+    
+    Write-Host "[OK] Branche $branchName creee depuis main" -ForegroundColor Green
+    return $branchName
+}
+```
+
+### Exécution des tests (obligatoire avant PR)
+```powershell
+function Test-BeforePR {
+    Write-Host "[TEST] Execution des tests..." -ForegroundColor Cyan
+    
+    # Compiler d'abord
+    dotnet build --no-restore
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERREUR] La compilation a echoue!" -ForegroundColor Red
+        return $false
+    }
+    
+    # Exécuter les tests
+    $testResult = dotnet test --no-build --verbosity normal
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERREUR] Des tests ont echoue!" -ForegroundColor Red
+        Write-Host $testResult
+        return $false
+    }
+    
+    Write-Host "[OK] Tous les tests passent" -ForegroundColor Green
+    return $true
+}
+```
+
+### Workflow complet après développement
+```powershell
+function Complete-Development {
+    param(
+        [int]$IssueNumber,
+        [string]$BranchName,
+        [string]$PRTitle,
+        [string]$PRBody
+    )
+    
+    $Owner = $env:GITHUB_OWNER
+    $Repo = $env:GITHUB_REPO
+    
+    # 1. Vérifier que les tests passent
+    if (-not (Test-BeforePR)) {
+        Write-Host "[STOP] Corriger les erreurs avant de continuer" -ForegroundColor Red
+        return $false
+    }
+    
+    # 2. Commit et Push
+    git add .
+    git commit -m "feat(#$IssueNumber): $PRTitle"
+    git push -u origin $BranchName
+    
+    # 3. Déplacer vers "In Review"
+    Write-Host "[MOVE] Deplacement vers In Review..." -ForegroundColor Cyan
+    # (utiliser la fonction Move-IssueToColumn)
+    
+    # 4. Créer la PR
+    Write-Host "[PR] Creation de la Pull Request..." -ForegroundColor Cyan
+    $prUrl = gh pr create --repo "$Owner/$Repo" --title $PRTitle --body $PRBody
+    Write-Host "[OK] PR creee: $prUrl" -ForegroundColor Green
+    
+    # 5. Merger la PR (après review)
+    Write-Host "[MERGE] Merge de la PR..." -ForegroundColor Cyan
+    gh pr merge --repo "$Owner/$Repo" --squash --delete-branch
+    
+    # 6. Retourner sur main
+    git checkout main
+    git pull origin main
+    
+    # 7. Supprimer la branche locale si elle existe encore
+    git branch -d $BranchName 2>$null
+    git fetch --prune
+    
+    # 8. Déplacer vers "A Tester" (NE PAS FERMER)
+    Write-Host "[MOVE] Deplacement vers A Tester..." -ForegroundColor Cyan
+    # (utiliser la fonction Move-IssueToColumn)
+    
+    # 9. Ajouter un commentaire
+    gh issue comment $IssueNumber --repo "$Owner/$Repo" --body "✅ Developpement termine. PR mergee. Issue prete pour test.
+
+**NE PAS FERMER** - Le testeur validera et fermera l'issue."
+    
+    Write-Host "[OK] Issue #$IssueNumber prete pour test" -ForegroundColor Green
+    return $true
+}
 ```
 
 ## ⚠️ RÈGLES CRITIQUES POST-MERGE

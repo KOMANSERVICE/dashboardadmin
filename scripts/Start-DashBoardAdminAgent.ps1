@@ -17,8 +17,8 @@ param(
     [switch]$CoderOnly,
     
     # Choix du modele Claude
-    [ValidateSet("claude-sonnet-4-20250514", "claude-opus-4-5-20251101", "claude-3-5-sonnet-20241022")]
-    [string]$Model = "claude-opus-4-5-20251101",
+    [ValidateSet("claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-3-5-sonnet-20241022")]
+    [string]$Model = "claude-sonnet-4-20250514",
     
     # Options avancees
     [switch]$DryRun,
@@ -725,74 +725,80 @@ $script:IDRDocsContent
 - Project: $ProjectNumber_package
 
 ## Instructions
-1. Lis les fichiers:
-   - .claude/agents/coder.md
-   - .claude/agents/package-manager.md
-   - .claude/agents/migration-manager.md
+1. Lis le fichier .claude/agents/coder.md pour le workflow complet
 
 2. REGLES CRITIQUES:
    - LIRE et COMPRENDRE le code existant AVANT de modifier
    - NE JAMAIS contredire la logique existante
    - UTILISER IDR.Library.BuildingBlocks pour CQRS, Auth, Validation
    - UTILISER IDR.Library.Blazor pour composants UI
+   - NE JAMAIS fermer l'issue (le testeur la fermera)
 
-3. REGLES COMPOSANTS (FRONTEND):
-   - Si element repete 3+ fois -> DOIT devenir composant
-   - Verifier si composant existe dans IDR.Library.Blazor
-   - Si existe -> utiliser le composant IDR (prefixe Idr*)
-   - Si n'existe pas -> creer issue dans le repo packages IDR
-   - Apres mise a jour package -> remplacer composants locaux par IDR
+## WORKFLOW COMPLET A SUIVRE
 
-4. REGLES PACKAGES IDR:
-   - IDR.Library.BuildingBlocks: 
-     * TOUJOURS utiliser ICommand, IQuery, ICommandHandler, IQueryHandler
-     * TOUJOURS utiliser AbstractValidator<T>
-     * En cas d'ERREUR uniquement -> creer issue dans repo packages
-   - IDR.Library.Blazor:
-     * TOUJOURS utiliser composants Idr* disponibles
-     * Si composant manquant -> creer issue pour nouveau composant
+### PHASE 0: PREPARATION (AVANT TOUTE ACTION)
+1. Verifier s'il y a des modifications en cours: git status
+2. Si modifications -> commit et push d'abord:
+   git add .
+   git commit -m "WIP: sauvegarde avant issue #$IssueNumber"
+   git push
+3. Retourner sur main et recuperer la derniere version:
+   git checkout main
+   git pull origin main
 
-5. Workflow:
-   a. Lire code existant
-   b. Creer branche feature/ISSUE_NUMBER-slug
-   c. Implementer avec composants IDR
-   d. Si element repete -> proposer composant IDR
-   e. Si erreur package IDR -> creer issue dans repo packages
-   f. Si entites modifiees -> migration EF Core
-   g. Tests + Commit + PR + Merge
-   h. Supprimer la branche feature APRES le merge
+### PHASE 1: CREATION DE BRANCHE (TOUJOURS DEPUIS MAIN)
+4. S'assurer d'etre sur main: git checkout main && git pull origin main
+5. Creer la branche depuis main: git checkout -b feature/$IssueNumber-description
 
-6. CREATION ISSUE PACKAGE (si necessaire):
-   Pour nouveau composant ou bug, creer une issue dans le repo packages IDR.
+### PHASE 2: DEVELOPPEMENT
+6. Lire l'analyse et les specs Gherkin dans les commentaires
+7. Implementer le code
+8. Si entites modifiees -> migration EF Core
+9. Mettre a jour agent-docs/ si microservice modifie
 
-## DEPLACEMENT DES CARTES - OBLIGATOIRE
+### PHASE 3: TESTS (OBLIGATOIRE AVANT PR)
+10. Executer TOUS les tests: dotnet test
+11. SI TESTS ECHOUENT -> CORRIGER ET REESSAYER
+    - Ne PAS continuer si des tests echouent
+    - Corriger le code ou les tests
+    - Relancer jusqu'a ce que TOUS les tests passent
+12. Verifier la compilation: dotnet build
 
-**REGLE ABSOLUE:** Tu DOIS TOUJOURS deplacer l'issue selon l'etape du workflow.
+### PHASE 4: COMMIT ET PUSH (SEULEMENT SI TESTS OK)
+13. Commit: git add . && git commit -m "feat(#$IssueNumber): description"
+14. Push: git push -u origin feature/$IssueNumber-description
 
-### Deplacements obligatoires:
-1. **Debut developpement** -> L'issue est DEJA en "In Progress" (fait par le script)
-2. **PR creee** -> Deplacer vers "In Review"
-3. **Merge termine** -> Deplacer vers "A Tester" (NE PAS FERMER l'issue)
-4. **Branche supprimee** -> Confirmer dans le commentaire
+### PHASE 5: PULL REQUEST
+15. DEPLACER l'issue vers "In Review"
+16. Creer la PR: gh pr create --title "feat(#$IssueNumber): ..." --body "Closes #$IssueNumber"
 
-### Colonnes disponibles (CASE-INSENSITIVE):
-- "In Progress" (developpement en cours)
-- "In Review" (PR creee, en attente de review)
-- "A Tester" (merge termine, pret pour test)
+### PHASE 6: MERGE ET FINALISATION
+17. Merger la PR: gh pr merge --squash --delete-branch
+18. Retourner sur main: git checkout main && git pull origin main
+19. Supprimer la branche locale: git branch -d feature/$IssueNumber-description
+20. Nettoyer: git fetch --prune
+21. DEPLACER l'issue vers "A Tester"
+22. NE PAS FERMER L'ISSUE - Ajouter un commentaire de confirmation
 
-### IMPORTANT:
-- NE JAMAIS fermer l'issue - le testeur la fermera
-- NE JAMAIS laisser l'issue dans la mauvaise colonne
-- Toujours confirmer le deplacement dans un commentaire
+## DEPLACEMENTS DES CARTES - OBLIGATOIRE
+
+| Etape | Action | Colonne |
+|-------|--------|---------|
+| Debut dev | Issue recue | In Progress (deja fait) |
+| PR creee | Deplacer | In Review |
+| Merge OK | Deplacer | A Tester |
+| JAMAIS | NE PAS fermer | - |
+
+## COMMANDES GH POUR DEPLACER
+Utiliser gh api graphql avec les variables pour deplacer les issues.
+La comparaison est CASE-INSENSITIVE (a tester = A Tester).
 
 Variables:
 - GITHUB_OWNER: $Owner
 - GITHUB_REPO: $Repo
 - PROJECT_NUMBER: $ProjectNumber
-- GITHUB_OWNER_PACKAGE: $Owner_package
-- GITHUB_REPO_PACKAGE: $Repo_package
 
-Commence l'implementation et N'OUBLIE PAS de deplacer l'issue a chaque etape.
+Commence l'implementation en suivant EXACTEMENT ce workflow.
 "@
 
     $promptContent | Out-File $promptFile -Encoding utf8
@@ -1117,4 +1123,5 @@ while ($true) {
     Write-Host "[$timestamp] [WAIT] Prochaine verification dans $PollingInterval sec..." -ForegroundColor DarkGray
     Start-Sleep -Seconds $PollingInterval
 }
+
 
