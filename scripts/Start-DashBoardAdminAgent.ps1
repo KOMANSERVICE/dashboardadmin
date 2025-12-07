@@ -273,6 +273,8 @@ function Invoke-ClaudeInProject {
         }
         
         # Détecter les erreurs critiques (non-limite)
+        # IMPORTANT: Ces patterns doivent être spécifiques pour éviter les faux positifs
+        # Par exemple, "api key" seul détecterait toute discussion sur les API Keys!
         $criticalPatterns = @(
             "authentication failed",
             "unauthorized",
@@ -280,7 +282,10 @@ function Invoke-ClaudeInProject {
             "access denied",
             "invalid token",
             "token expired",
-            "api key",
+            "invalid api key",           # Plus spécifique que "api key"
+            "api key.*invalid",          # Pattern alternatif
+            "api key.*expired",          # API Key expirée
+            "api key.*revoked",          # API Key révoquée
             "not found.*claude",
             "command not found"
         )
