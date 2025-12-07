@@ -1,5 +1,6 @@
 using BackendAdmin.Application.Features.ApiKeys.Commands.RevokeApiKey;
 using BackendAdmin.Application.Features.ApiKeys.DTOs;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BackendAdmin.Api.Endpoints.ApiKeys;
 
@@ -10,7 +11,7 @@ public class RevokeApiKey : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapDelete("/apikeys", async (RevokeApiKeyRequest request, ISender sender) =>
+        app.MapDelete("/apikeys", async ([FromBody] RevokeApiKeyRequest request, ISender sender) =>
         {
             var command = request.Adapt<RevokeApiKeyCommand>();
             var result = await sender.Send(command);
