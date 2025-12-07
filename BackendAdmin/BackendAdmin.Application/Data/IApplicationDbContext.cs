@@ -2,7 +2,7 @@
 
 public interface IApplicationDbContext
 {
-    DbSet<Menu> Menus { get; }
     DbSet<AppAdmin> Applications { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
+    DbSet<ApiKey> ApiKeys { get; }
 }

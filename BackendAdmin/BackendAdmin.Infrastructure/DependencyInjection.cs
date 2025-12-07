@@ -1,5 +1,6 @@
 ﻿using BackendAdmin.Application.ApiExterne.Menus;
 using BackendAdmin.Application.Data;
+using BackendAdmin.Application.Services;
 using IDR.Library.BuildingBlocks.Contexts;
 using IDR.Library.BuildingBlocks.Interceptors;
 using Microsoft.AspNetCore.Identity;
@@ -90,6 +91,8 @@ public static class DependencyInjection
         services.AddSecurities();
         services.AddContextMiddleware();
 
+        // Register ApiKey services
+        services.AddScoped<IApiKeyService, ApiKeyService>();
 
         services.AddRefitClient<IMenuService>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(menu_url));
