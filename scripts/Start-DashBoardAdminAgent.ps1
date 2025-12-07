@@ -6,6 +6,10 @@ param(
     [string]$Repo = "dashboardadmin",
     [int]$ProjectNumber = 5,
     [int]$PollingInterval = 60,
+
+    # Chemin vers le projet (OBLIGATOIRE)
+    [Parameter(Mandatory=$false)]
+    [string]$ProjectPath = "C:\Workspace\App\depensio\dashboardadmin",
     
     # Configuration du repo des packages IDR (pour les issues de composants/bugs)
     [string]$Owner_package = "KOMANSERVICE",
@@ -31,6 +35,17 @@ $ErrorActionPreference = "Stop"
 # CONFIGURATION
 # ============================================
 
+# Resoudre le chemin du projet
+$ProjectPath = Resolve-Path $ProjectPath -ErrorAction Stop
+Write-Host "[CONFIG] Repertoire du projet: $ProjectPath" -ForegroundColor Cyan
+
+# Verifier que le repertoire existe et contient .claude
+if (-not (Test-Path (Join-Path $ProjectPath ".claude"))) {
+    Write-Host "[ERREUR] Le repertoire .claude n'existe pas dans $ProjectPath" -ForegroundColor Red
+    Write-Host "         Assurez-vous d'etre dans le bon repertoire ou specifiez -ProjectPath" -ForegroundColor Red
+    exit 1
+}
+
 # Variables projet principal
 $env:GITHUB_OWNER = $Owner
 $env:GITHUB_REPO = $Repo
@@ -53,6 +68,60 @@ $Columns = @{
     Review = "In Review"
     ATester = "A Tester"
     Done = "Done"
+}
+
+# ============================================
+# FONCTION HELPER POUR EXECUTER CLAUDE
+# ============================================
+
+function Invoke-ClaudeInProject {
+    param(
+        [Parameter(Mandatory)]
+        [string]$PromptFile,
+        
+        [string]$TaskDescription = "Tache"
+    )
+    
+    $originalLocation = Get-Location
+    
+    try {
+        # Changer vers le repertoire du projet
+        Set-Location $script:ProjectPath
+        Write-Host "     [CLAUDE] Execution dans: $script:ProjectPath" -ForegroundColor DarkGray
+        
+        # Lire le contenu du prompt
+        $promptContent = Get-Content $PromptFile -Raw
+        
+        # Executer claude avec le prompt via pipe
+        # Note: claude doit etre dans le PATH
+        Write-Host "     [CLAUDE] Demarrage de $TaskDescription avec $script:Model..." -ForegroundColor Yellow
+        
+        $output = $promptContent | claude --model $script:Model --dangerously-skip-permissions --print 2>&1
+        
+        # Afficher la sortie
+        if ($output) {
+            $output | ForEach-Object {
+                $line = $_
+                if ($script:Verbose -or $line -match "\[ERROR\]|\[ERREUR\]|\[OK\]|\[MOVE\]|\[PR\]|\[MERGE\]") {
+                    Write-Host "       $line" -ForegroundColor DarkGray
+                }
+            }
+        }
+        
+        Write-Host "     [CLAUDE] Termine: $TaskDescription" -ForegroundColor Green
+        return $true
+    }
+    catch {
+        Write-Host "     [ERREUR] Claude: $_" -ForegroundColor Red
+        return $false
+    }
+    finally {
+        # Retourner au repertoire original
+        Set-Location $originalLocation
+        
+        # Nettoyer le fichier prompt
+        Remove-Item $PromptFile -ErrorAction SilentlyContinue
+    }
 }
 
 # ============================================
@@ -672,28 +741,14 @@ Commence l'analyse et N'OUBLIE PAS de deplacer l'issue a la fin.
 
     $promptContent | Out-File $promptFile -Encoding utf8
     
-    Write-Host "     [ANALYSE] En cours avec $Model..." -ForegroundColor Yellow
-    
     if ($DryRun) {
-        Write-Host "     [DRY RUN] Simulation" -ForegroundColor Magenta
+        Write-Host "     [DRY RUN] Simulation analyse" -ForegroundColor Magenta
         Remove-Item $promptFile -ErrorAction SilentlyContinue
         return $true
     }
     
-    try {
-        Get-Content $promptFile | claude --model $Model --dangerously-skip-permissions 2>&1 | ForEach-Object {
-            if ($Verbose) {
-                Write-Host "       $_" -ForegroundColor DarkGray
-            }
-        }
-        Remove-Item $promptFile -ErrorAction SilentlyContinue
-        return $true
-    }
-    catch {
-        Write-Host "     [ERREUR] Claude: $_" -ForegroundColor Red
-        Remove-Item $promptFile -ErrorAction SilentlyContinue
-        return $false
-    }
+    $success = Invoke-ClaudeInProject -PromptFile $promptFile -TaskDescription "Analyse issue #$IssueNumber"
+    return $success
 }
 
 # ============================================
@@ -803,28 +858,14 @@ Commence l'implementation en suivant EXACTEMENT ce workflow.
 
     $promptContent | Out-File $promptFile -Encoding utf8
     
-    Write-Host "     [CODER] En cours avec $Model..." -ForegroundColor Magenta
-    
     if ($DryRun) {
-        Write-Host "     [DRY RUN] Simulation" -ForegroundColor Magenta
+        Write-Host "     [DRY RUN] Simulation codeur" -ForegroundColor Magenta
         Remove-Item $promptFile -ErrorAction SilentlyContinue
         return $true
     }
     
-    try {
-        Get-Content $promptFile | claude --model $Model --dangerously-skip-permissions 2>&1 | ForEach-Object {
-            if ($Verbose) {
-                Write-Host "       $_" -ForegroundColor DarkGray
-            }
-        }
-        Remove-Item $promptFile -ErrorAction SilentlyContinue
-        return $true
-    }
-    catch {
-        Write-Host "     [ERREUR] Claude: $_" -ForegroundColor Red
-        Remove-Item $promptFile -ErrorAction SilentlyContinue
-        return $false
-    }
+    $success = Invoke-ClaudeInProject -PromptFile $promptFile -TaskDescription "Codage issue #$IssueNumber"
+    return $success
 }
 
 # ============================================
@@ -901,28 +942,14 @@ Termine le merge et deplace l'issue vers "A Tester".
 
     $promptContent | Out-File $promptFile -Encoding utf8
     
-    Write-Host "     [MERGE] Finalisation avec $Model..." -ForegroundColor Yellow
-    
     if ($DryRun) {
-        Write-Host "     [DRY RUN] Simulation" -ForegroundColor Magenta
+        Write-Host "     [DRY RUN] Simulation merge" -ForegroundColor Magenta
         Remove-Item $promptFile -ErrorAction SilentlyContinue
         return $true
     }
     
-    try {
-        Get-Content $promptFile | claude --model $Model --dangerously-skip-permissions 2>&1 | ForEach-Object {
-            if ($Verbose) {
-                Write-Host "       $_" -ForegroundColor DarkGray
-            }
-        }
-        Remove-Item $promptFile -ErrorAction SilentlyContinue
-        return $true
-    }
-    catch {
-        Write-Host "     [ERREUR] Claude: $_" -ForegroundColor Red
-        Remove-Item $promptFile -ErrorAction SilentlyContinue
-        return $false
-    }
+    $success = Invoke-ClaudeInProject -PromptFile $promptFile -TaskDescription "Merge issue #$IssueNumber"
+    return $success
 }
 
 # ============================================
@@ -930,14 +957,25 @@ Termine le merge et deplace l'issue vers "A Tester".
 # ============================================
 
 Write-Host ""
-Write-Host "[START] Agents autonomes actifs" -ForegroundColor Green
-Write-Host "   Appuyez sur Ctrl+C pour arreter"
+Write-Host "============================================" -ForegroundColor Cyan
+Write-Host "[START] Agents autonomes DashBoardAdmin" -ForegroundColor Green
+Write-Host "============================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "[CONFIG] Parametres:" -ForegroundColor Yellow
+Write-Host "   Projet: $ProjectPath" -ForegroundColor White
+Write-Host "   Owner: $Owner" -ForegroundColor White
+Write-Host "   Repo: $Repo" -ForegroundColor White
+Write-Host "   Project#: $ProjectNumber" -ForegroundColor White
+Write-Host "   Modele: $Model" -ForegroundColor White
+Write-Host "   Polling: $PollingInterval sec" -ForegroundColor White
 Write-Host ""
 Write-Host "[INFO] PRIORITE DE TRAITEMENT:" -ForegroundColor Yellow
 Write-Host "   1. Issues 'In Review' -> Terminer le merge" -ForegroundColor Yellow
 Write-Host "   2. Issues 'In Progress' -> Terminer le developpement" -ForegroundColor Yellow
 Write-Host "   3. Issues 'Analyse' -> Nouvelles analyses" -ForegroundColor Yellow
 Write-Host "   4. Issues 'Todo' -> Nouvelles implementations" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "   Appuyez sur Ctrl+C pour arreter"
 Write-Host ""
 
 $iteration = 0
@@ -1123,5 +1161,4 @@ while ($true) {
     Write-Host "[$timestamp] [WAIT] Prochaine verification dans $PollingInterval sec..." -ForegroundColor DarkGray
     Start-Sleep -Seconds $PollingInterval
 }
-
 
