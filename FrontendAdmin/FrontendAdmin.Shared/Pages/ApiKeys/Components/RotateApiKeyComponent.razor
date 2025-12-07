@@ -1,0 +1,111 @@
+@using FrontendAdmin.Shared.Pages.ApiKeys.Models
+@inject IApiKeyHttpService ApiKeyService
+
+<LoadingPage IsLoad="@isLoading" />
+
+<div class="p-6">
+    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-blue-700">
+                    La rotation permet de creer une nouvelle API Key tout en gardant l'ancienne active
+                    pendant une periode de grace. Cela vous donne le temps de mettre a jour vos services.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="space-y-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Periode de grace (jours)</label>
+            <input type="number"
+                   @bind="gracePeriodDays"
+                   min="1"
+                   max="30"
+                   class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" />
+            <p class="mt-1 text-xs text-gray-500">
+                L'ancienne cle restera active pendant @gracePeriodDays jour(s) apres la creation de la nouvelle.
+            </p>
+        </div>
+
+        <div class="bg-gray-50 rounded-lg p-4">
+            <h4 class="text-sm font-medium text-gray-900 mb-2">Processus de rotation</h4>
+            <ol class="list-decimal list-inside text-sm text-gray-600 space-y-1">
+                <li>Une nouvelle API Key sera generee</li>
+                <li>L'ancienne cle restera valide pendant @gracePeriodDays jour(s)</li>
+                <li>Mettez a jour vos services avec la nouvelle cle</li>
+                <li>L'ancienne cle expirera automatiquement</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<div class="flex justify-end gap-3 px-6 py-4 border-t">
+    <Button aria-label="Annuler"
+            ButtonClass="border border-gray-300 bg-white rounded-lg text-gray-700 hover:bg-gray-50"
+            type="button"
+            @onclick="HandleCancel">
+        Annuler
+    </Button>
+    <Button aria-label="Rotation"
+            type="button"
+            disabled="@(gracePeriodDays < 1 || isLoading)"
+            @onclick="HandleRotate">
+        Effectuer la rotation
+    </Button>
+</div>
+
+@code {
+    [Parameter]
+    public string? ApiKeyHash { get; set; }
+
+    [Parameter]
+    public EventCallback<ApiKeyCreatedResponse> OnRotated { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private bool isLoading;
+    private int gracePeriodDays = 7;
+
+    private void HandleCancel()
+    {
+        OnCancel.InvokeAsync();
+    }
+
+    private async Task HandleRotate()
+    {
+        if (string.IsNullOrWhiteSpace(ApiKeyHash) || gracePeriodDays < 1)
+        {
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            var request = new RotateApiKeyRequest
+            {
+                CurrentApiKeyHash = ApiKeyHash,
+                GracePeriodDays = gracePeriodDays
+            };
+
+            var response = await ApiKeyService.RotateApiKeyAsync(request);
+            if (response.Success)
+            {
+                await OnRotated.InvokeAsync(response.Data);
+            }
+        }
+        catch (Exception)
+        {
+            // Handle error
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

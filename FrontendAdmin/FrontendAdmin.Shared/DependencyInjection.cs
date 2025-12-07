@@ -29,6 +29,10 @@ public static class DependencyInjection
             .AddHttpMessageHandler<CookieHandler>()
             .AddHttpMessageHandler<JwtAuthorizationHandler>();
 
+        services.AddRefitClient<IApiKeyHttpService>()
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri(uri))
+            .AddHttpMessageHandler<CookieHandler>()
+            .AddHttpMessageHandler<JwtAuthorizationHandler>();
 
         services.AddScoped<ToastService>();
 
