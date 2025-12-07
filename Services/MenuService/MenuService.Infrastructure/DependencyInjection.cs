@@ -1,4 +1,5 @@
-﻿using MenuService.Application.Data;
+using MenuService.Application.Data;
+using MenuService.Infrastructure.Security;
 
 namespace MenuService.Infrastructure;
 
@@ -60,6 +61,10 @@ public static class DependencyInjection
         services.AddGenericRepositories<MenuDbContext>();
 
         services.AddScoped<IMenuDbContext, MenuDbContext>();
+
+        // API Key Security Services
+        services.AddScoped<IApiKeyFactory, ApiKeyFactory>();
+        services.AddApiKeyAuthentication();
 
         return services;
     }

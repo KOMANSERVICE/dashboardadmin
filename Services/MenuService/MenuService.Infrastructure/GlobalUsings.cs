@@ -5,6 +5,7 @@ global using Microsoft.Extensions.DependencyInjection;
 global using IDR.Library.BuildingBlocks;
 global using IDR.Library.BuildingBlocks.Security;
 global using IDR.Library.BuildingBlocks.Security.Interfaces;
+global using IDR.Library.BuildingBlocks.Abstractions;
 global using MenuService.Infrastructure.Data;
 global using Microsoft.Extensions.Configuration;
 global using MenuService.Application.Data;
