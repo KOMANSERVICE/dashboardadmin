@@ -16,19 +16,19 @@ $Config = @{
     # CONFIGURATION DU MODÈLE CLAUDE
     # ============================================
     # Modèles disponibles:
-    # - claude-sonnet-4-20250514     (Recommandé - équilibre performance/coût)
-    # - claude-opus-4-20250514       (Plus puissant - pour tâches complexes)
-    # - claude-3-5-sonnet-20241022   (Version précédente)
+    # - claude-opus-4-5-20251101     (Le plus puissant - recommandé pour dev)
+    # - claude-sonnet-4-5-20250514   (Rapide et performant)
+    # - claude-sonnet-4-20250514     (Version standard)
     
     Claude = @{
-        Model = "claude-sonnet-4-20250514"
+        Model = "claude-opus-4-5-20251101"
         
         # Options par type de tâche
         ModelByTask = @{
-            Analysis = "claude-sonnet-4-20250514"      # Analyse des issues
-            Coding = "claude-sonnet-4-20250514"        # Implémentation du code
-            Documentation = "claude-sonnet-4-20250514" # Génération de documentation
-            NewService = "claude-opus-4-20250514"      # Création de nouveaux microservices (plus complexe)
+            Analysis = "claude-opus-4-5-20251101"      # Analyse des issues
+            Coding = "claude-opus-4-5-20251101"        # Implémentation du code
+            Documentation = "claude-opus-4-5-20251101" # Génération de documentation
+            NewService = "claude-opus-4-5-20251101"    # Création de nouveaux microservices
         }
     }
     

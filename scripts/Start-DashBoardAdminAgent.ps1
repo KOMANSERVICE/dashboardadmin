@@ -9,7 +9,7 @@ param(
 
     # Chemin vers le projet (OBLIGATOIRE)
     [Parameter(Mandatory=$false)]
-    [string]$ProjectPath = "C:\Workspace\App\depensio\dashboardadmin",
+    [string]$ProjectPath = ".",
     
     # Configuration du repo des packages IDR (pour les issues de composants/bugs)
     [string]$Owner_package = "KOMANSERVICE",
@@ -21,12 +21,12 @@ param(
     [switch]$CoderOnly,
     
     # Choix du modele Claude
-    [ValidateSet("claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-3-5-sonnet-20241022")]
+    [ValidateSet("claude-opus-4-5-20251101", "claude-sonnet-4-5-20250514", "claude-sonnet-4-20250514")]
     [string]$Model = "claude-opus-4-5-20251101",
     
     # Options avancees
     [switch]$DryRun,
-    [switch]$Verbose
+    [switch]$ShowDetails
 )
 
 $ErrorActionPreference = "Stop"
@@ -102,7 +102,7 @@ function Invoke-ClaudeInProject {
         if ($output) {
             $output | ForEach-Object {
                 $line = $_
-                if ($script:Verbose -or $line -match "\[ERROR\]|\[ERREUR\]|\[OK\]|\[MOVE\]|\[PR\]|\[MERGE\]") {
+                if ($script:ShowDetails -or $line -match "\[ERROR\]|\[ERREUR\]|\[OK\]|\[MOVE\]|\[PR\]|\[MERGE\]") {
                     Write-Host "       $line" -ForegroundColor DarkGray
                 }
             }
