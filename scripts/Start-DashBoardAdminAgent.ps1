@@ -74,6 +74,78 @@ $Columns = @{
 # FONCTION HELPER POUR EXECUTER CLAUDE
 # ============================================
 
+# Variable globale pour tracker si la limite est atteinte
+$script:ClaudeLimitReached = $false
+
+# Variable pour arreter l'execution en cas d'erreur critique
+$script:CriticalErrorOccurred = $false
+$script:CriticalErrorMessage = ""
+
+function Test-ClaudeLimit {
+    <#
+    .SYNOPSIS
+        Vérifie si la limite Claude est atteinte
+    .DESCRIPTION
+        Retourne $true si on peut utiliser Claude, $false sinon
+    #>
+    
+    if ($script:ClaudeLimitReached) {
+        Write-Host "     [LIMIT] Limite Claude atteinte - en attente" -ForegroundColor Yellow
+        return $false
+    }
+    return $true
+}
+
+function Stop-OnCriticalError {
+    param(
+        [string]$ErrorMessage,
+        [string]$Component = "Systeme"
+    )
+    
+    $script:CriticalErrorOccurred = $true
+    $script:CriticalErrorMessage = $ErrorMessage
+    
+    Write-Host "" -ForegroundColor Red
+    Write-Host "╔══════════════════════════════════════════════════════════════════╗" -ForegroundColor Red
+    Write-Host "║                    ERREUR CRITIQUE - ARRET                       ║" -ForegroundColor Red
+    Write-Host "╚══════════════════════════════════════════════════════════════════╝" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  Composant: $Component" -ForegroundColor Red
+    Write-Host "  Erreur: $ErrorMessage" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  L'execution a ete arretee pour eviter des problemes." -ForegroundColor Yellow
+    Write-Host "  Verifiez la configuration et relancez le script." -ForegroundColor Yellow
+    Write-Host ""
+}
+
+function Test-ExternalCommand {
+    param(
+        [string]$Command,
+        [string]$Arguments,
+        [string]$Description
+    )
+    
+    Write-Host "     [TEST] $Description..." -ForegroundColor DarkGray
+    
+    try {
+        $result = Invoke-Expression "$Command $Arguments" 2>&1
+        $exitCode = $LASTEXITCODE
+        
+        if ($exitCode -ne 0) {
+            Write-Host "     [ERREUR] $Description a echoue (code: $exitCode)" -ForegroundColor Red
+            Write-Host "     [DETAIL] $result" -ForegroundColor Red
+            return $false
+        }
+        
+        Write-Host "     [OK] $Description" -ForegroundColor Green
+        return $true
+    }
+    catch {
+        Write-Host "     [ERREUR] $Description : $_" -ForegroundColor Red
+        return $false
+    }
+}
+
 function Invoke-ClaudeInProject {
     param(
         [Parameter(Mandatory)]
@@ -82,38 +154,187 @@ function Invoke-ClaudeInProject {
         [string]$TaskDescription = "Tache"
     )
     
+    # Vérifier si une erreur critique s'est produite
+    if ($script:CriticalErrorOccurred) {
+        Write-Host "     [STOP] Execution arretee suite a une erreur critique" -ForegroundColor Red
+        Remove-Item $PromptFile -ErrorAction SilentlyContinue
+        return $false
+    }
+    
+    # Vérifier si la limite est déjà atteinte
+    if ($script:ClaudeLimitReached) {
+        Write-Host "     [LIMIT] Limite Claude atteinte - skip $TaskDescription" -ForegroundColor Yellow
+        Remove-Item $PromptFile -ErrorAction SilentlyContinue
+        return $false
+    }
+    
     $originalLocation = Get-Location
+    $success = $false
     
     try {
         # Changer vers le repertoire du projet
         Set-Location $script:ProjectPath
-        Write-Host "     [CLAUDE] Execution dans: $script:ProjectPath" -ForegroundColor DarkGray
+        
+        Write-Host "" -ForegroundColor Cyan
+        Write-Host "     ┌────────────────────────────────────────────────────────────────┐" -ForegroundColor Cyan
+        Write-Host "     │  DEMARRAGE: $TaskDescription" -ForegroundColor Cyan
+        Write-Host "     │  Repertoire: $script:ProjectPath" -ForegroundColor Cyan
+        Write-Host "     │  Modele: $script:Model" -ForegroundColor Cyan
+        Write-Host "     └────────────────────────────────────────────────────────────────┘" -ForegroundColor Cyan
+        Write-Host ""
         
         # Lire le contenu du prompt
         $promptContent = Get-Content $PromptFile -Raw
         
+        # Afficher un extrait du prompt (premieres lignes)
+        Write-Host "     [PROMPT] Contenu envoye a Claude:" -ForegroundColor DarkGray
+        $promptLines = $promptContent -split "`n" | Select-Object -First 10
+        foreach ($line in $promptLines) {
+            Write-Host "       $line" -ForegroundColor DarkGray
+        }
+        if (($promptContent -split "`n").Count -gt 10) {
+            Write-Host "       ... ($(($promptContent -split "`n").Count - 10) lignes supplementaires)" -ForegroundColor DarkGray
+        }
+        Write-Host ""
+        
         # Executer claude avec le prompt via pipe
-        # Note: claude doit etre dans le PATH
-        Write-Host "     [CLAUDE] Demarrage de $TaskDescription avec $script:Model..." -ForegroundColor Yellow
+        Write-Host "     [CLAUDE] Execution en cours..." -ForegroundColor Yellow
+        Write-Host "     ─────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
         
         $output = $promptContent | claude --model $script:Model --dangerously-skip-permissions --print 2>&1
+        $exitCode = $LASTEXITCODE
         
-        # Afficher la sortie
+        # Convertir la sortie en string pour analyse
+        $outputStr = $output -join "`n"
+        
+        # TOUJOURS afficher la sortie complete de Claude
+        Write-Host ""
+        Write-Host "     [SORTIE CLAUDE]" -ForegroundColor Cyan
+        Write-Host "     ─────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
+        
         if ($output) {
+            $lineNumber = 0
             $output | ForEach-Object {
+                $lineNumber++
                 $line = $_
-                if ($script:ShowDetails -or $line -match "\[ERROR\]|\[ERREUR\]|\[OK\]|\[MOVE\]|\[PR\]|\[MERGE\]") {
-                    Write-Host "       $line" -ForegroundColor DarkGray
+                
+                # Colorer selon le type de message
+                $color = "White"
+                if ($line -match "\[ERROR\]|\[ERREUR\]|erreur|error|failed|echec") {
+                    $color = "Red"
                 }
+                elseif ($line -match "\[OK\]|\[SUCCESS\]|succes|success|termine|completed") {
+                    $color = "Green"
+                }
+                elseif ($line -match "\[WARN\]|\[WARNING\]|attention|warning") {
+                    $color = "Yellow"
+                }
+                elseif ($line -match "\[MOVE\]|\[PR\]|\[MERGE\]|\[GIT\]|\[BRANCH\]") {
+                    $color = "Cyan"
+                }
+                elseif ($line -match "^\s*#|^##|^###") {
+                    $color = "Magenta"
+                }
+                
+                Write-Host "       $line" -ForegroundColor $color
+            }
+        }
+        else {
+            Write-Host "       (Aucune sortie)" -ForegroundColor DarkGray
+        }
+        
+        Write-Host "     ─────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
+        Write-Host ""
+        
+        # Détecter les erreurs de limite
+        $limitPatterns = @(
+            "rate limit",
+            "limit reached",
+            "limite atteinte",
+            "too many requests",
+            "quota exceeded",
+            "capacity",
+            "try again later",
+            "réessayez plus tard",
+            "429",
+            "overloaded"
+        )
+        
+        $limitReached = $false
+        foreach ($pattern in $limitPatterns) {
+            if ($outputStr -match $pattern) {
+                $limitReached = $true
+                break
             }
         }
         
-        Write-Host "     [CLAUDE] Termine: $TaskDescription" -ForegroundColor Green
-        return $true
+        # Détecter les erreurs critiques (non-limite)
+        $criticalPatterns = @(
+            "authentication failed",
+            "unauthorized",
+            "permission denied",
+            "access denied",
+            "invalid token",
+            "token expired",
+            "api key",
+            "not found.*claude",
+            "command not found"
+        )
+        
+        $criticalError = $false
+        $criticalMessage = ""
+        foreach ($pattern in $criticalPatterns) {
+            if ($outputStr -match $pattern) {
+                $criticalError = $true
+                $criticalMessage = "Erreur d'authentification ou de permission: $pattern"
+                break
+            }
+        }
+        
+        # Vérifier aussi le code de sortie
+        if ($exitCode -ne 0 -and -not $limitReached) {
+            Write-Host "     [ERREUR] Claude a retourne le code: $exitCode" -ForegroundColor Red
+            
+            # Si code d'erreur et pas une limite, c'est potentiellement critique
+            if ($exitCode -eq 1 -and $outputStr -match "error|erreur") {
+                $criticalError = $true
+                $criticalMessage = "Claude a retourne une erreur (code $exitCode)"
+            }
+        }
+        
+        if ($criticalError) {
+            Stop-OnCriticalError -ErrorMessage $criticalMessage -Component "Claude CLI"
+            $success = $false
+        }
+        elseif ($limitReached) {
+            Write-Host "     ╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Yellow
+            Write-Host "     ║  LIMITE CLAUDE ATTEINTE                                      ║" -ForegroundColor Yellow
+            Write-Host "     ║  Les issues ne seront PAS deplacees                         ║" -ForegroundColor Yellow
+            Write-Host "     ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Yellow
+            $script:ClaudeLimitReached = $true
+            $success = $false
+        }
+        else {
+            Write-Host "     ┌────────────────────────────────────────────────────────────────┐" -ForegroundColor Green
+            Write-Host "     │  TERMINE: $TaskDescription" -ForegroundColor Green
+            Write-Host "     └────────────────────────────────────────────────────────────────┘" -ForegroundColor Green
+            Write-Host ""
+            $success = $true
+        }
     }
     catch {
-        Write-Host "     [ERREUR] Claude: $_" -ForegroundColor Red
-        return $false
+        Write-Host "     [ERREUR EXCEPTION] $_" -ForegroundColor Red
+        Write-Host "     [STACK] $($_.ScriptStackTrace)" -ForegroundColor Red
+        
+        # Vérifier si l'erreur est liée à une limite
+        if ($_.ToString() -match "limit|quota|429|capacity") {
+            $script:ClaudeLimitReached = $true
+        }
+        else {
+            # Autre erreur - potentiellement critique
+            Stop-OnCriticalError -ErrorMessage $_.ToString() -Component "Invoke-ClaudeInProject"
+        }
+        $success = $false
     }
     finally {
         # Retourner au repertoire original
@@ -122,6 +343,8 @@ function Invoke-ClaudeInProject {
         # Nettoyer le fichier prompt
         Remove-Item $PromptFile -ErrorAction SilentlyContinue
     }
+    
+    return $success
 }
 
 # ============================================
@@ -381,65 +604,144 @@ Write-Host ""
 # VERIFICATION DES PREREQUIS
 # ============================================
 
-Write-Host "[PREREQ] Verification des prerequis..." -ForegroundColor Cyan
+Write-Host ""
+Write-Host "╔══════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+Write-Host "║              VERIFICATION DES PREREQUIS                          ║" -ForegroundColor Cyan
+Write-Host "╚══════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host ""
 
 $allPrereqsMet = $true
+$criticalError = $false
 
 # Verifier gh
+Write-Host "[1/5] GitHub CLI (gh)..." -ForegroundColor White
 try {
-    $null = gh --version 2>&1
-    Write-Host "   [OK] gh (GitHub CLI)" -ForegroundColor Green
+    $ghVersion = gh --version 2>&1 | Select-Object -First 1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "      [OK] $ghVersion" -ForegroundColor Green
+    }
+    else {
+        throw "gh non disponible"
+    }
 }
 catch {
-    Write-Host "   [X] gh (GitHub CLI) non trouve" -ForegroundColor Red
+    Write-Host "      [ERREUR] gh (GitHub CLI) non trouve" -ForegroundColor Red
+    Write-Host "      Installez: https://cli.github.com/" -ForegroundColor Yellow
     $allPrereqsMet = $false
+    $criticalError = $true
 }
 
 # Verifier claude
+Write-Host "[2/5] Claude CLI..." -ForegroundColor White
 try {
-    $null = claude --version 2>&1
-    Write-Host "   [OK] claude (Claude CLI)" -ForegroundColor Green
+    $claudeVersion = claude --version 2>&1 | Select-Object -First 1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "      [OK] $claudeVersion" -ForegroundColor Green
+    }
+    else {
+        throw "claude non disponible"
+    }
 }
 catch {
-    Write-Host "   [X] claude (Claude CLI) non trouve" -ForegroundColor Red
+    Write-Host "      [ERREUR] claude (Claude CLI) non trouve" -ForegroundColor Red
+    Write-Host "      Installez: npm install -g @anthropic-ai/claude-cli" -ForegroundColor Yellow
     $allPrereqsMet = $false
+    $criticalError = $true
 }
 
 # Verifier dotnet
+Write-Host "[3/5] .NET SDK..." -ForegroundColor White
 try {
-    $null = dotnet --version 2>&1
-    Write-Host "   [OK] dotnet" -ForegroundColor Green
+    $dotnetVersion = dotnet --version 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "      [OK] dotnet $dotnetVersion" -ForegroundColor Green
+    }
+    else {
+        throw "dotnet non disponible"
+    }
 }
 catch {
-    Write-Host "   [X] dotnet non trouve" -ForegroundColor Red
+    Write-Host "      [ERREUR] dotnet non trouve" -ForegroundColor Red
+    Write-Host "      Installez: https://dotnet.microsoft.com/download" -ForegroundColor Yellow
     $allPrereqsMet = $false
 }
 
 # Verifier git
+Write-Host "[4/5] Git..." -ForegroundColor White
 try {
-    $null = git --version 2>&1
-    Write-Host "   [OK] git" -ForegroundColor Green
+    $gitVersion = git --version 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "      [OK] $gitVersion" -ForegroundColor Green
+    }
+    else {
+        throw "git non disponible"
+    }
 }
 catch {
-    Write-Host "   [X] git non trouve" -ForegroundColor Red
+    Write-Host "      [ERREUR] git non trouve" -ForegroundColor Red
     $allPrereqsMet = $false
-}
-
-if (-not $allPrereqsMet) {
-    Write-Host ""
-    Write-Host "[ERREUR] Certains prerequis manquent." -ForegroundColor Red
-    exit 1
+    $criticalError = $true
 }
 
 # Verifier l'authentification GitHub
+Write-Host "[5/5] Authentification GitHub..." -ForegroundColor White
+try {
+    $authStatus = gh auth status 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "Non authentifie"
+    }
+    Write-Host "      [OK] Authentifie sur GitHub" -ForegroundColor Green
+    
+    # Verifier les scopes
+    $tokenScopes = gh auth status 2>&1 | Select-String "Token scopes"
+    if ($tokenScopes) {
+        Write-Host "      [INFO] $tokenScopes" -ForegroundColor DarkGray
+        
+        # Verifier le scope 'project'
+        if ($tokenScopes -notmatch "project") {
+            Write-Host "      [WARN] Le scope 'project' semble manquant" -ForegroundColor Yellow
+            Write-Host "      Pour deplacer les issues, ajoutez le scope 'project' a votre token:" -ForegroundColor Yellow
+            Write-Host "      https://github.com/settings/tokens" -ForegroundColor Yellow
+        }
+    }
+}
+catch {
+    Write-Host "      [ERREUR] Non authentifie sur GitHub" -ForegroundColor Red
+    Write-Host "      Executez: gh auth login" -ForegroundColor Yellow
+    $allPrereqsMet = $false
+    $criticalError = $true
+}
+
 Write-Host ""
-Write-Host "[AUTH] Verification de l'authentification GitHub..." -ForegroundColor Cyan
-$authStatus = gh auth status 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERREUR] Non authentifie sur GitHub. Executez 'gh auth login'" -ForegroundColor Red
+
+if (-not $allPrereqsMet) {
+    Write-Host "╔══════════════════════════════════════════════════════════════════╗" -ForegroundColor Red
+    Write-Host "║              PREREQUIS MANQUANTS - ARRET                         ║" -ForegroundColor Red
+    Write-Host "╚══════════════════════════════════════════════════════════════════╝" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Installez les prerequis manquants et relancez le script." -ForegroundColor Yellow
     exit 1
 }
-Write-Host "   [OK] Authentifie sur GitHub" -ForegroundColor Green
+
+Write-Host "[OK] Tous les prerequis sont satisfaits" -ForegroundColor Green
+Write-Host ""
+
+# Test de connexion au project GitHub
+Write-Host "[TEST] Verification de l'acces au project GitHub..." -ForegroundColor Cyan
+try {
+    $projectTest = gh project item-list $ProjectNumber --owner $Owner --format json --limit 1 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "      [ERREUR] Impossible d'acceder au project #$ProjectNumber de $Owner" -ForegroundColor Red
+        Write-Host "      Verifiez que le project existe et que vous avez les droits" -ForegroundColor Yellow
+        Write-Host "      Detail: $projectTest" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "      [OK] Acces au project #$ProjectNumber confirme" -ForegroundColor Green
+}
+catch {
+    Write-Host "      [ERREUR] $_" -ForegroundColor Red
+    exit 1
+}
 
 # ============================================
 # LECTURE AUTOMATIQUE DOCUMENTATION IDR LIBRARY
@@ -984,15 +1286,48 @@ while ($true) {
     $iteration++
     $timestamp = Get-Date -Format "HH:mm:ss"
     
-    Write-Host "[$timestamp] ====================================================" -ForegroundColor DarkCyan
-    Write-Host "[$timestamp] [CHECK] Iteration #$iteration" -ForegroundColor DarkCyan
+    Write-Host ""
+    Write-Host "╔══════════════════════════════════════════════════════════════════╗" -ForegroundColor DarkCyan
+    Write-Host "║  ITERATION #$iteration - $timestamp                                      ║" -ForegroundColor DarkCyan
+    Write-Host "╚══════════════════════════════════════════════════════════════════╝" -ForegroundColor DarkCyan
+    Write-Host ""
+    
+    # ============================================
+    # VERIFICATION ERREUR CRITIQUE
+    # ============================================
+    if ($script:CriticalErrorOccurred) {
+        Write-Host "[$timestamp] [STOP] Une erreur critique s'est produite" -ForegroundColor Red
+        Write-Host "[$timestamp] [STOP] Message: $script:CriticalErrorMessage" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "L'execution est arretee. Corrigez le probleme et relancez le script." -ForegroundColor Yellow
+        exit 1
+    }
+    
+    # ============================================
+    # VERIFICATION LIMITE CLAUDE
+    # ============================================
+    if ($script:ClaudeLimitReached) {
+        Write-Host "[$timestamp] ╔═══════════════════════════════════════════════╗" -ForegroundColor Yellow
+        Write-Host "[$timestamp] ║  LIMITE CLAUDE ATTEINTE                       ║" -ForegroundColor Yellow
+        Write-Host "[$timestamp] ║  Aucune issue ne sera traitee ni deplacee     ║" -ForegroundColor Yellow
+        Write-Host "[$timestamp] ╚═══════════════════════════════════════════════╝" -ForegroundColor Yellow
+        Write-Host "[$timestamp] Attente de $PollingInterval secondes avant de reessayer..." -ForegroundColor Yellow
+        
+        # Reset la limite pour reessayer a la prochaine iteration
+        $script:ClaudeLimitReached = $false
+        
+        Start-Sleep -Seconds $PollingInterval
+        continue
+    }
     
     try {
         # ============================================
         # PRIORITE 1: ISSUES EN "IN REVIEW" (Terminer le merge)
         # ============================================
         if (-not $AnalysisOnly) {
-            Write-Host "[$timestamp] [PRIORITE 1] Verification colonne 'In Review'..." -ForegroundColor Magenta
+            Write-Host "[$timestamp] ┌──────────────────────────────────────────────┐" -ForegroundColor Magenta
+            Write-Host "[$timestamp] │  PRIORITE 1: Verification 'In Review'       │" -ForegroundColor Magenta
+            Write-Host "[$timestamp] └──────────────────────────────────────────────┘" -ForegroundColor Magenta
             
             $reviewIssues = @(Get-IssuesInColumn -ColumnName $Columns.Review)
             
@@ -1000,18 +1335,28 @@ while ($true) {
                 Write-Host "[$timestamp] [REVIEW] $($reviewIssues.Count) issue(s) en attente de merge" -ForegroundColor Yellow
                 
                 foreach ($issue in $reviewIssues) {
-                    Write-Host "[$timestamp]   -> #$($issue.IssueNumber): $($issue.Title)" -ForegroundColor White
-                    Write-Host "[$timestamp]   [ACTION] Terminer le merge et deplacer vers 'A Tester'..." -ForegroundColor Cyan
+                    # Verifier la limite et erreur critique avant chaque issue
+                    if ($script:ClaudeLimitReached -or $script:CriticalErrorOccurred) {
+                        Write-Host "[$timestamp]   [STOP] Arret du traitement" -ForegroundColor Red
+                        break
+                    }
+                    
+                    Write-Host "[$timestamp]   ┌─ Issue #$($issue.IssueNumber): $($issue.Title)" -ForegroundColor White
+                    Write-Host "[$timestamp]   │  [ACTION] Terminer le merge et deplacer vers 'A Tester'" -ForegroundColor Cyan
                     
                     # Appeler l'agent pour terminer le merge
                     $success = Invoke-FinishMergeAgent -IssueNumber $issue.IssueNumber -Title $issue.Title
                     
-                    if ($success) {
+                    # SEULEMENT deplacer si succes ET pas de limite atteinte
+                    if ($success -and -not $script:ClaudeLimitReached) {
                         # Deplacer vers "A Tester" - NE PAS FERMER L'ISSUE
                         $moved = Move-IssueToColumn -IssueNumber $issue.IssueNumber -TargetColumn $Columns.ATester
                         if ($moved) {
                             Write-Host "[$timestamp]   [OK] #$($issue.IssueNumber) -> 'A Tester'" -ForegroundColor Green
                         }
+                    }
+                    elseif ($script:ClaudeLimitReached) {
+                        Write-Host "[$timestamp]   [LIMIT] Issue #$($issue.IssueNumber) NON deplacee (limite)" -ForegroundColor Red
                     }
                     else {
                         Write-Host "[$timestamp]   [WARN] Merge non termine pour #$($issue.IssueNumber)" -ForegroundColor Yellow
@@ -1019,20 +1364,24 @@ while ($true) {
                 }
                 
                 # Continuer a la prochaine iteration apres avoir traite les reviews
+                Write-Host "[$timestamp]   └─ Traitement termine" -ForegroundColor DarkGray
+                Write-Host ""
                 Write-Host "[$timestamp] [WAIT] Prochaine verification dans $PollingInterval sec..." -ForegroundColor DarkGray
                 Start-Sleep -Seconds $PollingInterval
                 continue
             }
             else {
-                Write-Host "[$timestamp] [REVIEW] Aucune issue en review" -ForegroundColor DarkGray
+                Write-Host "[$timestamp]      Aucune issue en review" -ForegroundColor DarkGray
             }
         }
         
         # ============================================
         # PRIORITE 2: ISSUES EN "IN PROGRESS" (Terminer le developpement)
         # ============================================
-        if (-not $AnalysisOnly) {
-            Write-Host "[$timestamp] [PRIORITE 2] Verification colonne 'In Progress'..." -ForegroundColor Magenta
+        if (-not $AnalysisOnly -and -not $script:ClaudeLimitReached -and -not $script:CriticalErrorOccurred) {
+            Write-Host "[$timestamp] ┌──────────────────────────────────────────────┐" -ForegroundColor Magenta
+            Write-Host "[$timestamp] │  PRIORITE 2: Verification 'In Progress'     │" -ForegroundColor Magenta
+            Write-Host "[$timestamp] └──────────────────────────────────────────────┘" -ForegroundColor Magenta
             
             $inProgressIssues = @(Get-IssuesInColumn -ColumnName $Columns.InProgress)
             
@@ -1040,21 +1389,26 @@ while ($true) {
                 Write-Host "[$timestamp] [IN PROGRESS] $($inProgressIssues.Count) issue(s) en cours de developpement" -ForegroundColor Yellow
                 
                 $issue = $inProgressIssues[0]  # Traiter une seule issue a la fois
-                Write-Host "[$timestamp]   -> #$($issue.IssueNumber): $($issue.Title)" -ForegroundColor White
-                Write-Host "[$timestamp]   [ACTION] Continuer/Terminer le developpement..." -ForegroundColor Cyan
+                Write-Host "[$timestamp]   ┌─ Issue #$($issue.IssueNumber): $($issue.Title)" -ForegroundColor White
+                Write-Host "[$timestamp]   │  [ACTION] Continuer/Terminer le developpement" -ForegroundColor Cyan
                 
                 # Appeler l'agent codeur pour continuer
                 $success = Invoke-CoderAgent -IssueNumber $issue.IssueNumber -Title $issue.Title
                 
-                if ($success) {
+                # Verifier succes ET pas de limite
+                if ($success -and -not $script:ClaudeLimitReached) {
                     # Verifier si l'issue est toujours en In Progress ou a ete deplacee
                     $currentColumn = Get-CurrentIssueColumn -IssueNumber $issue.IssueNumber
-                    Write-Host "[$timestamp]   [INFO] Colonne actuelle: $currentColumn" -ForegroundColor DarkGray
+                    Write-Host "[$timestamp]   │  [INFO] Colonne actuelle: $currentColumn" -ForegroundColor DarkGray
                     
                     # Si toujours en In Progress apres le traitement, forcer le deplacement vers In Review
                     if (Compare-ColumnName -Actual $currentColumn -Expected $Columns.InProgress) {
-                        Write-Host "[$timestamp]   [WARN] Issue toujours en 'In Progress', verification requise" -ForegroundColor Yellow
+                        Write-Host "[$timestamp]   │  [WARN] Issue toujours en 'In Progress', verification requise" -ForegroundColor Yellow
                     }
+                    Write-Host "[$timestamp]   └─ [OK] Traitement termine" -ForegroundColor Green
+                }
+                elseif ($script:ClaudeLimitReached) {
+                    Write-Host "[$timestamp]   └─ [LIMIT] Issue #$($issue.IssueNumber) NON traitee (limite)" -ForegroundColor Red
                 }
                 else {
                     Write-Host "[$timestamp]   [ERREUR] Echec du developpement pour #$($issue.IssueNumber)" -ForegroundColor Red
@@ -1073,7 +1427,7 @@ while ($true) {
         # ============================================
         # PRIORITE 3: AGENT D'ANALYSE (Nouvelles analyses)
         # ============================================
-        if (-not $CoderOnly) {
+        if (-not $CoderOnly -and -not $script:ClaudeLimitReached) {
             Write-Host "[$timestamp] [PRIORITE 3] Verification colonne 'Analyse'..." -ForegroundColor Blue
             
             $analysisIssues = @(Get-IssuesInColumn -ColumnName $Columns.Analyse)
@@ -1087,11 +1441,18 @@ while ($true) {
                 Write-Host "[$timestamp] [ANALYSE] $($newAnalysisIssues.Count) issue(s) a analyser" -ForegroundColor Green
                 
                 foreach ($issue in $newAnalysisIssues) {
+                    # Verifier la limite avant chaque issue
+                    if ($script:ClaudeLimitReached) {
+                        Write-Host "[$timestamp]   [LIMIT] Limite atteinte - arret de l'analyse" -ForegroundColor Red
+                        break
+                    }
+                    
                     Write-Host "[$timestamp]   -> #$($issue.IssueNumber): $($issue.Title)" -ForegroundColor White
                     
                     $success = Invoke-AnalysisAgent -IssueNumber $issue.IssueNumber -Title $issue.Title
                     
-                    if ($success) {
+                    # SEULEMENT traiter si succes ET pas de limite
+                    if ($success -and -not $script:ClaudeLimitReached) {
                         Add-ProcessedIssue -FilePath $processedAnalysisFile -IssueNumber $issue.IssueNumber
                         
                         # Verifier le deplacement (doit etre fait par l'agent)
@@ -1105,6 +1466,10 @@ while ($true) {
                         
                         Write-Host "[$timestamp]   [OK] #$($issue.IssueNumber) analysee" -ForegroundColor Green
                     }
+                    elseif ($script:ClaudeLimitReached) {
+                        Write-Host "[$timestamp]   [LIMIT] Issue #$($issue.IssueNumber) NON analysee ni deplacee (limite)" -ForegroundColor Red
+                        # NE PAS deplacer vers AnalyseBlock si c'est juste une limite
+                    }
                     else {
                         Write-Host "[$timestamp]   [ERREUR] #$($issue.IssueNumber) - Deplacement vers 'AnalyseBlock'" -ForegroundColor Red
                         Move-IssueToColumn -IssueNumber $issue.IssueNumber -TargetColumn $Columns.AnalyseBlock
@@ -1116,7 +1481,7 @@ while ($true) {
         # ============================================
         # PRIORITE 4: AGENT CODEUR (Nouvelles implementations)
         # ============================================
-        if (-not $AnalysisOnly) {
+        if (-not $AnalysisOnly -and -not $script:ClaudeLimitReached) {
             Write-Host "[$timestamp] [PRIORITE 4] Verification colonne 'Todo'..." -ForegroundColor Magenta
             
             $todoIssues = @(Get-IssuesInColumn -ColumnName $Columns.Todo)
@@ -1132,24 +1497,38 @@ while ($true) {
                 $issue = $newTodoIssues[0]  # Traiter une seule issue a la fois
                 Write-Host "[$timestamp]   -> #$($issue.IssueNumber): $($issue.Title)" -ForegroundColor White
                 
-                # DEPLACER IMMEDIATEMENT vers "In Progress" AVANT de commencer
-                Write-Host "[$timestamp]   [MOVE] Deplacement vers 'In Progress'..." -ForegroundColor Cyan
-                $moved = Move-IssueToColumn -IssueNumber $issue.IssueNumber -TargetColumn $Columns.InProgress
-                
-                if (-not $moved) {
-                    Write-Host "[$timestamp]   [ERREUR] Impossible de deplacer vers 'In Progress'" -ForegroundColor Red
-                    continue
-                }
-                
-                # Lancer le developpement
-                $success = Invoke-CoderAgent -IssueNumber $issue.IssueNumber -Title $issue.Title
-                
-                if ($success) {
-                    Add-ProcessedIssue -FilePath $processedCoderFile -IssueNumber $issue.IssueNumber
-                    Write-Host "[$timestamp]   [OK] #$($issue.IssueNumber) implementation lancee" -ForegroundColor Green
+                # Verifier la limite AVANT de deplacer
+                if ($script:ClaudeLimitReached) {
+                    Write-Host "[$timestamp]   [LIMIT] Limite atteinte - issue NON deplacee" -ForegroundColor Red
                 }
                 else {
-                    Write-Host "[$timestamp]   [ERREUR] #$($issue.IssueNumber)" -ForegroundColor Red
+                    # DEPLACER vers "In Progress" AVANT de commencer
+                    Write-Host "[$timestamp]   [MOVE] Deplacement vers 'In Progress'..." -ForegroundColor Cyan
+                    $moved = Move-IssueToColumn -IssueNumber $issue.IssueNumber -TargetColumn $Columns.InProgress
+                    
+                    if (-not $moved) {
+                        Write-Host "[$timestamp]   [ERREUR] Impossible de deplacer vers 'In Progress'" -ForegroundColor Red
+                    }
+                    else {
+                        # Lancer le developpement
+                        $success = Invoke-CoderAgent -IssueNumber $issue.IssueNumber -Title $issue.Title
+                        
+                        # Verifier si limite atteinte PENDANT le traitement
+                        if ($script:ClaudeLimitReached) {
+                            Write-Host "[$timestamp]   [LIMIT] Limite atteinte PENDANT le traitement" -ForegroundColor Red
+                            Write-Host "[$timestamp]   [LIMIT] Remise de l'issue #$($issue.IssueNumber) dans 'Todo'" -ForegroundColor Yellow
+                            Move-IssueToColumn -IssueNumber $issue.IssueNumber -TargetColumn $Columns.Todo
+                        }
+                        elseif ($success) {
+                            Add-ProcessedIssue -FilePath $processedCoderFile -IssueNumber $issue.IssueNumber
+                            Write-Host "[$timestamp]   [OK] #$($issue.IssueNumber) implementation lancee" -ForegroundColor Green
+                        }
+                        else {
+                            Write-Host "[$timestamp]   [ERREUR] #$($issue.IssueNumber) - Remise dans 'Todo'" -ForegroundColor Red
+                            # En cas d'erreur non-limite, remettre dans Todo pour reessayer
+                            Move-IssueToColumn -IssueNumber $issue.IssueNumber -TargetColumn $Columns.Todo
+                        }
+                    }
                 }
             }
         }
@@ -1161,4 +1540,5 @@ while ($true) {
     Write-Host "[$timestamp] [WAIT] Prochaine verification dans $PollingInterval sec..." -ForegroundColor DarkGray
     Start-Sleep -Seconds $PollingInterval
 }
+
 
