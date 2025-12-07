@@ -543,10 +543,13 @@ function Move-IssueToColumn {
         
         # Essayer d'abord avec organization
         $projectId = $null
-        $orgQuery = @"
-query { organization(login: "$Owner") { projectV2(number: $ProjectNumber) { id } } }
-"@
-        $orgResult = gh api graphql -f query="$orgQuery" 2>$null
+        
+        # Utiliser les variables GraphQL pour eviter les problemes d'echappement
+        $orgResult = gh api graphql `
+            -f query='query($login: String!, $number: Int!) { organization(login: $login) { projectV2(number: $number) { id } } }' `
+            -f login="$Owner" `
+            -F number=$ProjectNumber 2>$null
+        
         if ($orgResult) {
             $orgData = $orgResult | ConvertFrom-Json
             if ($orgData.data.organization.projectV2) {
@@ -556,10 +559,11 @@ query { organization(login: "$Owner") { projectV2(number: $ProjectNumber) { id }
         
         # Si pas trouve, essayer avec user
         if (-not $projectId) {
-            $userQuery = @"
-query { user(login: "$Owner") { projectV2(number: $ProjectNumber) { id } } }
-"@
-            $userResult = gh api graphql -f query="$userQuery" 2>$null
+            $userResult = gh api graphql `
+                -f query='query($login: String!, $number: Int!) { user(login: $login) { projectV2(number: $number) { id } } }' `
+                -f login="$Owner" `
+                -F number=$ProjectNumber 2>$null
+            
             if ($userResult) {
                 $userData = $userResult | ConvertFrom-Json
                 if ($userData.data.user.projectV2) {
@@ -574,21 +578,11 @@ query { user(login: "$Owner") { projectV2(number: $ProjectNumber) { id } } }
         }
         
         # Recuperer le field Status et les options
-        $fieldQuery = @"
-query {
-    node(id: "$projectId") {
-        ... on ProjectV2 {
-            field(name: "Status") {
-                ... on ProjectV2SingleSelectField {
-                    id
-                    options { id name }
-                }
-            }
-        }
-    }
-}
-"@
-        $fieldResult = gh api graphql -f query="$fieldQuery" 2>$null
+        $fieldResult = gh api graphql `
+            -f query='query($nodeId: ID!, $fieldName: String!) { node(id: $nodeId) { ... on ProjectV2 { field(name: $fieldName) { ... on ProjectV2SingleSelectField { id options { id name } } } } } }' `
+            -f nodeId="$projectId" `
+            -f fieldName="Status" 2>$null
+        
         if (-not $fieldResult) {
             Write-Host "   [ERROR] Impossible de recuperer le champ Status" -ForegroundColor Red
             return $false
@@ -615,25 +609,23 @@ query {
         }
         
         # Deplacer l'item
-        $moveQuery = @"
-mutation {
-    updateProjectV2ItemFieldValue(input: {
-        projectId: "$projectId"
-        itemId: "$($item.id)"
-        fieldId: "$statusFieldId"
-        value: { singleSelectOptionId: "$($targetOption.id)" }
-    }) {
-        projectV2Item { id }
-    }
-}
-"@
-        gh api graphql -f query="$moveQuery" 2>$null | Out-Null
+        $mutationResult = gh api graphql `
+            -f query='mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) { updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: { singleSelectOptionId: $optionId } }) { projectV2Item { id } } }' `
+            -f projectId="$projectId" `
+            -f itemId="$($item.id)" `
+            -f fieldId="$statusFieldId" `
+            -f optionId="$($targetOption.id)" 2>&1
         
-        Write-Host "   [OK] Issue #$IssueNumber déplacée vers '$TargetColumn'" -ForegroundColor Green
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "   [ERROR] Echec: $mutationResult" -ForegroundColor Red
+            return $false
+        }
+        
+        Write-Host "   [OK] Issue #$IssueNumber deplacee vers '$TargetColumn'" -ForegroundColor Green
         return $true
     }
     catch {
-        Write-Host "   [ERROR] Échec: $_" -ForegroundColor Red
+        Write-Host "   [ERROR] Exception: $_" -ForegroundColor Red
         return $false
     }
 }

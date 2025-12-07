@@ -17,7 +17,7 @@ param(
     [switch]$CoderOnly,
     
     # Choix du modele Claude
-    [ValidateSet("claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-3-5-sonnet-20241022")]
+    [ValidateSet("claude-sonnet-4-20250514", "claude-opus-4-5-20251101", "claude-3-5-sonnet-20241022")]
     [string]$Model = "claude-opus-4-5-20251101",
     
     # Options avancees
@@ -187,8 +187,9 @@ function Move-IssueToColumn {
         
         # Obtenir le field ID pour Status et ses options
         $fieldResult = gh api graphql `
-            -f query='query($nodeId: ID!) { node(id: $nodeId) { ... on ProjectV2 { field(name: "Status") { ... on ProjectV2SingleSelectField { id options { id name } } } } } }' `
-            -f nodeId="$projectId" 2>$null
+            -f query='query($nodeId: ID!, $fieldName: String!) { node(id: $nodeId) { ... on ProjectV2 { field(name: $fieldName) { ... on ProjectV2SingleSelectField { id options { id name } } } } } }' `
+            -f nodeId="$projectId" `
+            -f fieldName="Status" 2>$null
         
         if (-not $fieldResult) {
             Write-Host "   [ERROR] Impossible de recuperer le champ Status" -ForegroundColor Red
@@ -1116,5 +1117,4 @@ while ($true) {
     Write-Host "[$timestamp] [WAIT] Prochaine verification dans $PollingInterval sec..." -ForegroundColor DarkGray
     Start-Sleep -Seconds $PollingInterval
 }
-
 
