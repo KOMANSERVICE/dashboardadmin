@@ -1,7 +1,6 @@
-﻿
-
 using IDR.Library.BuildingBlocks.Security;
 using IDR.Library.BuildingBlocks.Security.Interfaces;
+using IDR.Library.BuildingBlocks.Security.Middlewares;
 
 namespace MenuService.Api;
 
@@ -51,6 +50,8 @@ public static class DependencyInjection
         app.UseHttpsRedirection();
         app.UseCors(MyAllowSpecificOrigins);
         app.UseAuthentication();
+        app.UseMiddleware<ApiKeyAuthenticationMiddleware>();  // API Keys service-to-service
+        app.UseMiddleware<ServiceContextMiddleware>();        // Service context for IServiceContextService
         app.UseAuthorization();
 
         return app;

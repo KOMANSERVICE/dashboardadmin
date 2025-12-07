@@ -6,5 +6,7 @@ public class MenuDbContext : DbContext, IMenuDbContext
         : base(options)
     {
     }
+
     public DbSet<Menu> Menus => Set<Menu>();
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
 }

@@ -1,4 +1,5 @@
-﻿using MenuService.Application.Features.Menus.Commands.InactiveMenu;
+using IDR.Library.BuildingBlocks.Security.Attributes;
+using MenuService.Application.Features.Menus.Commands.InactiveMenu;
 
 namespace MenuService.Api.Endpoints.Menus;
 
@@ -9,13 +10,13 @@ public class InactiveMenu : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapPatch("/menu/inactive", async (InactiveMenuRequest request, ISender sender) =>
+        app.MapPatch("/menu/inactive", [RequireScope("menu:admin")] async (InactiveMenuRequest request, ISender sender) =>
         {
             var command = request.Adapt<InactiveMenuCommand>();
             var result = await sender.Send(command);
 
             var response = result.Adapt<InactiveMenuResponse>();
-            var baseResponse = ResponseFactory.Success(response, "Liste des menus réccuperées avec succès", StatusCodes.Status200OK);
+            var baseResponse = ResponseFactory.Success(response, "Menu desactive avec succes", StatusCodes.Status200OK);
 
             return Results.Ok(baseResponse);
         })
@@ -23,9 +24,10 @@ public class InactiveMenu : ICarterModule
         .WithTags("Menu")
        .Produces<BaseResponse<InactiveMenuResponse>>(StatusCodes.Status200OK)
        .ProducesProblem(StatusCodes.Status400BadRequest)
+       .ProducesProblem(StatusCodes.Status401Unauthorized)
+       .ProducesProblem(StatusCodes.Status403Forbidden)
        .WithSummary("InactiveMenu")
-       .WithDescription("InactiveMenu")
-       //.RequireAuthorization()
+       .WithDescription("Deactivate a menu item. Requires 'menu:admin' scope.")
        .WithOpenApi();
     }
 }
