@@ -638,17 +638,32 @@ catch {
 # Verifier claude
 Write-Host "[2/5] Claude CLI..." -ForegroundColor White
 try {
-    $claudeVersion = claude --version 2>&1 | Select-Object -First 1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "      [OK] $claudeVersion" -ForegroundColor Green
+    # Tester si la commande existe
+    $claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
+    if ($claudeCmd) {
+        # La commande existe, essayer d'obtenir la version
+        $claudeVersion = & claude --version 2>&1 | Out-String
+        if ($claudeVersion) {
+            $versionLine = ($claudeVersion -split "`n" | Select-Object -First 1).Trim()
+            if ($versionLine) {
+                Write-Host "      [OK] $versionLine" -ForegroundColor Green
+            }
+            else {
+                Write-Host "      [OK] claude installe (version non determinee)" -ForegroundColor Green
+            }
+        }
+        else {
+            Write-Host "      [OK] claude installe" -ForegroundColor Green
+        }
     }
     else {
-        throw "claude non disponible"
+        throw "claude non trouve dans PATH"
     }
 }
 catch {
     Write-Host "      [ERREUR] claude (Claude CLI) non trouve" -ForegroundColor Red
     Write-Host "      Installez: npm install -g @anthropic-ai/claude-cli" -ForegroundColor Yellow
+    Write-Host "      Ou verifiez que claude est dans votre PATH" -ForegroundColor Yellow
     $allPrereqsMet = $false
     $criticalError = $true
 }
