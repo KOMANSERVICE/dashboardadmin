@@ -9,7 +9,7 @@ public interface IApiKeyHttpService
     /// Create a new API Key for an application
     /// </summary>
     [Post("/apikeys")]
-    Task<BaseResponse<ApiKeyCreatedResponse>> CreateApiKeyAsync(CreateApiKeyRequest request);
+    Task<BaseResponse<CreateApiKeyResponseWrapper>> CreateApiKeyAsync(CreateApiKeyRequest request);
 
     /// <summary>
     /// Get all API Keys for an application
@@ -27,5 +27,5 @@ public interface IApiKeyHttpService
     /// Rotate an API Key with grace period
     /// </summary>
     [Post("/apikeys/rotate")]
-    Task<BaseResponse<ApiKeyCreatedResponse>> RotateApiKeyAsync(RotateApiKeyRequest request);
+    Task<BaseResponse<RotateApiKeyResponseWrapper>> RotateApiKeyAsync(RotateApiKeyRequest request);
 }
