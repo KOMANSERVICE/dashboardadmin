@@ -3,16 +3,15 @@ using BackendAdmin.Application.Features.ApiKeys.DTOs;
 
 namespace BackendAdmin.Api.Endpoints.ApiKeys;
 
-public record CreateApiKeyRequest(CreateApiKeyDTO ApiKey);
 public record CreateApiKeyResponse(ApiKeyCreatedDTO ApiKey);
 
 public class CreateApiKey : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapPost("/apikeys", async (CreateApiKeyRequest request, ISender sender) =>
+        app.MapPost("/apikeys", async (CreateApiKeyDTO request, ISender sender) =>
         {
-            var command = request.Adapt<CreateApiKeyCommand>();
+            var command = new CreateApiKeyCommand(request);
             var result = await sender.Send(command);
             var response = result.Adapt<CreateApiKeyResponse>();
             var baseResponse = ResponseFactory.Success(

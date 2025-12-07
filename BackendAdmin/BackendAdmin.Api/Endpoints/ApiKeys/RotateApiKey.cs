@@ -3,16 +3,15 @@ using BackendAdmin.Application.Features.ApiKeys.DTOs;
 
 namespace BackendAdmin.Api.Endpoints.ApiKeys;
 
-public record RotateApiKeyRequest(RotateApiKeyDTO RotateRequest);
 public record RotateApiKeyResponse(ApiKeyCreatedDTO NewApiKey);
 
 public class RotateApiKey : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapPost("/apikeys/rotate", async (RotateApiKeyRequest request, ISender sender) =>
+        app.MapPost("/apikeys/rotate", async (RotateApiKeyDTO request, ISender sender) =>
         {
-            var command = request.Adapt<RotateApiKeyCommand>();
+            var command = new RotateApiKeyCommand(request);
             var result = await sender.Send(command);
             var response = result.Adapt<RotateApiKeyResponse>();
             var baseResponse = ResponseFactory.Success(
