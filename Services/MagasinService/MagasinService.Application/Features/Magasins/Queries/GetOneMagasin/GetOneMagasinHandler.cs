@@ -10,7 +10,10 @@ public class GetOneMagasinHandler(
 {
     public async Task<GetOneMagasinResult> Handle(GetOneMagasinQuery request, CancellationToken cancellationToken)
     {
-        var stockLocation = await _stockLocationRepository.GetByIdAsync(request.Id);
+        var stockLocations = await _stockLocationRepository.GetByConditionAsync(
+            s => s.BoutiqueId == request.BoutiqueId && s.Id.Value == request.Id);
+
+        var stockLocation = stockLocations.FirstOrDefault();
 
         if (stockLocation is null)
         {

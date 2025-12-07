@@ -10,9 +10,9 @@ public class GetOneMagasin : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapGet("/magasin/{id:guid}", async (Guid id, ISender sender) =>
+        app.MapGet("/magasin/{BoutiqueId:guid}/{id:guid}", async (Guid BoutiqueId, Guid id, ISender sender) =>
         {
-            var query = new GetOneMagasinQuery(id);
+            var query = new GetOneMagasinQuery(BoutiqueId, id);
 
             var result = await sender.Send(query);
 
