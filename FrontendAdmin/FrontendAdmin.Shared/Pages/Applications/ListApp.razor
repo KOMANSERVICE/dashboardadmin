@@ -37,10 +37,17 @@
                               MetadataValue="@appAdmin.Description"
                               LinkHref="@($"menu/{appAdmin.Reference}")">
                         <HeaderActions>
-                            <Button aria-label="Parametre" Type="button"
-                                class="text-gray-400 hover:text-primary-700 transition" 
-                                    IconCss="fas fa-ellipsis-v" IconPlacement="ButtonIconPlacement.Left">
-                            </Button>
+                            <div class="flex gap-2">
+                                <a href="@($"api-keys/{appAdmin.Reference}")"
+                                   class="text-gray-400 hover:text-primary-700 transition"
+                                   title="Gerer les API Keys">
+                                    <i class="fas fa-key"></i>
+                                </a>
+                                <Button aria-label="Parametre" Type="button"
+                                    class="text-gray-400 hover:text-primary-700 transition"
+                                        IconCss="fas fa-ellipsis-v" IconPlacement="ButtonIconPlacement.Left">
+                                </Button>
+                            </div>
                         </HeaderActions>
                     </InfoCard>
                 }

@@ -1,0 +1,102 @@
+@using FrontendAdmin.Shared.Pages.ApiKeys.Models
+@inject IApiKeyHttpService ApiKeyService
+
+<LoadingPage IsLoad="@isLoading" />
+
+<div class="p-6">
+    <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-red-400"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-red-700">
+                    <strong>Attention!</strong> Cette action est irreversible.
+                    Une fois revoquee, l'API Key ne pourra plus etre utilisee.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="space-y-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Raison de la revocation</label>
+            <textarea @bind="reason"
+                      rows="3"
+                      placeholder="Ex: Cle compromise, rotation de securite, fin de projet..."
+                      class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"></textarea>
+            @if (string.IsNullOrWhiteSpace(reason))
+            {
+                <p class="mt-1 text-sm text-red-600">Veuillez indiquer une raison</p>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="flex justify-end gap-3 px-6 py-4 border-t">
+    <Button aria-label="Annuler"
+            ButtonClass="border border-gray-300 bg-white rounded-lg text-gray-700 hover:bg-gray-50"
+            type="button"
+            @onclick="HandleCancel">
+        Annuler
+    </Button>
+    <Button aria-label="Revoquer"
+            ButtonClass="bg-red-600 text-white hover:bg-red-700"
+            type="button"
+            disabled="@(string.IsNullOrWhiteSpace(reason) || isLoading)"
+            @onclick="HandleRevoke">
+        Revoquer l'API Key
+    </Button>
+</div>
+
+@code {
+    [Parameter]
+    public string? ApiKeyHash { get; set; }
+
+    [Parameter]
+    public EventCallback OnRevoked { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private bool isLoading;
+    private string reason = string.Empty;
+
+    private void HandleCancel()
+    {
+        OnCancel.InvokeAsync();
+    }
+
+    private async Task HandleRevoke()
+    {
+        if (string.IsNullOrWhiteSpace(ApiKeyHash) || string.IsNullOrWhiteSpace(reason))
+        {
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            var request = new RevokeApiKeyRequest
+            {
+                ApiKeyHash = ApiKeyHash,
+                Reason = reason
+            };
+
+            var response = await ApiKeyService.RevokeApiKeyAsync(request);
+            if (response.Success)
+            {
+                await OnRevoked.InvokeAsync();
+            }
+        }
+        catch (Exception)
+        {
+            // Handle error
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}
