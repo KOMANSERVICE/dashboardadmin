@@ -25,7 +25,7 @@ services:
     image: komanatse/magasinservicesql:${DOCKER_TAG}
     container_name: ef-migrator_magasinservice
     depends_on:
-      menuDB:
+      magasinDB:
         condition: service_healthy
     environment:
       DB_HOST: magasinDB
