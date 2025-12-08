@@ -169,10 +169,10 @@ services:
       - vault-net
  
   magasinservice.api:
+    container_name: magasinservice.api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
-      - ASPNETCORE_HTTPS_PORTS=8081
       - JWT__ValidAudience=${JWT_VALID_AUDIENCE_API}
       - JWT__ValidIssuer=${JWT_VALID_ISSUER_API}
       - JWT__Secret=${JWT_SECRET_API}
@@ -185,7 +185,6 @@ services:
       - ConnectionStrings__Database=${CONNECTION_STRING_API}
     ports:
       - "9211:8080"
-      - "9222:8081"
     deploy:
       resources:
         limits:

@@ -1,0 +1,72 @@
+services:
+  magasinDB:
+    container_name: magasinDB
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_MAGASIN}
+      POSTGRES_USER: ${POSTGRES_USER_MAGASIN}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_MAGASIN}
+    ports:
+      - "127.0.0.1:5442:5432"
+    volumes:
+      - pgdata_magasin:/var/lib/postgresql/data  
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSWORD=$$POSTGRES_PASSWORD_MAGASIN psql -U $$POSTGRES_USER_MAGASIN -d $$POSTGRES_DB_MAGASIN -c 'SELECT 1;' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    env_file:
+      - ./.env
+    networks:
+      - vault-net
+            
+  ef-migrator_magasinservice:
+    image: komanatse/magasinservicesql:${DOCKER_TAG}
+    container_name: ef-migrator_magasinservice
+    depends_on:
+      menuDB:
+        condition: service_healthy
+    environment:
+      DB_HOST: menuDB
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER_MENU}
+      DB_PASSWORD: ${POSTGRES_PASSWORD_MENU}
+      DB_NAME: ${POSTGRES_DB_MENU}
+    env_file:
+      - ./.env
+    networks:
+      - vault-net
+ 
+  magasinservice.api:
+    container_name: magasinservice.api
+    image: komanatse/magasinservice:${DOCKER_TAG}
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - JWT__ValidAudience=${JWT_VALID_AUDIENCE_API}
+      - JWT__ValidIssuer=${JWT_VALID_ISSUER_API}
+      - JWT__Secret=${JWT_SECRET_API}
+      - Vault__Uri=${VAULT_URI}
+      - Vault__RoleId=${VAULT_ROLE_ID}
+      - Vault__SecretId=${VAULT_SECRET_ID}
+      - Vault__PathMountPoint=${VAULT_PATH_MOUNT_POINT_MAGASIN}
+      - Vault__MountPoint=${VAULT_MOUNT_POINT}
+      - Allow__Origins=${CORS_ALLOWED_ORIGINS}
+      - ConnectionStrings__Database=${CONNECTION_STRING_API}
+    ports:
+      - "127.0.0.1:9211:8080"
+    depends_on:
+      ef-migrator_magasinservice:
+        condition: service_completed_successfully
+    env_file:
+      - ./.env
+    networks:
+      - vault-net
+      
+networks:
+  vault-net:
+    external: true 
+      
+volumes:
+  pgdata_menu:
