@@ -66,4 +66,4 @@ networks:
     external: true 
       
 volumes:
-  pgdata_menu:
+  pgdata_magasin:
