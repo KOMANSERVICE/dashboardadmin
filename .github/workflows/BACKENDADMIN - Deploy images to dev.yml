@@ -63,7 +63,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          port: 22
+          port: 2222
           source: "docker-compose.prod.yml"
           target: ${{ env.DEPLOY_PATH }}
 
@@ -74,7 +74,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          port: 22
+          port: 2222
           script: |
             TAG="${{ steps.vars.outputs.tag }}"
             DIR_PATH="${{ env.DEPLOY_PATH }}"
