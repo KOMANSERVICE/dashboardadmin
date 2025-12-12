@@ -64,7 +64,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           port: 2222
-          source: "docker-compose.prod.yml"
+          source: "docker-compose.dev.yml"
           target: ${{ env.DEPLOY_PATH }}
 
       - name: SSH to VPS and deploy stack
@@ -84,7 +84,7 @@ jobs:
             cd $DIR_PATH
 
             echo "🛑 Arrêt des anciens conteneurs"
-            docker compose -f docker-compose.prod.yml down
+            docker compose -f docker-compose.dev.yml down
 
             echo "🚀 Sauvegarde des volumes Docker"
             chmod +x /home/komanatse/savevolume/backup_docker_volumes.sh
@@ -160,9 +160,9 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             echo "📦 Pull des images version ${TAG}"
-            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.dev.yml pull
 
             echo "🚀 Démarrage du stack avec le tag ${TAG}"
-            DOCKER_TAG=$TAG docker compose -f docker-compose.prod.yml --env-file .env up -d --build --remove-orphans
+            DOCKER_TAG=$TAG docker compose -f docker-compose.dev.yml --env-file .env up -d --build --remove-orphans
 
             echo "✅ Déploiement terminé avec succès (tag=${TAG})"
