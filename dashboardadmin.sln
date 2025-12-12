@@ -49,6 +49,16 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MagasinService.Application"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MagasinService.Infrastructure", "Services\MagasinService\MagasinService.Infrastructure\MagasinService.Infrastructure.csproj", "{45407C3B-A1D0-4778-ABA1-B3E838E2E703}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TresorerieService", "TresorerieService", "{C2ED0825-F9CE-45AF-B734-665DE8328746}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TresorerieService.Api", "Services\TresorerieService\TresorerieService.Api\TresorerieService.Api.csproj", "{95857FAC-A537-4BBB-A707-09038F8765AA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TresorerieService.Application", "Services\TresorerieService\TresorerieService.Application\TresorerieService.Application.csproj", "{F1493DE1-6688-4D5C-8F78-31E22CDD2B9F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TresorerieService.Domain", "Services\TresorerieService\TresorerieService.Domain\TresorerieService.Domain.csproj", "{E4418DE1-3BB3-4290-8C3A-2BEFEDA28B89}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TresorerieService.Infrastructure", "Services\TresorerieService\TresorerieService.Infrastructure\TresorerieService.Infrastructure.csproj", "{C686F3AC-979B-4767-A079-6E8C6E5CF6B7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -125,6 +135,22 @@ Global
 		{45407C3B-A1D0-4778-ABA1-B3E838E2E703}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{45407C3B-A1D0-4778-ABA1-B3E838E2E703}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{45407C3B-A1D0-4778-ABA1-B3E838E2E703}.Release|Any CPU.Build.0 = Release|Any CPU
+		{95857FAC-A537-4BBB-A707-09038F8765AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{95857FAC-A537-4BBB-A707-09038F8765AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{95857FAC-A537-4BBB-A707-09038F8765AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{95857FAC-A537-4BBB-A707-09038F8765AA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F1493DE1-6688-4D5C-8F78-31E22CDD2B9F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1493DE1-6688-4D5C-8F78-31E22CDD2B9F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1493DE1-6688-4D5C-8F78-31E22CDD2B9F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1493DE1-6688-4D5C-8F78-31E22CDD2B9F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E4418DE1-3BB3-4290-8C3A-2BEFEDA28B89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E4418DE1-3BB3-4290-8C3A-2BEFEDA28B89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E4418DE1-3BB3-4290-8C3A-2BEFEDA28B89}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E4418DE1-3BB3-4290-8C3A-2BEFEDA28B89}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C686F3AC-979B-4767-A079-6E8C6E5CF6B7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C686F3AC-979B-4767-A079-6E8C6E5CF6B7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C686F3AC-979B-4767-A079-6E8C6E5CF6B7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C686F3AC-979B-4767-A079-6E8C6E5CF6B7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -148,6 +174,11 @@ Global
 		{9DE849E9-D87A-45CA-B2F7-AE29B5414817} = {67B2D64A-94D7-4E13-9E82-02D6FFB6796B}
 		{8F87EA9A-0D6D-43AA-B15F-74720D401A57} = {67B2D64A-94D7-4E13-9E82-02D6FFB6796B}
 		{45407C3B-A1D0-4778-ABA1-B3E838E2E703} = {67B2D64A-94D7-4E13-9E82-02D6FFB6796B}
+		{C2ED0825-F9CE-45AF-B734-665DE8328746} = {9670FA8E-1D03-4DCA-A114-39D70A03210F}
+		{95857FAC-A537-4BBB-A707-09038F8765AA} = {C2ED0825-F9CE-45AF-B734-665DE8328746}
+		{F1493DE1-6688-4D5C-8F78-31E22CDD2B9F} = {C2ED0825-F9CE-45AF-B734-665DE8328746}
+		{E4418DE1-3BB3-4290-8C3A-2BEFEDA28B89} = {C2ED0825-F9CE-45AF-B734-665DE8328746}
+		{C686F3AC-979B-4767-A079-6E8C6E5CF6B7} = {C2ED0825-F9CE-45AF-B734-665DE8328746}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {35F16C1E-0BA0-42E1-9392-035DE220EF71}
