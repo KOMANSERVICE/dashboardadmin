@@ -1,18 +1,33 @@
+using TresorerieService.Api;
+using TresorerieService.Application;
+using TresorerieService.Infrastructure;
+using TresorerieService.Infrastructure.Data.Extensions;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Configuration
+    .AddEnvironmentVariables();
+
+builder.Services
+    .AddApplicationServices()
+    .AddInfrastructureServices(builder.Configuration)
+    .AddApiServices(builder.Configuration);
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.
+    UseApiServices();
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    await app.InitialiseDatabaseAsync();
     app.MapOpenApi();
-}
 
-app.UseHttpsRedirection();
+    app.UseSwaggerUI();
+}
 
 var summaries = new[]
 {
