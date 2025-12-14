@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using TresorerieService.Domain.Abstractions;
+using TresorerieService.Domain.Enums;
 
 namespace TresorerieService.Domain.Entities;
 

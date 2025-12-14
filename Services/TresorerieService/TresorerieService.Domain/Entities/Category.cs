@@ -26,6 +26,8 @@ public class Category : Entity<Guid>
 
     // Navigation properties
     public virtual ICollection<CashFlow> CashFlows { get; set; }
+    
+    
     //public virtual ICollection<RecurringCashFlow> RecurringCashFlows { get; set; }
     //public virtual ICollection<BudgetCategory> BudgetCategories { get; set; }
 }
