@@ -18,17 +18,6 @@ public class CashFlowConfigurations : IEntityTypeConfiguration<CashFlow>
             .ValueGeneratedOnAdd()
             .HasColumnName("Id");
 
-        builder.Property(e => e.AccountId)
-            .HasConversion(
-                Id => Id,
-                Id => Id
-            );
-
-        builder.Property(e => e.DestinationAccountId)
-            .HasConversion(
-                Id => Id,
-                Id => Id
-            );
 
         // Relations
         builder.HasOne(e => e.Account)

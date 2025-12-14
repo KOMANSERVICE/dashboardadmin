@@ -1,3 +1,11 @@
 ﻿global using IDR.Library.BuildingBlocks.Behaviors;
+global using IDR.Library.BuildingBlocks.CQRS;
+global using IDR.Library.BuildingBlocks.Repositories;
+global using IDR.Library.BuildingBlocks.Exceptions;
+global using FluentValidation;
+global using Mapster;
+global using Microsoft.EntityFrameworkCore;
 global using Microsoft.Extensions.DependencyInjection;
 global using System.Reflection;
+global using TresorerieService.Domain.Entities;
+global using TresorerieService.Domain.Enums;

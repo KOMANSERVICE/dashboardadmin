@@ -5,7 +5,7 @@ using TresorerieService.Domain.Enums;
 
 namespace TresorerieService.Domain.Entities;
 
-[Table("`TC00003")]
+[Table("TC00003")]
 public class Category : Entity<Guid>
 {
     [Column("fld1")]

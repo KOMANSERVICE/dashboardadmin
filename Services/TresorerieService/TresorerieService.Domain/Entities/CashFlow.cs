@@ -46,10 +46,10 @@ public class CashFlow : Entity<Guid>
 
     // Comptes
     [Column("fld12")]
-    public string AccountId { get; set; }
+    public Guid AccountId { get; set; }
 
     [Column("fld13")]
-    public string? DestinationAccountId { get; set; }
+    public Guid? DestinationAccountId { get; set; }
 
     // Paiement
     [Column("fld14")]
