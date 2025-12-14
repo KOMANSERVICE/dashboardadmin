@@ -19,6 +19,10 @@ public class Account : Entity<Guid>
     [Column("fld3")]
     public string Name { get; set; }
 
+    [Column("fld14")]
+    [StringLength(500)]
+    public string? Description { get; set; }
+
     [Column("fld4")]
     public AccountType Type { get; set; }
 
