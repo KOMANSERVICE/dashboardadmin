@@ -1,4 +1,4 @@
-﻿using IDR.Library.BuildingBlocks;
+using IDR.Library.BuildingBlocks;
 using IDR.Library.BuildingBlocks.Security;
 using IDR.Library.BuildingBlocks.Security.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -66,6 +66,9 @@ public static class DependencyInjection
             //opts.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
             opts.UseNpgsql(connectionString);
         });
+
+        // Enregistrer DbContext comme type de base pour injection dans les handlers
+        services.AddScoped<DbContext>(sp => sp.GetRequiredService<TresorerieDbContext>());
 
         services.AddGenericRepositories<TresorerieDbContext>();
 
