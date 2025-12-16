@@ -13,13 +13,19 @@ public class CreateCashFlowHandler(
         CreateCashFlowCommand command,
         CancellationToken cancellationToken = default)
     {
+        // Valider que le type est INCOME ou EXPENSE (pas TRANSFER)
+        if (command.Type != CashFlowType.INCOME && command.Type != CashFlowType.EXPENSE)
+        {
+            throw new BadRequestException($"Le type de flux doit etre INCOME ou EXPENSE. Type fourni: {command.Type}");
+        }
+
         // Valider le format du CategoryId
         if (!Guid.TryParse(command.CategoryId, out var categoryGuid))
         {
             throw new BadRequestException($"L'identifiant de categorie '{command.CategoryId}' n'est pas un GUID valide");
         }
 
-        // Valider que la categorie existe et est de type EXPENSE
+        // Valider que la categorie existe et est du bon type
         var categories = await categoryRepository.GetByConditionAsync(
             c => c.Id == categoryGuid
                  && c.ApplicationId == command.ApplicationId
@@ -32,9 +38,12 @@ public class CreateCashFlowHandler(
             throw new NotFoundException($"La categorie avec l'ID '{command.CategoryId}' n'existe pas ou n'est pas active");
         }
 
-        if (category.Type != CategoryType.EXPENSE)
+        // Valider que le type de categorie correspond au type de flux
+        var expectedCategoryType = command.Type == CashFlowType.INCOME ? CategoryType.INCOME : CategoryType.EXPENSE;
+        if (category.Type != expectedCategoryType)
         {
-            throw new BadRequestException($"La categorie selectionnee n'est pas de type EXPENSE. Type actuel: {category.Type}");
+            var typeLabel = command.Type == CashFlowType.INCOME ? "INCOME" : "EXPENSE";
+            throw new BadRequestException($"La categorie doit etre de type {typeLabel}");
         }
 
         // Valider que le compte existe et appartient a la boutique
@@ -48,11 +57,18 @@ public class CreateCashFlowHandler(
         var account = accounts.FirstOrDefault();
         if (account == null)
         {
-            throw new NotFoundException($"Le compte avec l'ID '{command.AccountId}' n'existe pas ou n'est pas actif pour cette boutique");
+            throw new NotFoundException("Compte non trouve");
         }
 
-        // Generer une reference unique
-        var reference = GenerateReference();
+        // Generer une reference unique selon le type
+        var reference = GenerateReference(command.Type);
+
+        // Determiner le type de tiers selon le type de flux
+        ThirdPartyType? thirdPartyType = null;
+        if (!string.IsNullOrEmpty(command.ThirdPartyName))
+        {
+            thirdPartyType = command.Type == CashFlowType.INCOME ? ThirdPartyType.CUSTOMER : ThirdPartyType.SUPPLIER;
+        }
 
         // Creer le flux de tresorerie
         var cashFlow = new CashFlow
@@ -61,7 +77,7 @@ public class CreateCashFlowHandler(
             ApplicationId = command.ApplicationId,
             BoutiqueId = command.BoutiqueId,
             Reference = reference,
-            Type = CashFlowType.EXPENSE,
+            Type = command.Type,
             Status = CashFlowStatus.DRAFT,
             CategoryId = command.CategoryId,
             Label = command.Label,
@@ -74,8 +90,8 @@ public class CreateCashFlowHandler(
             DestinationAccountId = null,
             PaymentMethod = command.PaymentMethod,
             Date = command.Date,
-            ThirdPartyType = !string.IsNullOrEmpty(command.SupplierName) ? ThirdPartyType.SUPPLIER : null,
-            ThirdPartyName = command.SupplierName,
+            ThirdPartyType = thirdPartyType,
+            ThirdPartyName = command.ThirdPartyName,
             ThirdPartyId = null,
             AttachmentUrl = command.AttachmentUrl,
             IsReconciled = false,
@@ -126,18 +142,20 @@ public class CreateCashFlowHandler(
             RejectionReason: cashFlow.RejectionReason
         );
 
-        // Note: La fonctionnalite de budget n'existe pas encore.
-        // Retourne null pour BudgetWarning. A implementer dans une prochaine User Story.
+        // Note: La fonctionnalite de budget n'existe pas pour les revenus (budgetId = null).
+        // Pour les depenses, a implementer dans une prochaine User Story.
         string? budgetWarning = null;
 
         return new CreateCashFlowResult(cashFlowDto, budgetWarning);
     }
 
-    private static string GenerateReference()
+    private static string GenerateReference(CashFlowType type)
     {
-        // Format: EXP-YYYYMMDD-XXXXX (ex: EXP-20251215-A3B7C)
+        // Format: XXX-YYYYMMDD-XXXXX
+        // INC pour INCOME, EXP pour EXPENSE
+        var prefix = type == CashFlowType.INCOME ? "INC" : "EXP";
         var datePart = DateTime.UtcNow.ToString("yyyyMMdd");
         var randomPart = Guid.NewGuid().ToString("N")[..5].ToUpper();
-        return $"EXP-{datePart}-{randomPart}";
+        return $"{prefix}-{datePart}-{randomPart}";
     }
 }

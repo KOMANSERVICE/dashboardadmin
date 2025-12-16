@@ -12,6 +12,12 @@ public class CreateCashFlowValidator : AbstractValidator<CreateCashFlowCommand>
             .NotEmpty()
             .WithMessage("L'identifiant de la boutique est obligatoire");
 
+        RuleFor(x => x.Type)
+            .IsInEnum()
+            .WithMessage("Le type de flux est invalide")
+            .Must(t => t == CashFlowType.INCOME || t == CashFlowType.EXPENSE)
+            .WithMessage("Le type de flux doit etre INCOME ou EXPENSE");
+
         RuleFor(x => x.CategoryId)
             .NotEmpty()
             .WithMessage("L'identifiant de la categorie est obligatoire");
@@ -45,10 +51,10 @@ public class CreateCashFlowValidator : AbstractValidator<CreateCashFlowCommand>
             .NotEmpty()
             .WithMessage("La date est obligatoire");
 
-        RuleFor(x => x.SupplierName)
+        RuleFor(x => x.ThirdPartyName)
             .MaximumLength(200)
-            .WithMessage("Le nom du fournisseur ne peut pas depasser 200 caracteres")
-            .When(x => x.SupplierName != null);
+            .WithMessage("Le nom du tiers ne peut pas depasser 200 caracteres")
+            .When(x => x.ThirdPartyName != null);
 
         RuleFor(x => x.AttachmentUrl)
             .MaximumLength(500)

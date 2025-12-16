@@ -5,10 +5,12 @@ using IDR.Library.Shared.Responses;
 using Microsoft.AspNetCore.Mvc;
 using TresorerieService.Application.Features.CashFlows.Commands.CreateCashFlow;
 using TresorerieService.Application.Features.CashFlows.DTOs;
+using TresorerieService.Domain.Enums;
 
 namespace TresorerieService.Api.Endpoints.CashFlows;
 
 public record CreateCashFlowRequest(
+    CashFlowType Type,
     string CategoryId,
     string Label,
     string? Description,
@@ -16,6 +18,7 @@ public record CreateCashFlowRequest(
     Guid AccountId,
     string PaymentMethod,
     DateTime Date,
+    string? CustomerName,
     string? SupplierName,
     string? AttachmentUrl
 );
@@ -39,12 +42,12 @@ public class CreateCashFlowEndpoint : ICarterModule
         {
             if (string.IsNullOrEmpty(applicationId))
             {
-                return Results.BadRequest(new { error = "L'en-tete X-Application-Id est obligatoire" });
+                return Results.BadRequest(new { error = "X-Application-Id est obligatoire" });
             }
 
             if (string.IsNullOrEmpty(boutiqueId))
             {
-                return Results.BadRequest(new { error = "L'en-tete X-Boutique-Id est obligatoire" });
+                return Results.BadRequest(new { error = "X-Boutique-Id est obligatoire" });
             }
 
             // Extraire le userId du token JWT
@@ -53,9 +56,15 @@ public class CreateCashFlowEndpoint : ICarterModule
                          ?? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                          ?? "unknown";
 
+            // Determiner le nom du tiers selon le type de flux
+            var thirdPartyName = request.Type == CashFlowType.INCOME
+                ? request.CustomerName
+                : request.SupplierName;
+
             var command = new CreateCashFlowCommand(
                 ApplicationId: applicationId,
                 BoutiqueId: boutiqueId,
+                Type: request.Type,
                 CategoryId: request.CategoryId,
                 Label: request.Label,
                 Description: request.Description,
@@ -63,15 +72,19 @@ public class CreateCashFlowEndpoint : ICarterModule
                 AccountId: request.AccountId,
                 PaymentMethod: request.PaymentMethod,
                 Date: request.Date,
-                SupplierName: request.SupplierName,
+                ThirdPartyName: thirdPartyName,
                 AttachmentUrl: request.AttachmentUrl,
                 CreatedBy: userId
             );
 
             var result = await sender.Send(command, cancellationToken);
 
+            var successMessage = request.Type == CashFlowType.INCOME
+                ? "Revenu cree avec succes en brouillon"
+                : "Depense creee avec succes en brouillon";
+
             var response = new CreateCashFlowResponse(result.CashFlow, result.BudgetWarning);
-            var baseResponse = ResponseFactory.Success(response, "Depense creee avec succes en brouillon", StatusCodes.Status201Created);
+            var baseResponse = ResponseFactory.Success(response, successMessage, StatusCodes.Status201Created);
 
             return Results.Created($"/api/cash-flows/{result.CashFlow.Id}", baseResponse);
         })
@@ -81,8 +94,11 @@ public class CreateCashFlowEndpoint : ICarterModule
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status401Unauthorized)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .WithSummary("Creer un flux de tresorerie (depense)")
-        .WithDescription("Cree une nouvelle depense en mode brouillon (DRAFT). La depense doit etre soumise pour validation. Le type est automatiquement defini sur EXPENSE et le statut sur DRAFT.")
+        .WithSummary("Creer un flux de tresorerie (revenu ou depense)")
+        .WithDescription("Cree un nouveau flux de tresorerie en mode brouillon (DRAFT). " +
+            "Pour un revenu (INCOME): utiliser customerName et une categorie de type INCOME. " +
+            "Pour une depense (EXPENSE): utiliser supplierName et une categorie de type EXPENSE. " +
+            "Le statut est automatiquement defini sur DRAFT. Aucun budget n'est applicable pour les revenus (budgetId = null).")
         .RequireAuthorization();
     }
 }

@@ -5,6 +5,7 @@ namespace TresorerieService.Application.Features.CashFlows.Commands.CreateCashFl
 public record CreateCashFlowCommand(
     string ApplicationId,
     string BoutiqueId,
+    CashFlowType Type,
     string CategoryId,
     string Label,
     string? Description,
@@ -12,7 +13,7 @@ public record CreateCashFlowCommand(
     Guid AccountId,
     string PaymentMethod,
     DateTime Date,
-    string? SupplierName,
+    string? ThirdPartyName,
     string? AttachmentUrl,
     string CreatedBy
 ) : ICommand<CreateCashFlowResult>;
