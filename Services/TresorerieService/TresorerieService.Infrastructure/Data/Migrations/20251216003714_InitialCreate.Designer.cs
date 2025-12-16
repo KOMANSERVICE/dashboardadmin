@@ -12,7 +12,7 @@ using TresorerieService.Infrastructure.Data;
 namespace TresorerieService.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(TresorerieDbContext))]
-    [Migration("20251214020633_InitialCreate")]
+    [Migration("20251216003714_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
