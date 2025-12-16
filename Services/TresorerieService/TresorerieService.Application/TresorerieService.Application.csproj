@@ -7,9 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="IDR.Library.BuildingBlocks" Version="3.1.8" />
     <PackageReference Include="FluentValidation" Version="12.1.0" />
     <PackageReference Include="Mapster" Version="7.4.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.1" />
   </ItemGroup>
 
