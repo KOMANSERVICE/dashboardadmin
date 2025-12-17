@@ -16,15 +16,6 @@ param(
     [string]$Repo_package = "IDR.Library",
     [int]$ProjectNumber_package = 4,
     
-    # Configuration du projet d'integration (depensio)
-    [string]$Owner_integration = "KOMANSERVICE",
-    [string]$Repo_integration = "depensio",
-    [int]$ProjectNumber_integration = 1,
-    [string]$Column_integration = "Backlog",
-    
-    # Activer/desactiver la creation d'issues d'integration
-    [bool]$CreateIntegrationIssues = $true,
-    
     # Modes de fonctionnement
     [switch]$AnalysisOnly,
     [switch]$CoderOnly,
@@ -64,12 +55,6 @@ $env:PROJECT_NUMBER = $ProjectNumber
 $env:GITHUB_OWNER_PACKAGE = $Owner_package
 $env:GITHUB_REPO_PACKAGE = $Repo_package
 $env:PROJECT_NUMBER_PACKAGE = $ProjectNumber_package
-
-# Variables projet d'integration (depensio)
-$env:GITHUB_OWNER_INTEGRATION = $Owner_integration
-$env:GITHUB_REPO_INTEGRATION = $Repo_integration
-$env:PROJECT_NUMBER_INTEGRATION = $ProjectNumber_integration
-$env:COLUMN_INTEGRATION = $Column_integration
 
 $env:CLAUDE_MODEL = $Model
 
@@ -905,311 +890,6 @@ function New-PackageIssue {
 }
 
 # ============================================
-# CREATION D'ISSUES D'INTEGRATION (DEPENSIO)
-# ============================================
-
-function New-IntegrationIssue {
-    <#
-    .SYNOPSIS
-        Cree une issue d'integration dans le projet depensio
-    .DESCRIPTION
-        Quand une fonctionnalite est developpee dans DashBoardAdmin (services),
-        cette fonction cree automatiquement une issue dans depensio pour
-        l'integration frontend et backend.
-    #>
-    param(
-        [Parameter(Mandatory=$true)]
-        [int]$SourceIssueNumber,
-        
-        [Parameter(Mandatory=$true)]
-        [string]$ServiceName,
-        
-        [Parameter(Mandatory=$true)]
-        [string]$FeatureTitle,
-        
-        [Parameter(Mandatory=$false)]
-        [string]$FeatureDescription = "",
-        
-        [Parameter(Mandatory=$false)]
-        [hashtable]$Endpoints = @{},
-        
-        [Parameter(Mandatory=$false)]
-        [hashtable]$Commands = @{},
-        
-        [Parameter(Mandatory=$false)]
-        [hashtable]$Queries = @{},
-        
-        [Parameter(Mandatory=$false)]
-        [hashtable]$DTOs = @{}
-    )
-    
-    if (-not $CreateIntegrationIssues) {
-        Write-Host "     [INFO] Creation d'issues d'integration desactivee" -ForegroundColor DarkGray
-        return $null
-    }
-    
-    Write-Host "     [INTEGRATION] Creation issue dans $Repo_integration..." -ForegroundColor Cyan
-    
-    # Construire le body de l'issue
-    $issueBody = @"
-## Integration: $FeatureTitle
-
-> **Source:** Issue #$SourceIssueNumber dans [$Repo](https://github.com/$Owner/$Repo/issues/$SourceIssueNumber)
-> **Service:** $ServiceName
-> **Date:** $(Get-Date -Format "yyyy-MM-dd HH:mm")
-
----
-
-### Description
-
-$FeatureDescription
-
-Cette issue a ete creee automatiquement suite au developpement d'une fonctionnalite dans le service **$ServiceName** du projet DashBoardAdmin.
-
----
-
-### Implementation requise
-
-#### Backend (API depensio)
-
-- [ ] Creer/Modifier les endpoints pour consommer le service $ServiceName
-- [ ] Implementer les DTOs correspondants
-- [ ] Ajouter les appels HTTP vers $ServiceName
-- [ ] Gerer les erreurs et les cas limites
-- [ ] Ecrire les tests unitaires
-
-#### Frontend (UI depensio)
-
-- [ ] Creer/Modifier les pages concernees
-- [ ] Implementer les composants UI necessaires
-- [ ] Integrer les appels API
-- [ ] Gerer les etats de chargement et erreurs
-- [ ] Ecrire les tests
-
----
-
-### Details techniques du service $ServiceName
-
-"@
-
-    # Ajouter les endpoints si disponibles
-    if ($Endpoints -and $Endpoints.Count -gt 0) {
-        $issueBody += @"
-
-#### Endpoints disponibles
-
-| Methode | Route | Description |
-|---------|-------|-------------|
-"@
-        foreach ($key in $Endpoints.Keys) {
-            $ep = $Endpoints[$key]
-            $issueBody += "| ``$($ep.Method)`` | ``$($ep.Route)`` | $($ep.Description) |`n"
-        }
-    }
-    
-    # Ajouter les Commands si disponibles
-    if ($Commands -and $Commands.Count -gt 0) {
-        $issueBody += @"
-
-#### Commands (Operations d'ecriture)
-
-| Command | Request | Response |
-|---------|---------|----------|
-"@
-        foreach ($key in $Commands.Keys) {
-            $cmd = $Commands[$key]
-            $issueBody += "| ``$key`` | ``$($cmd.Request)`` | ``$($cmd.Response)`` |`n"
-        }
-    }
-    
-    # Ajouter les Queries si disponibles
-    if ($Queries -and $Queries.Count -gt 0) {
-        $issueBody += @"
-
-#### Queries (Operations de lecture)
-
-| Query | Request | Response |
-|-------|---------|----------|
-"@
-        foreach ($key in $Queries.Keys) {
-            $qry = $Queries[$key]
-            $issueBody += "| ``$key`` | ``$($qry.Request)`` | ``$($qry.Response)`` |`n"
-        }
-    }
-    
-    # Ajouter les DTOs si disponibles
-    if ($DTOs -and $DTOs.Count -gt 0) {
-        $issueBody += @"
-
-#### DTOs (Data Transfer Objects)
-
-"@
-        foreach ($key in $DTOs.Keys) {
-            $dto = $DTOs[$key]
-            $issueBody += @"
-<details>
-<summary><code>$key</code></summary>
-
-``````csharp
-$dto
-``````
-
-</details>
-
-"@
-        }
-    }
-    
-    # Ajouter les notes de fin
-    $issueBody += @"
-
----
-
-### Checklist d'integration
-
-- [ ] Lire la documentation du service $ServiceName
-- [ ] Verifier les schemas de Request/Response
-- [ ] Implementer le backend
-- [ ] Implementer le frontend
-- [ ] Tester l'integration complete
-- [ ] Mettre a jour la documentation
-
----
-
-### Liens utiles
-
-- [Issue source dans DashBoardAdmin](https://github.com/$Owner/$Repo/issues/$SourceIssueNumber)
-- Documentation Swagger du service: ``/docs``
-
----
-*Issue creee automatiquement par l'agent DashBoardAdmin*
-"@
-
-    # Creer le fichier temporaire pour le body
-    $issueFile = Join-Path $env:TEMP "integration-issue-$([Guid]::NewGuid().ToString('N').Substring(0,8)).md"
-    $issueBody | Out-File $issueFile -Encoding utf8
-    
-    try {
-        # Creer l'issue dans depensio
-        $issueTitle = "[Integration] $ServiceName - $FeatureTitle"
-        
-        $result = gh issue create `
-            --repo "$Owner_integration/$Repo_integration" `
-            --title $issueTitle `
-            --body-file $issueFile `
-            --label "integration,backend,frontend,$ServiceName"
-        
-        Write-Host "     [INTEGRATION] Issue creee: $result" -ForegroundColor Green
-        
-        # Ajouter au project board si configure
-        if ($ProjectNumber_integration -gt 0) {
-            Write-Host "     [INTEGRATION] Ajout au project #$ProjectNumber_integration..." -ForegroundColor DarkGray
-            
-            # Ajouter l'issue au project
-            gh project item-add $ProjectNumber_integration --owner $Owner_integration --url $result 2>$null
-            
-            # Deplacer vers la colonne Backlog
-            # Note: Le deplacement vers Backlog sera fait par l'agent si necessaire
-        }
-        
-        # Commenter l'issue source pour referencer l'issue d'integration
-        $linkComment = @"
-## Issue d'integration creee
-
-Une issue d'integration a ete creee dans le projet **$Repo_integration**:
-$result
-
-Cette issue permettra d'integrer la fonctionnalite dans depensio (backend + frontend).
-"@
-        
-        gh issue comment $SourceIssueNumber --repo "$Owner/$Repo" --body $linkComment
-        
-        return $result
-    }
-    catch {
-        Write-Host "     [ERREUR] Creation issue integration: $_" -ForegroundColor Red
-        return $null
-    }
-    finally {
-        Remove-Item $issueFile -ErrorAction SilentlyContinue
-    }
-}
-
-# Fonction pour extraire les informations techniques d'une issue
-function Get-ServiceTechnicalDetails {
-    <#
-    .SYNOPSIS
-        Extrait les details techniques d'une issue de service
-    #>
-    param(
-        [Parameter(Mandatory=$true)]
-        [int]$IssueNumber
-    )
-    
-    try {
-        $issueJson = gh issue view $IssueNumber --repo "$Owner/$Repo" --json body,comments | ConvertFrom-Json
-        
-        $details = @{
-            Endpoints = @{}
-            Commands = @{}
-            Queries = @{}
-            DTOs = @{}
-            ServiceName = ""
-            Description = ""
-        }
-        
-        # Analyser le body et les commentaires pour extraire les infos techniques
-        $content = $issueJson.body
-        foreach ($comment in $issueJson.comments) {
-            $content += "`n" + $comment.body
-        }
-        
-        # Detecter le service (pattern: MagasinService, MenuService, etc.)
-        if ($content -match '([\w]+Service)') {
-            $details.ServiceName = $matches[1]
-        }
-        
-        # Extraire les endpoints (pattern: GET /api/..., POST /api/..., etc.)
-        $endpointMatches = [regex]::Matches($content, '(GET|POST|PUT|DELETE|PATCH)\s+(/api/[\w/\{\}]+)')
-        $i = 0
-        foreach ($match in $endpointMatches) {
-            $i++
-            $details.Endpoints["Endpoint$i"] = @{
-                Method = $match.Groups[1].Value
-                Route = $match.Groups[2].Value
-                Description = "Endpoint detecte automatiquement"
-            }
-        }
-        
-        # Extraire les Commands (pattern: CreateXxxCommand, UpdateXxxCommand, etc.)
-        $commandMatches = [regex]::Matches($content, '(Create|Update|Delete|Add|Remove)(\w+)(Command)')
-        foreach ($match in $commandMatches) {
-            $cmdName = $match.Groups[1].Value + $match.Groups[2].Value + $match.Groups[3].Value
-            $details.Commands[$cmdName] = @{
-                Request = "${cmdName}Request"
-                Response = "${cmdName}Response"
-            }
-        }
-        
-        # Extraire les Queries (pattern: GetXxxQuery, ListXxxQuery, etc.)
-        $queryMatches = [regex]::Matches($content, '(Get|List|Search|Find)(\w+)(Query)')
-        foreach ($match in $queryMatches) {
-            $qryName = $match.Groups[1].Value + $match.Groups[2].Value + $match.Groups[3].Value
-            $details.Queries[$qryName] = @{
-                Request = "${qryName}Request"
-                Response = "${qryName}Response"
-            }
-        }
-        
-        return $details
-    }
-    catch {
-        Write-Host "     [WARN] Impossible d'extraire les details techniques: $_" -ForegroundColor Yellow
-        return $null
-    }
-}
-
-# ============================================
 # NAVIGATION VERS LE PROJET
 # ============================================
 
@@ -1751,59 +1431,38 @@ Tu dois terminer le processus de merge.
 ## Instructions
 
 1. **Verifier l'etat de la PR:**
-   \`\`\`powershell
+   ``````powershell
    # Lister les PRs liees a cette issue
    gh pr list --repo "$Owner/$Repo" --search "in:title #$IssueNumber OR in:body #$IssueNumber"
-   \`\`\`
+   ``````
 
 2. **Si PR existe et approuvee:**
-   \`\`\`powershell
+   ``````powershell
    # Merger la PR
    gh pr merge PR_NUMBER --repo "$Owner/$Repo" --squash --delete-branch
-   \`\`\`
+   ``````
 
 3. **Si PR deja mergee:**
    - Verifier que la branche est supprimee
    - Deplacer vers "A Tester"
 
 4. **Supprimer la branche (OBLIGATOIRE):**
-   \`\`\`powershell
+   ``````powershell
    git checkout main
    git pull origin main
    git branch -d feature/$IssueNumber-xxx        # Local
    git push origin --delete feature/$IssueNumber-xxx  # Remote
    git fetch --prune
-   \`\`\`
+   ``````
 
 5. **Deplacer vers "A Tester" (OBLIGATOIRE):**
    - L'issue doit etre deplacee vers "A Tester"
    - NE PAS fermer l'issue (le testeur la fermera)
 
 6. **Ajouter un commentaire:**
-   \`\`\`powershell
-   gh issue comment $IssueNumber --repo "$Owner/$Repo" --body "PR mergee, branche supprimee. Issue prete pour test."
-   \`\`\`
-
-7. **SI L'ISSUE CONCERNE UN MICROSERVICE (MagasinService, MenuService, etc.):**
-   Ajouter dans le commentaire les details techniques pour l'integration:
-   - Liste des endpoints crees/modifies (methode + route)
-   - Liste des Commands et Queries avec leurs Request/Response
-   - Description des DTOs
-   
-   Exemple de format dans le commentaire:
-   \`\`\`
-   ## Details techniques pour integration
-   
-   ### Endpoints
-   - GET /api/magasins/{id}
-   - POST /api/magasins
-   
-   ### Commands
-   - CreateMagasinCommand: Request -> CreateMagasinRequest, Response -> CreateMagasinResponse
-   
-   ### Queries
-   - GetMagasinQuery: Request -> GetMagasinRequest, Response -> MagasinDto
-   \`\`\`
+   ``````powershell
+   gh issue comment $IssueNumber --repo "$Owner/$Repo" --body "✅ PR mergee, branche supprimee. Issue prete pour test."
+   ``````
 
 ## DEPLACEMENT OBLIGATOIRE
 A la fin, tu DOIS deplacer l'issue vers "A Tester".
@@ -1826,57 +1485,6 @@ Termine le merge et deplace l'issue vers "A Tester".
     }
     
     $success = Invoke-ClaudeInProject -PromptFile $promptFile -TaskDescription "Merge issue #$IssueNumber"
-    
-    # Si merge reussi et que c'est un microservice, creer une issue d'integration
-    if ($success -and $CreateIntegrationIssues) {
-        # Verifier si l'issue concerne un microservice
-        $issueData = gh issue view $IssueNumber --repo "$Owner/$Repo" --json title,body,labels,comments | ConvertFrom-Json
-        $content = $issueData.title + " " + $issueData.body
-        foreach ($comment in $issueData.comments) {
-            $content += " " + $comment.body
-        }
-        
-        # Detecter si c'est un microservice
-        $serviceMatch = [regex]::Match($content, '(MagasinService|MenuService|AbonnementService|FacturationService|TresorerieService|\w+Service)')
-        
-        if ($serviceMatch.Success) {
-            $serviceName = $serviceMatch.Groups[1].Value
-            Write-Host "     [INTEGRATION] Service detecte: $serviceName" -ForegroundColor Cyan
-            
-            # Extraire les details techniques
-            $techDetails = Get-ServiceTechnicalDetails -IssueNumber $IssueNumber
-            
-            if ($techDetails) {
-                # Creer l'issue d'integration dans depensio
-                $integrationIssue = New-IntegrationIssue `
-                    -SourceIssueNumber $IssueNumber `
-                    -ServiceName $serviceName `
-                    -FeatureTitle $issueData.title `
-                    -FeatureDescription $issueData.body `
-                    -Endpoints $techDetails.Endpoints `
-                    -Commands $techDetails.Commands `
-                    -Queries $techDetails.Queries `
-                    -DTOs $techDetails.DTOs
-                
-                if ($integrationIssue) {
-                    Write-Host "     [INTEGRATION] Issue creee avec succes" -ForegroundColor Green
-                }
-            }
-            else {
-                # Creer une issue d'integration basique sans details techniques
-                $integrationIssue = New-IntegrationIssue `
-                    -SourceIssueNumber $IssueNumber `
-                    -ServiceName $serviceName `
-                    -FeatureTitle $issueData.title `
-                    -FeatureDescription $issueData.body
-                
-                if ($integrationIssue) {
-                    Write-Host "     [INTEGRATION] Issue basique creee" -ForegroundColor Yellow
-                }
-            }
-        }
-    }
-    
     return $success
 }
 
@@ -1897,22 +1505,12 @@ Write-Host "   Project#: $ProjectNumber" -ForegroundColor White
 Write-Host "   Modele: $Model" -ForegroundColor White
 Write-Host "   Polling: $PollingInterval sec" -ForegroundColor White
 Write-Host ""
-Write-Host "[CONFIG] Integration (depensio):" -ForegroundColor Yellow
-Write-Host "   Repo: $Owner_integration/$Repo_integration" -ForegroundColor White
-Write-Host "   Project#: $ProjectNumber_integration" -ForegroundColor White
-Write-Host "   Colonne: $Column_integration" -ForegroundColor White
-Write-Host "   Creation auto: $CreateIntegrationIssues" -ForegroundColor White
-Write-Host ""
 Write-Host "[INFO] PRIORITE DE TRAITEMENT:" -ForegroundColor Yellow
 Write-Host "   1. Issues 'In Review' -> Terminer le merge" -ForegroundColor Yellow
 Write-Host "   2. Issues 'In Progress' -> Terminer le developpement" -ForegroundColor Yellow
 Write-Host "   3. Issues 'Debug' -> Analyse approfondie des bugs" -ForegroundColor Yellow
 Write-Host "   4. Issues 'Analyse' -> Nouvelles analyses" -ForegroundColor Yellow
 Write-Host "   5. Issues 'Todo' -> Nouvelles implementations" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "[INFO] INTEGRATION:" -ForegroundColor Cyan
-Write-Host "   Quand une issue de microservice est mergee, une issue" -ForegroundColor DarkGray
-Write-Host "   d'integration est creee automatiquement dans depensio" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "   Appuyez sur Ctrl+C pour arreter"
 Write-Host ""
