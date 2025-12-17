@@ -10,7 +10,9 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using TresorerieService.Application.Services;
 using TresorerieService.Infrastructure.Data;
+using TresorerieService.Infrastructure.Services;
 
 namespace TresorerieService.Infrastructure;
 
@@ -76,6 +78,10 @@ public static class DependencyInjection
         services.AddGenericRepositories<TresorerieDbContext>();
   
         services.AddContextMiddleware();
+
+        // Export Services
+        services.AddScoped<ICsvExportService, CsvExportService>();
+        services.AddScoped<IExcelExportService, ExcelExportService>();
 
         //services.AddScoped<ITresorerieDbContext, TresorerieDbContext>();
 
