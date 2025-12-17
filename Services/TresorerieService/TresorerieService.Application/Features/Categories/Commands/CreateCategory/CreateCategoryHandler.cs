@@ -25,6 +25,7 @@ public class CreateCategoryHandler(
         }
 
         // Créer la nouvelle catégorie
+        // Note: CreatedAt, UpdatedAt, CreatedBy, UpdatedBy sont gérés automatiquement par IAuditableEntity via UnitOfWork
         var category = new Category
         {
             Id = Guid.NewGuid(),
@@ -32,11 +33,7 @@ public class CreateCategoryHandler(
             Name = command.Name,
             Type = command.Type,
             Icon = command.Icon,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            CreatedBy = "system",
-            UpdatedBy = "system"
+            IsActive = true
         };
 
         await categoryRepository.AddDataAsync(category, cancellationToken);
