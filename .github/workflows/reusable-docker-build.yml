@@ -1,0 +1,107 @@
+# .github/workflows/reusable-docker-build.yml
+name: Reusable Docker Build & Push
+
+on:
+  workflow_call:
+    inputs:
+      image_api:
+        required: true
+        type: string
+        description: "Nom de l'image API"
+      image_sql:
+        required: true
+        type: string
+        description: "Nom de l'image SQL"
+      dockerfile_api:
+        required: true
+        type: string
+        description: "Chemin du Dockerfile API"
+      dockerfile_sql:
+        required: true
+        type: string
+        description: "Chemin du Dockerfile SQL"
+      dotnet_version:
+        required: false
+        type: string
+        default: '9.0.x'
+      ef_project:
+        required: true
+        type: string
+        description: "Projet EF Infrastructure"
+      ef_startup_project:
+        required: true
+        type: string
+        description: "Projet startup pour EF"
+      registry:
+        required: false
+        type: string
+        default: 'komanatse'
+    secrets:
+      DOCKERHUB_TOKEN:
+        required: true
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    
+    outputs:
+      version_tag: ${{ steps.vars.outputs.version_tag }}
+      env: ${{ steps.vars.outputs.env }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ inputs.dotnet_version }}
+
+      - name: Install dotnet-ef tool
+        run: |
+          dotnet tool install --global dotnet-ef --version 9.*
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ inputs.registry }}" --password-stdin
+
+      - name: Define build tags
+        id: vars
+        run: |
+          DATE_TAG=$(date +'%Y%m%d-%H%M')
+          COMMIT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "env=prod" >> $GITHUB_OUTPUT
+            echo "version_tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "env=nonprod" >> $GITHUB_OUTPUT
+            echo "version_tag=dev-${DATE_TAG}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate EF SQL
+        run: |
+          dotnet restore ${{ inputs.ef_startup_project }}
+          dotnet build ${{ inputs.ef_startup_project }} --no-restore --configuration Release
+          dotnet ef migrations script \
+            --project ${{ inputs.ef_project }} \
+            --startup-project ${{ inputs.ef_startup_project }} \
+            --idempotent \
+            --output migrations/migrations.sql
+
+      - name: Build and push all Docker images
+        run: |
+          build_and_push() {
+            local image=$1
+            local dockerfile=$2
+            echo "📦 Building $image:${{ steps.vars.outputs.version_tag }}"
+            docker build -t ${{ inputs.registry }}/$image:${{ steps.vars.outputs.version_tag }} -f $dockerfile .
+            echo "🚀 Pushing $image:${{ steps.vars.outputs.version_tag }}"
+            docker push ${{ inputs.registry }}/$image:${{ steps.vars.outputs.version_tag }}
+            
+            if [[ "${{ steps.vars.outputs.env }}" == "prod" ]]; then
+              docker tag ${{ inputs.registry }}/$image:${{ steps.vars.outputs.version_tag }} ${{ inputs.registry }}/$image:latest
+              docker push ${{ inputs.registry }}/$image:latest
+            fi
+          }
+          build_and_push "${{ inputs.image_sql }}" "${{ inputs.dockerfile_sql }}"
+          build_and_push "${{ inputs.image_api }}" "${{ inputs.dockerfile_api }}"
