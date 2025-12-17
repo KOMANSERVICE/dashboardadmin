@@ -49,7 +49,7 @@ public class CreateAccountHandler(
             BankName = command.BankName,
             IsDefault = command.IsDefault,
             IsActive = true,
-            Currency = "FCFA",
+            Currency = "XOF", // Code ISO 4217 du Franc CFA BCEAO
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             CreatedBy = "system",
