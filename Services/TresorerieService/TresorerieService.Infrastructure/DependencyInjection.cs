@@ -1,7 +1,10 @@
 using IDR.Library.BuildingBlocks;
+using IDR.Library.BuildingBlocks.Contexts;
 using IDR.Library.BuildingBlocks.Security;
 using IDR.Library.BuildingBlocks.Security.Interfaces;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -63,7 +66,7 @@ public static class DependencyInjection
         var connectionString = vaultSecretProvider.GetSecretAsync(dataBase).Result ?? "";
 
         services.AddDbContext<TresorerieDbContext>((sp, opts) => {
-            //opts.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
+            opts.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
             opts.UseNpgsql(connectionString);
         });
 
@@ -71,13 +74,21 @@ public static class DependencyInjection
         services.AddScoped<DbContext>(sp => sp.GetRequiredService<TresorerieDbContext>());
 
         services.AddGenericRepositories<TresorerieDbContext>();
+  
+        services.AddContextMiddleware();
 
         //services.AddScoped<ITresorerieDbContext, TresorerieDbContext>();
 
         // API Key Security Services
-       // services.AddScoped<IApiKeyFactory, ApiKeyFactory>();
+        // services.AddScoped<IApiKeyFactory, ApiKeyFactory>();
         //services.AddApiKeyAuthentication();
 
         return services;
+    }
+
+    public static WebApplication UseInfrastructureServices(this WebApplication app)
+    {
+        app.UseContextMiddleware();
+        return app;
     }
 }

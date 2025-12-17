@@ -58,10 +58,6 @@ public class UpdateAccountHandler(
         account.OverdraftLimit = command.Data.OverdraftLimit;
         account.IsActive = command.Data.IsActive;
 
-        // 4. Mettre à jour les informations d'audit
-        account.UpdatedAt = DateTime.UtcNow;
-        account.UpdatedBy = "system"; // TODO: Récupérer depuis le contexte utilisateur
-
         accountRepository.UpdateData(account);
         await unitOfWork.SaveChangesDataAsync(cancellationToken);
 

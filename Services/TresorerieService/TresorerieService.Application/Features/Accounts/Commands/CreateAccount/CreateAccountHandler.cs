@@ -1,3 +1,4 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
 using IDR.Library.BuildingBlocks.CQRS;
 using IDR.Library.BuildingBlocks.Repositories;
 using Mapster;
@@ -49,11 +50,7 @@ public class CreateAccountHandler(
             BankName = command.BankName,
             IsDefault = command.IsDefault,
             IsActive = true,
-            Currency = "XOF", // Code ISO 4217 du Franc CFA BCEAO
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            CreatedBy = "system",
-            UpdatedBy = "system"
+            Currency = "XOF" // Code ISO 4217 du Franc CFA BCEAO
         };
 
         await accountRepository.AddDataAsync(account, cancellationToken);

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.OpenApi;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using IDR.Library.BuildingBlocks.Security.Authentication;
 
 namespace TresorerieService.Api;
 
@@ -35,22 +36,25 @@ public static class DependencyInjection
         var issuer = vaultSecretProvider.GetSecretAsync(JWT_ValidIssuer).Result;
         var audience = vaultSecretProvider.GetSecretAsync(JWT_ValidAudience).Result;
 
-
         //Add cors
         var Allow_origin = configuration["Allow:Origins"]!;
         var origin = vaultSecretProvider.GetSecretAsync(Allow_origin).Result;
-        var origins = origin.Split(';', StringSplitOptions.RemoveEmptyEntries).ToArray();
 
-        services.AddCors(options =>
+
+        var jwtOptions = new JwtAuthOptions
         {
-            options.AddPolicy(name: MyAllowSpecificOrigins,
-                policy =>
-                {
-                    policy.WithOrigins(origins)
-                    .AllowAnyMethod()
-                    .AllowAnyHeader()
-                    .AllowCredentials();
-                });
+            Secret = secret,
+            Issuer = issuer,
+            Audience = audience,
+            AllowedOrigins = origin,
+            CorsPolicyName = MyAllowSpecificOrigins,
+        };
+
+
+        services.AddJwtAuth(options =>
+        {
+            options.AllowedOrigins = jwtOptions.AllowedOrigins;
+            options.CorsPolicyName = jwtOptions.CorsPolicyName;
         });
 
         services.AddEndpointsApiExplorer();
@@ -62,22 +66,12 @@ public static class DependencyInjection
             option.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             option.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
         })
-            .AddJwtBearer(option =>
-            {
-                option.SaveToken = true;
-                option.RequireHttpsMetadata = false;
-                option.TokenValidationParameters = new TokenValidationParameters()
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidAudience = audience,
-                    ValidIssuer = issuer,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
-                    ClockSkew = TimeSpan.Zero //Supprime la tolérance de 5 min par défaut
-                };
-            });
+        .AddJwtBearer(options =>
+        {
+            options.SaveToken = jwtOptions.SaveToken;
+            options.RequireHttpsMetadata = jwtOptions.RequireHttpsMetadata;
+            options.TokenValidationParameters = jwtOptions.CreateTokenValidationParameters();
+        });
 
         services.AddOpenApi(options =>
         {
@@ -93,7 +87,7 @@ public static class DependencyInjection
         app.MapCarter();
         app.UseExceptionHandler(options => { });
         app.UseHttpsRedirection();
-        app.UseCors(MyAllowSpecificOrigins);
+        app.UseJwtAuthCors();   
         app.UseAuthentication();
         app.UseAuthorization();
         return app;
