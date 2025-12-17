@@ -82,6 +82,7 @@ public class CreateCashFlowFromSaleHandler(
         var reference = GenerateSaleReference();
 
         // Creer le flux de tresorerie avec les criteres requis
+        // Note: CreatedAt, UpdatedAt, CreatedBy, UpdatedBy sont gérés automatiquement par IAuditableEntity via UnitOfWork
         var cashFlow = new CashFlow
         {
             Id = Guid.NewGuid(),
@@ -112,19 +113,15 @@ public class CreateCashFlowFromSaleHandler(
             RelatedType = "SALE",
             RelatedId = command.SaleId.ToString(),
             ValidatedAt = DateTime.UtcNow,
-            ValidatedBy = "SYSTEM",
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            CreatedBy = "SYSTEM",
-            UpdatedBy = "SYSTEM"
+            ValidatedBy = "SYSTEM"
         };
 
         // Crediter le compte automatiquement (car Status = APPROVED)
+        // Note: UpdatedAt, UpdatedBy sont gérés automatiquement par IAuditableEntity via UnitOfWork
         account.CurrentBalance += command.Amount;
-        account.UpdatedAt = DateTime.UtcNow;
-        account.UpdatedBy = "SYSTEM";
 
         // Creer une entree dans l'historique
+        // Note: CreatedAt, UpdatedAt, CreatedBy, UpdatedBy sont gérés automatiquement par IAuditableEntity via UnitOfWork
         var history = new CashFlowHistory
         {
             Id = Guid.NewGuid(),
@@ -132,11 +129,7 @@ public class CreateCashFlowFromSaleHandler(
             Action = CashFlowAction.CREATED,
             OldStatus = null,
             NewStatus = CashFlowStatus.APPROVED.ToString(),
-            Comment = $"Flux cree automatiquement depuis la vente #{command.SaleReference}",
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "SYSTEM",
-            UpdatedAt = DateTime.UtcNow,
-            UpdatedBy = "SYSTEM"
+            Comment = $"Flux cree automatiquement depuis la vente #{command.SaleReference}"
         };
 
         // Sauvegarder les modifications

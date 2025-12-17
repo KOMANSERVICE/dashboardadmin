@@ -82,6 +82,7 @@ public class CreateCashFlowFromPurchaseHandler(
         var reference = GeneratePurchaseReference();
 
         // Creer le flux de tresorerie avec les criteres requis
+        // Note: CreatedAt, UpdatedAt, CreatedBy, UpdatedBy sont gérés automatiquement par IAuditableEntity via UnitOfWork
         var cashFlow = new CashFlow
         {
             Id = Guid.NewGuid(),
@@ -112,19 +113,15 @@ public class CreateCashFlowFromPurchaseHandler(
             RelatedType = "PURCHASE",
             RelatedId = command.PurchaseId.ToString(),
             ValidatedAt = DateTime.UtcNow,
-            ValidatedBy = "SYSTEM",
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            CreatedBy = "SYSTEM",
-            UpdatedBy = "SYSTEM"
+            ValidatedBy = "SYSTEM"
         };
 
         // Debiter le compte automatiquement (car Status = APPROVED et Type = EXPENSE)
+        // Note: UpdatedAt, UpdatedBy sont gérés automatiquement par IAuditableEntity via UnitOfWork
         account.CurrentBalance -= command.Amount;
-        account.UpdatedAt = DateTime.UtcNow;
-        account.UpdatedBy = "SYSTEM";
 
         // Creer une entree dans l'historique
+        // Note: CreatedAt, UpdatedAt, CreatedBy, UpdatedBy sont gérés automatiquement par IAuditableEntity via UnitOfWork
         var history = new CashFlowHistory
         {
             Id = Guid.NewGuid(),
@@ -132,11 +129,7 @@ public class CreateCashFlowFromPurchaseHandler(
             Action = CashFlowAction.CREATED,
             OldStatus = null,
             NewStatus = CashFlowStatus.APPROVED.ToString(),
-            Comment = $"Flux cree automatiquement depuis l'achat #{command.PurchaseReference}",
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "SYSTEM",
-            UpdatedAt = DateTime.UtcNow,
-            UpdatedBy = "SYSTEM"
+            Comment = $"Flux cree automatiquement depuis l'achat #{command.PurchaseReference}"
         };
 
         // Sauvegarder les modifications
