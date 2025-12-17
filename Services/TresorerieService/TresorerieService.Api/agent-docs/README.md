@@ -46,6 +46,9 @@ Categories de flux (revenus, depenses).
 - `POST /api/cash-flows/{id}/approve` - Approuver un flux
 - `POST /api/cash-flows/{id}/reject` - Rejeter un flux
 - `GET /api/cash-flows/pending` - Lister les flux en attente de validation
+- `GET /api/cash-flows/unreconciled` - Lister les flux non reconcilies
+- `POST /api/cash-flows/{id}/reconcile` - Reconcilier un flux
+- `POST /api/cash-flows/reconcile` - Reconcilier plusieurs flux en masse
 
 ## Queries CQRS
 
@@ -56,6 +59,7 @@ Categories de flux (revenus, depenses).
 - `GetCashFlowsQuery` - Liste des flux avec pagination et filtres
 - `GetCashFlowDetailQuery` - Detail d'un flux
 - `GetPendingCashFlowsQuery` - Liste des flux en attente (Status=PENDING)
+- `GetUnreconciledCashFlowsQuery` - Liste des flux non reconcilies (Status=APPROVED, IsReconciled=false)
 
 ## Commands CQRS
 
@@ -69,6 +73,8 @@ Categories de flux (revenus, depenses).
 - `SubmitCashFlowCommand` - Soumettre un flux pour validation
 - `ApproveCashFlowCommand` - Approuver un flux
 - `RejectCashFlowCommand` - Rejeter un flux
+- `ReconcileCashFlowCommand` - Reconcilier un flux
+- `ReconcileCashFlowsCommand` - Reconcilier plusieurs flux en masse
 
 ## Authentification
 

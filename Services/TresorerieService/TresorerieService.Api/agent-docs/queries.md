@@ -91,3 +91,19 @@ Tri par date de soumission (les plus anciens en premier).
 **Output:** GetPendingCashFlowsResponse
 - CashFlows: Liste de PendingCashFlowDto
 - PendingCount: Nombre total de flux en attente
+
+## GetUnreconciledCashFlowsQuery
+Liste des flux non reconcilies (Status=APPROVED et IsReconciled=false).
+Tri par date (les plus anciens en premier).
+
+**Input:**
+- ApplicationId (string, required)
+- BoutiqueId (string, required)
+- AccountId (Guid?, optional) - Filtrer par compte
+- StartDate (DateTime?, optional) - Date de debut de periode
+- EndDate (DateTime?, optional) - Date de fin de periode
+
+**Output:** GetUnreconciledCashFlowsResponse
+- CashFlows: Liste de UnreconciledCashFlowDto
+- UnreconciledCount: Nombre total de flux non reconcilies
+- TotalUnreconciledAmount: Montant total non reconcilie
