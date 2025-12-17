@@ -9,9 +9,16 @@ on:
     types: [closed]
     branches: [main]
 
+permissions:
+  contents: read
+  packages: write
+  
 jobs:
   build:
-    uses: ./.github/workflows/reusable-docker-build.yml
+    uses: ./.github/workflows/reusable-docker-build.yml    
+    permissions:
+      contents: read
+      packages: write
     with:
       image_api: tresorerieservice
       image_sql: tresorerieservicesql
