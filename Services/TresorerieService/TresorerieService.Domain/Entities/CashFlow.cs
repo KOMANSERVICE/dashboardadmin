@@ -42,7 +42,7 @@ public class CashFlow : Entity<Guid>
     public decimal TaxRate { get; set; } = 0;
 
     [Column("fld11")]
-    public string Currency { get; set; } = "FCFA";
+    public string Currency { get; set; } = "XOF"; // Code ISO 4217 du Franc CFA BCEAO
 
     // Comptes
     [Column("fld12")]

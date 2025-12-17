@@ -43,7 +43,7 @@ public class Account : Entity<Guid>
 
     [Column("fld9")]
     [StringLength(3)]
-    public string Currency { get; set; } = "FCFA";
+    public string Currency { get; set; } = "XOF"; // Code ISO 4217 du Franc CFA BCEAO
 
     // Configuration
     [Column("fld10")]
