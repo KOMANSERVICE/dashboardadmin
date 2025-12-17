@@ -18,6 +18,7 @@ public class TresorerieDbContext : DbContext//, IMenuDbContext
     public DbSet<CashFlow> CashFlows => Set<CashFlow>();
     public DbSet<CashFlowHistory> Budgets => Set<CashFlowHistory>();
     public DbSet<RecurringCashFlow> RecurringCashFlows => Set<RecurringCashFlow>();
+    public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
