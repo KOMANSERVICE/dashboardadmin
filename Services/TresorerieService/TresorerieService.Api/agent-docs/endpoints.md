@@ -107,3 +107,60 @@ Approuver un flux (PENDING -> APPROVED).
 
 ### POST /api/cash-flows/{id}/reject
 Rejeter un flux (PENDING -> REJECTED).
+
+### POST /api/cash-flows/{id}/reconcile
+Reconcilier un flux approuve avec le releve bancaire.
+
+**Headers:**
+- X-Application-Id (required)
+- X-Boutique-Id (required)
+- Authorization: Bearer {JWT} (required)
+
+**Body:**
+- bankStatementReference (string?, optional)
+
+**Response:** CashFlowDetailDto
+
+**Notes:**
+- Seul un manager ou admin peut reconcilier
+- Le flux doit etre APPROVED et non reconcilie
+- Met a jour IsReconciled, ReconciledAt, ReconciledBy, BankStatementReference
+
+### GET /api/cash-flows/unreconciled
+Liste des flux non reconcilies (APPROVED et IsReconciled=false).
+Tries par date (les plus anciens en premier).
+
+**Headers:**
+- X-Application-Id (required)
+- X-Boutique-Id (required)
+
+**Query params:**
+- accountId (Guid?, optional) - Filtrer par compte
+- startDate (DateTime?, optional) - Date de debut
+- endDate (DateTime?, optional) - Date de fin
+
+**Response:**
+- CashFlows: Liste de UnreconciledCashFlowDto
+- UnreconciledCount: Nombre de flux non reconcilies
+- TotalUnreconciledAmount: Montant total non reconcilie
+
+### POST /api/cash-flows/reconcile
+Reconcilier plusieurs flux en masse.
+
+**Headers:**
+- X-Application-Id (required)
+- X-Boutique-Id (required)
+- Authorization: Bearer {JWT} (required)
+
+**Body:**
+- cashFlowIds (Guid[], required) - Liste des IDs de flux a reconcilier
+- bankStatementReference (string?, optional) - Reference du releve bancaire
+
+**Response:**
+- ReconciledCount: Nombre de flux reconcilies
+- ReconciledCashFlows: Liste de ReconciledCashFlowDto
+
+**Notes:**
+- Seul un manager ou admin peut reconcilier
+- Tous les flux doivent etre APPROVED et non reconcilies
+- Transaction atomique (tout ou rien)
