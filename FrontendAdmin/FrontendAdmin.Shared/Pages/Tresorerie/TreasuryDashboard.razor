@@ -1,0 +1,312 @@
+@page "/tresorerie/dashboard"
+@using FrontendAdmin.Shared.Pages.Tresorerie.Models
+@using FrontendAdmin.Shared.Services.Https
+@inject ITresorerieHttpService TresorerieService
+@inject ToastService ToastService
+
+<PageTitleComponent Title="Tableau de bord Tresorerie" />
+
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+            <h2 class="text-3xl font-bold text-primary-700 text-gray-900 sm:text-2xl">Tableau de bord Tresorerie</h2>
+            <p class="text-gray-600">Vue d'ensemble de votre situation financiere</p>
+        </div>
+
+        <Button type="button" @onclick="RefreshDataAsync" id="refreshBtn"
+                IconCss="fas fa-sync-alt" IconPlacement="ButtonIconPlacement.Left"
+                Disabled="@isLoading">
+            <span>Rafraichir</span>
+        </Button>
+    </div>
+
+    @if (isLoading)
+    {
+        <LoadingData />
+    }
+    else if (dashboard is null)
+    {
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-yellow-700">
+                        Impossible de charger les donnees du tableau de bord. Veuillez reessayer.
+                    </p>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Stat Cards - Totaux -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Total Tresorerie -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-primary-700">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Total Tresorerie</p>
+                        <p class="text-2xl font-bold text-gray-900">@FormatCurrency(dashboard.TotalBalance)</p>
+                    </div>
+                    <div class="p-3 bg-primary-100 rounded-full">
+                        <i class="fas fa-wallet text-primary-700 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revenus du mois -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Revenus du mois</p>
+                        <p class="text-2xl font-bold text-green-600">@FormatCurrency(dashboard.MonthlyIncome)</p>
+                    </div>
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <i class="fas fa-arrow-up text-green-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Depenses du mois -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Depenses du mois</p>
+                        <p class="text-2xl font-bold text-red-600">@FormatCurrency(dashboard.MonthlyExpense)</p>
+                    </div>
+                    <div class="p-3 bg-red-100 rounded-full">
+                        <i class="fas fa-arrow-down text-red-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Solde Net -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-l-4 @(dashboard.NetBalance >= 0 ? "border-green-500" : "border-red-500")">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Solde net du mois</p>
+                        <p class="text-2xl font-bold @(dashboard.NetBalance >= 0 ? "text-green-600" : "text-red-600")">
+                            @FormatCurrency(dashboard.NetBalance)
+                        </p>
+                    </div>
+                    <div class="p-3 @(dashboard.NetBalance >= 0 ? "bg-green-100" : "bg-red-100") rounded-full">
+                        <i class="fas @(dashboard.NetBalance >= 0 ? "fa-plus-circle text-green-600" : "fa-minus-circle text-red-600") text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Soldes par type de compte -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Soldes par type de compte</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                @foreach (var (type, balance) in dashboard.BalanceByType)
+                {
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="@GetAccountTypeIcon(type) text-primary-700 mr-3"></i>
+                            <span class="font-medium text-gray-700">@GetAccountTypeLabel(type)</span>
+                        </div>
+                        <span class="font-bold text-gray-900">@FormatCurrency(balance)</span>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Section Alertes et Flux en attente -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Alertes -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                    <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
+                    Alertes (@(dashboard.Alerts?.Count ?? 0))
+                </h3>
+                @if (dashboard.Alerts?.Any() == true)
+                {
+                    <div class="space-y-3">
+                        @foreach (var alert in dashboard.Alerts)
+                        {
+                            <div class="flex items-start p-3 bg-red-50 border-l-4 border-red-400 rounded">
+                                <i class="fas fa-exclamation-circle text-red-500 mt-0.5 mr-3"></i>
+                                <div>
+                                    <p class="font-medium text-red-800">@alert.AccountName</p>
+                                    <p class="text-sm text-red-600">
+                                        Solde: @FormatCurrency(alert.CurrentBalance)
+                                        (Seuil: @FormatCurrency(alert.AlertThreshold ?? 0))
+                                    </p>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="flex items-center justify-center p-8 text-gray-500">
+                        <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                        Aucune alerte
+                    </div>
+                }
+            </div>
+
+            <!-- Flux en attente -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                    <i class="fas fa-hourglass-half text-yellow-500 mr-2"></i>
+                    Flux en attente
+                </h3>
+                <div class="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
+                    <div>
+                        <p class="text-3xl font-bold text-yellow-600">@dashboard.PendingCount</p>
+                        <p class="text-sm text-gray-600">flux en attente de validation</p>
+                    </div>
+                    <div>
+                        <p class="text-xl font-semibold text-gray-900">@FormatCurrency(dashboard.PendingAmount)</p>
+                        <p class="text-sm text-gray-500">montant total</p>
+                    </div>
+                </div>
+                @if (dashboard.PendingCount > 0)
+                {
+                    <div class="mt-4">
+                        <a href="/tresorerie/flux/pending" class="text-primary-700 hover:text-primary-800 font-medium">
+                            Voir les flux en attente <i class="fas fa-arrow-right ml-1"></i>
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Graphique Evolution 6 mois -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                <i class="fas fa-chart-line text-primary-700 mr-2"></i>
+                Evolution sur 6 mois
+            </h3>
+            @if (dashboard.Evolution?.Any() == true)
+            {
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr class="border-b">
+                                <th class="text-left py-3 px-4 font-semibold text-gray-700">Mois</th>
+                                <th class="text-right py-3 px-4 font-semibold text-gray-700">Solde</th>
+                                <th class="text-right py-3 px-4 font-semibold text-green-600">Revenus</th>
+                                <th class="text-right py-3 px-4 font-semibold text-red-600">Depenses</th>
+                                <th class="text-right py-3 px-4 font-semibold text-gray-700">Variation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var evolution in dashboard.Evolution)
+                            {
+                                var variation = evolution.TotalIncome - evolution.TotalExpense;
+                                <tr class="border-b hover:bg-gray-50">
+                                    <td class="py-3 px-4 font-medium">@evolution.Date.ToString("MMMM yyyy")</td>
+                                    <td class="py-3 px-4 text-right">@FormatCurrency(evolution.Balance)</td>
+                                    <td class="py-3 px-4 text-right text-green-600">+@FormatCurrency(evolution.TotalIncome)</td>
+                                    <td class="py-3 px-4 text-right text-red-600">-@FormatCurrency(evolution.TotalExpense)</td>
+                                    <td class="py-3 px-4 text-right @(variation >= 0 ? "text-green-600" : "text-red-600")">
+                                        @(variation >= 0 ? "+" : "")@FormatCurrency(variation)
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="flex items-center justify-center p-8 text-gray-500">
+                    <i class="fas fa-chart-bar mr-2"></i>
+                    Aucune donnee d'evolution disponible
+                </div>
+            }
+        </div>
+
+        <!-- Date de calcul -->
+        <div class="mt-4 text-sm text-gray-500 text-right">
+            Donnees calculees le @dashboard.CalculatedAt.ToString("dd/MM/yyyy HH:mm")
+        </div>
+    }
+</div>
+
+@code {
+    private TreasuryDashboardDto? dashboard;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardAsync();
+    }
+
+    private async Task LoadDashboardAsync()
+    {
+        isLoading = true;
+        try
+        {
+            var response = await TresorerieService.GetTreasuryDashboardAsync();
+            if (response.Success)
+            {
+                dashboard = response.Data;
+            }
+            else
+            {
+                ToastService.ShowToast(
+                    "Erreur",
+                    response.Message ?? "Impossible de charger le tableau de bord",
+                    "error");
+            }
+        }
+        catch
+        {
+            ToastService.ShowToast(
+                "Erreur",
+                "Une erreur est survenue lors du chargement",
+                "error");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshDataAsync()
+    {
+        await LoadDashboardAsync();
+        if (dashboard is not null)
+        {
+            ToastService.ShowToast(
+                "Succes",
+                "Tableau de bord actualise",
+                "success");
+        }
+    }
+
+    private static string FormatCurrency(decimal amount)
+    {
+        return $"{amount:N0} XOF";
+    }
+
+    private static string GetAccountTypeIcon(string type)
+    {
+        return type switch
+        {
+            "CASH" or "1" => "fas fa-cash-register",
+            "BANK" or "2" => "fas fa-university",
+            "MOBILE_MONEY" or "3" => "fas fa-mobile-alt",
+            _ => "fas fa-wallet"
+        };
+    }
+
+    private static string GetAccountTypeLabel(string type)
+    {
+        return type switch
+        {
+            "CASH" or "1" => "Caisse",
+            "BANK" or "2" => "Banque",
+            "MOBILE_MONEY" or "3" => "Mobile Money",
+            _ => type
+        };
+    }
+}
