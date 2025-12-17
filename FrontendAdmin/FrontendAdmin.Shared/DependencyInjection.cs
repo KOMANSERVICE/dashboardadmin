@@ -34,6 +34,13 @@ public static class DependencyInjection
             .AddHttpMessageHandler<CookieHandler>()
             .AddHttpMessageHandler<JwtAuthorizationHandler>();
 
+        // Tresorerie Service
+        var tresorerieUri = configuration["ApiSettings:TresorerieUri"] ?? uri;
+        services.AddRefitClient<ITresorerieHttpService>()
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri(tresorerieUri))
+            .AddHttpMessageHandler<CookieHandler>()
+            .AddHttpMessageHandler<JwtAuthorizationHandler>();
+
         services.AddScoped<ToastService>();
 
         return services;
