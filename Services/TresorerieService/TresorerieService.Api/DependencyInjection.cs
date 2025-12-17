@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using IDR.Library.BuildingBlocks.Security.Authentication;
+using TresorerieService.Api.BackgroundJobs;
 
 namespace TresorerieService.Api;
 
@@ -78,6 +79,9 @@ public static class DependencyInjection
             options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
         });
         //services.AddOpenApi("public");
+
+        // Enregistrer le BackgroundService pour la generation automatique des flux recurrents
+        services.AddHostedService<RecurringCashFlowGeneratorJob>();
 
         return services;
     }
