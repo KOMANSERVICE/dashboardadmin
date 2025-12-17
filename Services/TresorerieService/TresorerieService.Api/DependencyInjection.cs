@@ -70,6 +70,7 @@ public static class DependencyInjection
                 {
                     ValidateIssuer = true,
                     ValidateAudience = true,
+                    ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
                     ValidAudience = audience,
                     ValidIssuer = issuer,
@@ -111,10 +112,10 @@ internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvi
             {
                 ["Bearer"] = new OpenApiSecurityScheme
                 {
-                    Type = SecuritySchemeType.Http,
-                    Scheme = "bearer", // "bearer" refers to the header name here
+                    Description = "Authorization oauth2",
                     In = ParameterLocation.Header,
-                    BearerFormat = "Json Web Token"
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.ApiKey
                 }
             };
             document.Components ??= new OpenApiComponents();
