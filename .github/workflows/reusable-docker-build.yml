@@ -44,9 +44,7 @@ jobs:
   build-and-push:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    
     outputs:
       version_tag: ${{ steps.vars.outputs.version_tag }}
       env: ${{ steps.vars.outputs.env }}
