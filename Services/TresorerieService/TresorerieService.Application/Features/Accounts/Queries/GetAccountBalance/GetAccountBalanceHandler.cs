@@ -30,7 +30,7 @@ public class GetAccountBalanceHandler(
         // Calculer les dates pour les filtres
         var now = DateTime.UtcNow;
         var startOfDay = now.Date;
-        var startOfMonth = new DateTime(now.Year, now.Month, 1);
+        var startOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
         // Recuperer les mouvements APPROVED pour la periode du mois (inclut aujourd'hui)
         var monthCashFlows = await cashFlowRepository.GetByConditionAsync(
