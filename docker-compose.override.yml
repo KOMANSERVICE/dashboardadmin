@@ -194,6 +194,7 @@ services:
       - vault-net
  
   tresorerieservice.api:
+    container_name: tresorerieservice.api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
