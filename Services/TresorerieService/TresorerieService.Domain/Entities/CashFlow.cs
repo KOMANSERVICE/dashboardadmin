@@ -135,7 +135,7 @@ public class CashFlow : Entity<Guid>
 
     public virtual Account? DestinationAccount { get; set; }
 
-    //public virtual RecurringCashFlow? RecurringCashFlow { get; set; }
+    public virtual RecurringCashFlow? RecurringCashFlow { get; set; }
 
     // public virtual Budget? Budget { get; set; }
 
