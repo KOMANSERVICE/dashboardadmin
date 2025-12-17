@@ -1,12 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TresorerieService.Domain.Entities;
 
 namespace TresorerieService.Infrastructure.Data.Configurations;
 
-public class CashFlowConfigurations : IEntityTypeConfiguration<CashFlow>
+public class RecurringCashFlowConfiguration : IEntityTypeConfiguration<RecurringCashFlow>
 {
-    public void Configure(EntityTypeBuilder<CashFlow> builder)
+    public void Configure(EntityTypeBuilder<RecurringCashFlow> builder)
     {
         builder.HasKey(e => e.Id);
 
@@ -18,19 +18,17 @@ public class CashFlowConfigurations : IEntityTypeConfiguration<CashFlow>
             .ValueGeneratedOnAdd()
             .HasColumnName("Id");
 
-
         // Relations
         builder.HasOne(e => e.Account)
-            .WithMany(l => l.CashFlows)
+            .WithMany()
             .HasForeignKey(e => e.AccountId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(e => e.DestinationAccount)
-            .WithMany(l => l.DestinationCashFlows)
-            .HasForeignKey(e => e.DestinationAccountId)
-            .OnDelete(DeleteBehavior.Restrict);
+        // CategoryId est une string (pas une FK), donc on ignore la navigation
+        builder.Ignore(e => e.Category);
 
-        // RecurringCashFlowId est une string (pas un FK), donc on ignore la navigation
-        builder.Ignore(e => e.RecurringCashFlow);
+        // La relation avec CashFlow est geree via le champ RecurringCashFlowId (string)
+        // qui stocke l'ID sous forme de string pour etre flexible
+        builder.Ignore(e => e.GeneratedCashFlows);
     }
 }
