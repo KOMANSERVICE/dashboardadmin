@@ -25,6 +25,10 @@ param(
     # Activer/desactiver la creation d'issues d'integration
     [bool]$CreateIntegrationIssues = $true,
     
+    # Forcer la creation d'issue d'integration pour TOUTES les issues mergees
+    # (pas seulement celles qui contiennent "Service" dans le titre/body)
+    [bool]$ForceIntegrationIssues = $true,
+    
     # Modes de fonctionnement
     [switch]$AnalysisOnly,
     [switch]$CoderOnly,
@@ -60,6 +64,11 @@ $env:GITHUB_OWNER = $Owner
 $env:GITHUB_REPO = $Repo
 $env:PROJECT_NUMBER = $ProjectNumber
 
+# Variables de script pour acces dans les fonctions
+$script:SourceOwner = $Owner
+$script:SourceRepo = $Repo
+$script:SourceProjectNumber = $ProjectNumber
+
 # Variables repo packages IDR
 $env:GITHUB_OWNER_PACKAGE = $Owner_package
 $env:GITHUB_REPO_PACKAGE = $Repo_package
@@ -77,6 +86,7 @@ $script:IntegrationRepo = $Repo_integration
 $script:IntegrationProjectNumber = $ProjectNumber_integration
 $script:IntegrationColumn = $Column_integration
 $script:CreateIntegrationIssuesEnabled = $CreateIntegrationIssues
+$script:ForceIntegrationIssuesEnabled = $ForceIntegrationIssues
 
 $env:CLAUDE_MODEL = $Model
 
@@ -960,8 +970,11 @@ function New-IntegrationIssue {
     $intOwner = $script:IntegrationOwner
     $intRepo = $script:IntegrationRepo
     $intProjectNumber = $script:IntegrationProjectNumber
+    $srcOwner = $script:SourceOwner
+    $srcRepo = $script:SourceRepo
     
-    Write-Host "     [INTEGRATION] Creation issue dans $intOwner/$intRepo..." -ForegroundColor Cyan
+    Write-Host "     [INTEGRATION] Source: $srcOwner/$srcRepo" -ForegroundColor DarkGray
+    Write-Host "     [INTEGRATION] Cible: $intOwner/$intRepo" -ForegroundColor DarkGray
     Write-Host "     [INTEGRATION] Service: $ServiceName" -ForegroundColor DarkGray
     Write-Host "     [INTEGRATION] Titre: $FeatureTitle" -ForegroundColor DarkGray
     
@@ -970,7 +983,7 @@ function New-IntegrationIssue {
     $issueBody = @"
 ## Integration: $FeatureTitle
 
-> **Source:** Issue #$SourceIssueNumber dans [$Repo](https://github.com/$Owner/$Repo/issues/$SourceIssueNumber)
+> **Source:** Issue #$SourceIssueNumber dans [$srcRepo](https://github.com/$srcOwner/$srcRepo/issues/$SourceIssueNumber)
 > **Service:** $ServiceName
 > **Date:** $dateNow
 
@@ -1101,7 +1114,7 @@ $dto
 
 ### Liens utiles
 
-- [Issue source dans DashBoardAdmin](https://github.com/$Owner/$Repo/issues/$SourceIssueNumber)
+- [Issue source dans DashBoardAdmin](https://github.com/$srcOwner/$srcRepo/issues/$SourceIssueNumber)
 - Documentation Swagger du service: ``/docs``
 
 ---
@@ -1152,7 +1165,8 @@ $dto
         $commentFile = Join-Path $env:TEMP "integration-comment-$guidPart.md"
         $linkComment | Out-File $commentFile -Encoding utf8
         
-        gh issue comment $SourceIssueNumber --repo "$Owner/$Repo" --body-file "$commentFile" 2>&1 | Out-Null
+        Write-Host "     [INTEGRATION] Ajout commentaire sur issue source #$SourceIssueNumber..." -ForegroundColor DarkGray
+        gh issue comment $SourceIssueNumber --repo "$srcOwner/$srcRepo" --body-file "$commentFile" 2>&1 | Out-Null
         
         Remove-Item $commentFile -ErrorAction SilentlyContinue
         
@@ -1179,8 +1193,11 @@ function Get-ServiceTechnicalDetails {
         [int]$IssueNumber
     )
     
+    $srcOwner = $script:SourceOwner
+    $srcRepo = $script:SourceRepo
+    
     try {
-        $issueJson = gh issue view $IssueNumber --repo "$Owner/$Repo" --json body,comments | ConvertFrom-Json
+        $issueJson = gh issue view $IssueNumber --repo "$srcOwner/$srcRepo" --json body,comments | ConvertFrom-Json
         
         $details = @{
             Endpoints = @{}
@@ -1242,6 +1259,280 @@ function Get-ServiceTechnicalDetails {
     }
 }
 
+# ============================================
+# AGENT DE DOCUMENTATION D'INTEGRATION
+# ============================================
+
+function Invoke-IntegrationDocAgent {
+    <#
+    .SYNOPSIS
+        Agent qui analyse le code et cree une issue d'integration detaillee
+    .DESCRIPTION
+        Apres un merge, cet agent analyse le code source pour extraire:
+        - Les DTOs avec leurs proprietes
+        - Les Endpoints avec routes et methodes HTTP
+        - Les Commands/Queries avec Request et Response
+        - Les exemples de payloads JSON
+        Et cree une issue d'integration dans depensio avec tous ces details.
+    #>
+    param(
+        [Parameter(Mandatory=$true)]
+        [int]$IssueNumber,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$IssueTitle,
+        
+        [Parameter(Mandatory=$false)]
+        [string]$ServiceName = "DashBoardAdmin"
+    )
+    
+    $srcOwner = $script:SourceOwner
+    $srcRepo = $script:SourceRepo
+    $intOwner = $script:IntegrationOwner
+    $intRepo = $script:IntegrationRepo
+    $intProjectNumber = $script:IntegrationProjectNumber
+    
+    Write-Host "     [INTEGRATION-DOC] Analyse du code pour issue #$IssueNumber..." -ForegroundColor Cyan
+    
+    $promptFile = Join-Path $env:TEMP "integration-doc-$IssueNumber.txt"
+    
+    $promptContent = @"
+Tu es un agent specialise dans la documentation d'integration.
+
+## Contexte
+L'issue #$IssueNumber "$IssueTitle" vient d'etre mergee dans le projet DashBoardAdmin.
+Tu dois analyser le code developpe et generer une documentation d'integration detaillee.
+
+## Ta mission
+1. Analyser les fichiers recemment modifies (git log, git diff)
+2. Identifier les elements techniques:
+   - Endpoints (routes, methodes HTTP)
+   - DTOs (proprietes, types)
+   - Commands et Queries (Request, Response)
+   - Entites modifiees
+
+3. Generer un fichier Markdown avec la documentation complete
+
+## Instructions
+
+### Etape 1: Identifier les fichiers modifies
+\`\`\`powershell
+# Voir les derniers commits lies a cette issue
+git log --oneline -20 | Select-String "#$IssueNumber"
+
+# Ou voir les fichiers recemment modifies
+git diff --name-only HEAD~5
+\`\`\`
+
+### Etape 2: Analyser le code
+Pour chaque fichier pertinent (Endpoints, Commands, Queries, DTOs):
+- Lire le contenu
+- Extraire les informations techniques
+
+### Etape 3: Generer la documentation
+Cree un fichier `/tmp/integration-doc-$IssueNumber.md` avec ce format:
+
+\`\`\`markdown
+# Integration: $IssueTitle
+
+## Service: $ServiceName
+
+### Endpoints
+
+| Methode | Route | Description | Request Body | Response |
+|---------|-------|-------------|--------------|----------|
+| POST | /api/xxx | Description | XxxRequest | XxxResponse |
+| GET | /api/xxx/{id} | Description | - | XxxDto |
+
+### DTOs
+
+#### XxxRequest
+\`\`\`csharp
+public record XxxRequest(
+    string Property1,
+    int Property2,
+    DateTime Property3
+);
+\`\`\`
+
+#### XxxResponse
+\`\`\`csharp
+public record XxxResponse(
+    Guid Id,
+    string Property1,
+    bool Success
+);
+\`\`\`
+
+### Exemples de Payloads JSON
+
+#### Request POST /api/xxx
+\`\`\`json
+{
+    "property1": "valeur",
+    "property2": 123,
+    "property3": "2024-01-15T10:30:00Z"
+}
+\`\`\`
+
+#### Response
+\`\`\`json
+{
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "property1": "valeur",
+    "success": true
+}
+\`\`\`
+
+### Commands/Queries
+
+| Type | Nom | Request | Response |
+|------|-----|---------|----------|
+| Command | CreateXxxCommand | CreateXxxRequest | CreateXxxResponse |
+| Query | GetXxxQuery | GetXxxRequest | XxxDto |
+
+### Notes d'integration
+- Points d'attention pour l'integration
+- Dependances eventuelles
+- Configuration requise
+\`\`\`
+
+### Etape 4: Afficher le contenu
+Une fois le fichier cree, affiche son contenu complet avec:
+\`\`\`powershell
+Get-Content /tmp/integration-doc-$IssueNumber.md
+\`\`\`
+
+## IMPORTANT
+- Analyse le code REEL du projet, pas des suppositions
+- Inclus les types exacts des proprietes
+- Genere des exemples JSON realistes
+- Si tu ne trouves pas certaines informations, indique "A documenter"
+
+Variables:
+- GITHUB_OWNER: $srcOwner
+- GITHUB_REPO: $srcRepo
+- Issue: #$IssueNumber
+- Service: $ServiceName
+"@
+
+    $promptContent | Out-File $promptFile -Encoding utf8
+    
+    # Executer Claude pour analyser le code
+    $success = Invoke-ClaudeInProject -PromptFile $promptFile -TaskDescription "Documentation integration #$IssueNumber"
+    
+    if (-not $success) {
+        Write-Host "     [INTEGRATION-DOC] Echec de l'analyse" -ForegroundColor Red
+        return $null
+    }
+    
+    # Lire le fichier de documentation genere
+    $docFile = "/tmp/integration-doc-$IssueNumber.md"
+    $docContent = ""
+    
+    # Essayer de lire le fichier genere par Claude
+    if (Test-Path $docFile) {
+        $docContent = Get-Content $docFile -Raw
+    }
+    else {
+        # Si le fichier n'existe pas, creer une doc basique
+        Write-Host "     [INTEGRATION-DOC] Fichier doc non trouve, creation doc basique" -ForegroundColor Yellow
+        $docContent = @"
+# Integration: $IssueTitle
+
+## Service: $ServiceName
+
+> **Source:** Issue #$IssueNumber dans [$srcRepo](https://github.com/$srcOwner/$srcRepo/issues/$IssueNumber)
+
+### A documenter
+
+Les details techniques doivent etre completes manuellement:
+- [ ] Endpoints (routes, methodes HTTP)
+- [ ] DTOs (proprietes, types)
+- [ ] Commands/Queries (Request, Response)
+- [ ] Exemples de payloads JSON
+
+### Implementation requise dans depensio
+
+#### Backend
+- [ ] Creer les DTOs correspondants
+- [ ] Implementer les appels HTTP vers $ServiceName
+- [ ] Gerer les erreurs
+
+#### Frontend
+- [ ] Creer les composants UI
+- [ ] Integrer les appels API
+"@
+    }
+    
+    # Creer l'issue d'integration dans depensio
+    Write-Host "     [INTEGRATION-DOC] Creation de l'issue dans $intOwner/$intRepo..." -ForegroundColor Cyan
+    
+    $issueFile = Join-Path $env:TEMP "integration-issue-$IssueNumber.md"
+    
+    # Preparer le body complet de l'issue
+    $fullBody = @"
+$docContent
+
+---
+
+### Checklist d'integration
+
+- [ ] Lire et comprendre la documentation ci-dessus
+- [ ] Implementer les DTOs dans depensio
+- [ ] Implementer les appels API
+- [ ] Implementer l'UI correspondante
+- [ ] Tester l'integration complete
+- [ ] Mettre a jour la documentation si necessaire
+
+---
+
+### Liens
+
+- [Issue source dans DashBoardAdmin](https://github.com/$srcOwner/$srcRepo/issues/$IssueNumber)
+
+---
+*Issue creee automatiquement par l'agent DashBoardAdmin*
+"@
+
+    $fullBody | Out-File $issueFile -Encoding utf8
+    
+    $integrationTitle = "[Integration] $ServiceName - $IssueTitle"
+    
+    try {
+        $result = gh issue create --repo "$intOwner/$intRepo" --title "$integrationTitle" --body-file "$issueFile" 2>&1
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "     [ERREUR] Creation issue echouee: $result" -ForegroundColor Red
+            return $null
+        }
+        
+        Write-Host "     [INTEGRATION-DOC] Issue creee: $result" -ForegroundColor Green
+        
+        # Ajouter au project
+        if ($intProjectNumber -gt 0) {
+            gh project item-add $intProjectNumber --owner $intOwner --url $result 2>&1 | Out-Null
+        }
+        
+        # Commenter l'issue source
+        $linkComment = "## Issue d'integration creee`n`nDocumentation d'integration generee dans **$intRepo**:`n$result`n`nCette issue contient les details techniques (DTOs, Endpoints, Payloads) pour l'integration dans depensio."
+        $commentFile = Join-Path $env:TEMP "integration-link-$IssueNumber.md"
+        $linkComment | Out-File $commentFile -Encoding utf8
+        gh issue comment $IssueNumber --repo "$srcOwner/$srcRepo" --body-file "$commentFile" 2>&1 | Out-Null
+        Remove-Item $commentFile -ErrorAction SilentlyContinue
+        
+        return $result
+    }
+    catch {
+        Write-Host "     [ERREUR] Exception: $_" -ForegroundColor Red
+        return $null
+    }
+    finally {
+        Remove-Item $issueFile -ErrorAction SilentlyContinue
+        Remove-Item $promptFile -ErrorAction SilentlyContinue
+    }
+}
+
 # Fonction pour tester la creation d'une issue d'integration manuellement
 function Test-IntegrationIssueCreation {
     <#
@@ -1261,12 +1552,16 @@ function Test-IntegrationIssueCreation {
     Write-Host ""
     Write-Host "=== TEST CREATION ISSUE D'INTEGRATION ===" -ForegroundColor Cyan
     Write-Host "Issue source: #$IssueNumber" -ForegroundColor White
+    Write-Host "Repo source: $($script:SourceOwner)/$($script:SourceRepo)" -ForegroundColor White
     Write-Host "Repo integration: $($script:IntegrationOwner)/$($script:IntegrationRepo)" -ForegroundColor White
     Write-Host ""
     
+    $srcOwner = $script:SourceOwner
+    $srcRepo = $script:SourceRepo
+    
     try {
         # Recuperer l'issue
-        $issueData = gh issue view $IssueNumber --repo "$Owner/$Repo" --json title,body,labels,comments 2>&1
+        $issueData = gh issue view $IssueNumber --repo "$srcOwner/$srcRepo" --json title,body,labels,comments 2>&1
         
         if ($LASTEXITCODE -ne 0) {
             Write-Host "[ERREUR] Impossible de recuperer l'issue #$IssueNumber" -ForegroundColor Red
@@ -1966,90 +2261,72 @@ Termine le merge et deplace l'issue vers "A Tester".
     
     $success = Invoke-ClaudeInProject -PromptFile $promptFile -TaskDescription "Merge issue #$IssueNumber"
     
-    # Si merge reussi, verifier si on doit creer une issue d'integration
+    # Si merge reussi, creer une issue d'integration avec documentation detaillee
     Write-Host "     [DEBUG] Merge success: $success" -ForegroundColor DarkGray
     Write-Host "     [DEBUG] CreateIntegrationIssuesEnabled: $($script:CreateIntegrationIssuesEnabled)" -ForegroundColor DarkGray
+    Write-Host "     [DEBUG] ForceIntegrationIssuesEnabled: $($script:ForceIntegrationIssuesEnabled)" -ForegroundColor DarkGray
     
     if ($success -and $script:CreateIntegrationIssuesEnabled) {
-        Write-Host "     [INTEGRATION] Verification si l'issue concerne un microservice..." -ForegroundColor Cyan
+        $srcOwner = $script:SourceOwner
+        $srcRepo = $script:SourceRepo
         
         try {
-            # Verifier si l'issue concerne un microservice
-            $issueData = gh issue view $IssueNumber --repo "$Owner/$Repo" --json title,body,labels,comments 2>&1
+            # Recuperer les infos de l'issue
+            Write-Host "     [DEBUG] Recuperation de l'issue #$IssueNumber..." -ForegroundColor DarkGray
+            $issueData = gh issue view $IssueNumber --repo "$srcOwner/$srcRepo" --json title,body,labels,comments 2>&1
             
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "     [ERREUR] Impossible de recuperer l'issue: $issueData" -ForegroundColor Red
             }
             else {
                 $issueData = $issueData | ConvertFrom-Json
+                Write-Host "     [DEBUG] Issue recuperee: $($issueData.title)" -ForegroundColor DarkGray
+                
                 $content = $issueData.title + " " + $issueData.body
                 foreach ($comment in $issueData.comments) {
                     $content += " " + $comment.body
                 }
                 
-                Write-Host "     [DEBUG] Contenu analyse (premiers 200 chars): $($content.Substring(0, [Math]::Min(200, $content.Length)))..." -ForegroundColor DarkGray
-                
-                # Detecter si c'est un microservice (pattern plus large)
+                # Detecter le nom du service
                 $servicePattern = '(MagasinService|MenuService|AbonnementService|FacturationService|TresorerieService|CommandeService|ProduitService|ClientService|UserService|\w+Service)'
                 $serviceMatch = [regex]::Match($content, $servicePattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
                 
-                Write-Host "     [DEBUG] Pattern match: $($serviceMatch.Success)" -ForegroundColor DarkGray
-                
+                $serviceName = "DashBoardAdmin"
                 if ($serviceMatch.Success) {
                     $serviceName = $serviceMatch.Groups[1].Value
                     Write-Host "     [INTEGRATION] Service detecte: $serviceName" -ForegroundColor Green
+                }
+                
+                # Creer l'issue d'integration si:
+                # 1. Un service est detecte, OU
+                # 2. ForceIntegrationIssues est active
+                $shouldCreateIntegration = $serviceMatch.Success -or $script:ForceIntegrationIssuesEnabled
+                
+                Write-Host "     [DEBUG] shouldCreateIntegration: $shouldCreateIntegration" -ForegroundColor DarkGray
+                
+                if ($shouldCreateIntegration) {
+                    Write-Host "     [INTEGRATION] Lancement de l'agent de documentation..." -ForegroundColor Cyan
                     
-                    # Extraire les details techniques
-                    $techDetails = Get-ServiceTechnicalDetails -IssueNumber $IssueNumber
+                    # Utiliser l'agent de documentation pour analyser le code et creer l'issue
+                    $integrationIssue = Invoke-IntegrationDocAgent `
+                        -IssueNumber $IssueNumber `
+                        -IssueTitle $issueData.title `
+                        -ServiceName $serviceName
                     
-                    Write-Host "     [DEBUG] TechDetails: $($techDetails -ne $null)" -ForegroundColor DarkGray
-                    
-                    if ($techDetails -and $techDetails.Endpoints.Count -gt 0) {
-                        Write-Host "     [INTEGRATION] Details techniques trouves (Endpoints: $($techDetails.Endpoints.Count))" -ForegroundColor Cyan
-                        
-                        # Creer l'issue d'integration dans depensio
-                        $integrationIssue = New-IntegrationIssue `
-                            -SourceIssueNumber $IssueNumber `
-                            -ServiceName $serviceName `
-                            -FeatureTitle $issueData.title `
-                            -FeatureDescription $issueData.body `
-                            -Endpoints $techDetails.Endpoints `
-                            -Commands $techDetails.Commands `
-                            -Queries $techDetails.Queries `
-                            -DTOs $techDetails.DTOs
-                        
-                        if ($integrationIssue) {
-                            Write-Host "     [INTEGRATION] Issue creee avec succes: $integrationIssue" -ForegroundColor Green
-                        }
-                        else {
-                            Write-Host "     [ERREUR] Echec creation issue d'integration" -ForegroundColor Red
-                        }
+                    if ($integrationIssue) {
+                        Write-Host "     [INTEGRATION] Issue d'integration creee avec documentation: $integrationIssue" -ForegroundColor Green
                     }
                     else {
-                        Write-Host "     [INTEGRATION] Pas de details techniques, creation issue basique..." -ForegroundColor Yellow
-                        
-                        # Creer une issue d'integration basique sans details techniques
-                        $integrationIssue = New-IntegrationIssue `
-                            -SourceIssueNumber $IssueNumber `
-                            -ServiceName $serviceName `
-                            -FeatureTitle $issueData.title `
-                            -FeatureDescription $issueData.body
-                        
-                        if ($integrationIssue) {
-                            Write-Host "     [INTEGRATION] Issue basique creee: $integrationIssue" -ForegroundColor Green
-                        }
-                        else {
-                            Write-Host "     [ERREUR] Echec creation issue basique" -ForegroundColor Red
-                        }
+                        Write-Host "     [ERREUR] Echec creation issue d'integration" -ForegroundColor Red
                     }
                 }
                 else {
-                    Write-Host "     [INFO] Pas de microservice detecte dans cette issue" -ForegroundColor DarkGray
+                    Write-Host "     [INFO] Pas de microservice detecte et ForceIntegration desactive - pas de creation" -ForegroundColor DarkGray
                 }
             }
         }
         catch {
-            Write-Host "     [ERREUR] Exception lors de la verification: $_" -ForegroundColor Red
+            Write-Host "     [ERREUR] Exception lors de la creation d'integration: $_" -ForegroundColor Red
             Write-Host "     [ERREUR] Details: $($_.Exception.Message)" -ForegroundColor Red
         }
     }
@@ -2085,6 +2362,7 @@ Write-Host "   Repo: $Owner_integration/$Repo_integration" -ForegroundColor Whit
 Write-Host "   Project#: $ProjectNumber_integration" -ForegroundColor White
 Write-Host "   Colonne: $Column_integration" -ForegroundColor White
 Write-Host "   Creation auto: $CreateIntegrationIssues" -ForegroundColor White
+Write-Host "   Forcer creation: $ForceIntegrationIssues" -ForegroundColor White
 Write-Host ""
 Write-Host "[INFO] PRIORITE DE TRAITEMENT:" -ForegroundColor Yellow
 Write-Host "   1. Issues 'In Review' -> Terminer le merge" -ForegroundColor Yellow
@@ -2094,8 +2372,14 @@ Write-Host "   4. Issues 'Analyse' -> Nouvelles analyses" -ForegroundColor Yello
 Write-Host "   5. Issues 'Todo' -> Nouvelles implementations" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "[INFO] INTEGRATION:" -ForegroundColor Cyan
-Write-Host "   Quand une issue de microservice est mergee, une issue" -ForegroundColor DarkGray
-Write-Host "   d'integration est creee automatiquement dans depensio" -ForegroundColor DarkGray
+Write-Host "   Quand une issue est mergee, une issue d'integration" -ForegroundColor DarkGray
+Write-Host "   est creee automatiquement dans depensio" -ForegroundColor DarkGray
+if ($ForceIntegrationIssues) {
+    Write-Host "   (Force: TOUTES les issues mergees)" -ForegroundColor Green
+}
+else {
+    Write-Host "   (Seulement si 'Service' detecte dans l'issue)" -ForegroundColor DarkGray
+}
 Write-Host ""
 Write-Host "   Appuyez sur Ctrl+C pour arreter"
 Write-Host ""
