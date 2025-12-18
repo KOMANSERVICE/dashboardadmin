@@ -8,5 +8,6 @@ public record MenuInfoDTO
     public string Icon { get; set; }
     public string AppAdminReference { get; set; }
     public bool IsActif { get; set; }
+    public string? Group { get; set; }
 }
 
