@@ -43,6 +43,7 @@ services:
       - vault-net
  
   tresorerieservice.api:
+    image: komanatse/tresorerieservice:${DOCKER_TAG}
     container_name: tresorerieservice.api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
