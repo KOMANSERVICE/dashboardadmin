@@ -6,6 +6,7 @@ public record Menu{
     public string UrlFront { get; set; }
     public string Icon { get; set; }
     public string AppAdminReference { get; set; }
+    public string? Group { get; set; }
     public bool IsActif { get; set; }
     public bool IsSelected { get; set; }
 }
