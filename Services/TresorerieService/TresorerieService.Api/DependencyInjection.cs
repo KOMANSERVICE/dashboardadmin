@@ -1,13 +1,15 @@
-﻿using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.OpenApi;
-using Microsoft.OpenApi;
+﻿using IDR.Library.BuildingBlocks.Security.Authentication;
 using IDR.Library.BuildingBlocks.Security.Interfaces;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using IDR.Library.BuildingBlocks.Security.Authentication;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using TresorerieService.Api.BackgroundJobs;
 
 namespace TresorerieService.Api;
@@ -18,6 +20,11 @@ public static class DependencyInjection
     private static string MyAllowSpecificOrigins = "AllowOrigin";
     public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
     {
+        services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.PropertyNameCaseInsensitive = true;
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+        });
 
         services.AddCarter();
 
