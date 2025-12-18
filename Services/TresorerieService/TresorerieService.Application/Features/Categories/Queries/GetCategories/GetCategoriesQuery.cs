@@ -8,6 +8,7 @@ namespace TresorerieService.Application.Features.Categories.Queries.GetCategorie
 /// </summary>
 public record GetCategoriesQuery(
     string ApplicationId,
+    string BoutiqueId,
     CategoryType? Type = null,
     bool IncludeInactive = false
 ) : IQuery<GetCategoriesResponse>;

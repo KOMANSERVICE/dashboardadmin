@@ -12,16 +12,17 @@ public class CreateCategoryHandler(
         CreateCategoryCommand command,
         CancellationToken cancellationToken = default)
     {
-        // Vérifier l'unicité du nom pour cette application
+        // Vérifier l'unicité du nom pour cette boutique
         var existingCategories = await categoryRepository.GetByConditionAsync(
             c => c.ApplicationId == command.ApplicationId
+                 && c.BoutiqueId == command.BoutiqueId
                  && c.Name == command.Name
                  && c.IsActive,
             cancellationToken);
 
         if (existingCategories.Any())
         {
-            throw new BadRequestException($"Une catégorie avec le nom '{command.Name}' existe déjà pour cette application");
+            throw new BadRequestException($"Une catégorie avec le nom '{command.Name}' existe déjà pour cette boutique");
         }
 
         // Créer la nouvelle catégorie
@@ -30,6 +31,7 @@ public class CreateCategoryHandler(
         {
             Id = Guid.NewGuid(),
             ApplicationId = command.ApplicationId,
+            BoutiqueId = command.BoutiqueId,
             Name = command.Name,
             Type = command.Type,
             Icon = command.Icon,

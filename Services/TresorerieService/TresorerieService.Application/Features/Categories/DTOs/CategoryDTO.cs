@@ -5,6 +5,7 @@ namespace TresorerieService.Application.Features.Categories.DTOs;
 public record CategoryDTO(
     Guid Id,
     string ApplicationId,
+    string BoutiqueId,
     string Name,
     CategoryType Type,
     string? Icon,
