@@ -24,6 +24,9 @@ public class Category : Entity<Guid>
     [Column("fld5")]
     public bool IsActive { get; set; } = true;
 
+    [Column("fld6")]
+    public string BoutiqueId { get; set; } = string.Empty;
+
     // Navigation properties
     public virtual ICollection<CashFlow> CashFlows { get; set; }
     

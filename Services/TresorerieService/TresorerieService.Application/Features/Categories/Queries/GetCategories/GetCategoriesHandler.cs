@@ -15,6 +15,7 @@ public class GetCategoriesHandler(IGenericRepository<Category> categoryRepositor
         // Recuperer les categories selon les filtres
         var categories = await categoryRepository.GetByConditionAsync(
             c => c.ApplicationId == query.ApplicationId
+                 && c.BoutiqueId == query.BoutiqueId
                  && (query.IncludeInactive || c.IsActive)
                  && (!query.Type.HasValue || c.Type == query.Type.Value),
             cancellationToken);
@@ -25,6 +26,7 @@ public class GetCategoriesHandler(IGenericRepository<Category> categoryRepositor
             .Select(c => new CategoryDTO(
                 Id: c.Id,
                 ApplicationId: c.ApplicationId,
+                BoutiqueId: c.BoutiqueId,
                 Name: c.Name,
                 Type: c.Type,
                 Icon: c.Icon,

@@ -23,6 +23,7 @@ public class CreateCategoryEndpoint : ICarterModule
     {
         app.MapPost("/api/categories", async (
             [FromHeader(Name = "X-Application-Id")] string applicationId,
+            [FromHeader(Name = "X-Boutique-Id")] string boutiqueId,
             [FromBody] CreateCategoryRequest request,
             ISender sender,
             CancellationToken cancellationToken) =>
@@ -32,8 +33,14 @@ public class CreateCategoryEndpoint : ICarterModule
                 return Results.BadRequest(new { error = "L'en-tête X-Application-Id est obligatoire" });
             }
 
+            if (string.IsNullOrEmpty(boutiqueId))
+            {
+                return Results.BadRequest(new { error = "L'en-tête X-Boutique-Id est obligatoire" });
+            }
+
             var command = new CreateCategoryCommand(
                 ApplicationId: applicationId,
+                BoutiqueId: boutiqueId,
                 Name: request.Name,
                 Type: request.Type,
                 Icon: request.Icon

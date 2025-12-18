@@ -14,6 +14,7 @@ public class GetCategoriesEndpoint : ICarterModule
     {
         app.MapGet("/api/categories", async (
             [FromHeader(Name = "X-Application-Id")] string applicationId,
+            [FromHeader(Name = "X-Boutique-Id")] string boutiqueId,
             [FromQuery] CategoryType? type = null,
             [FromQuery] bool includeInactive = false,
             ISender sender = null!,
@@ -24,8 +25,14 @@ public class GetCategoriesEndpoint : ICarterModule
                 return Results.BadRequest(new { error = "L'en-tete X-Application-Id est obligatoire" });
             }
 
+            if (string.IsNullOrEmpty(boutiqueId))
+            {
+                return Results.BadRequest(new { error = "L'en-tete X-Boutique-Id est obligatoire" });
+            }
+
             var query = new GetCategoriesQuery(
                 ApplicationId: applicationId,
+                BoutiqueId: boutiqueId,
                 Type: type,
                 IncludeInactive: includeInactive
             );

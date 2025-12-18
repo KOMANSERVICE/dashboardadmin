@@ -8,6 +8,10 @@ public class CreateCategoryValidator : AbstractValidator<CreateCategoryCommand>
             .NotEmpty()
             .WithMessage("L'identifiant de l'application est obligatoire");
 
+        RuleFor(x => x.BoutiqueId)
+            .NotEmpty()
+            .WithMessage("L'identifiant de la boutique est obligatoire");
+
         RuleFor(x => x.Name)
             .NotEmpty()
             .WithMessage("Le nom de la catégorie est obligatoire")

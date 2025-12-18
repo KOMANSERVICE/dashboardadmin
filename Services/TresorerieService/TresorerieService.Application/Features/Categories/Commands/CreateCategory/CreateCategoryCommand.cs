@@ -4,6 +4,7 @@ namespace TresorerieService.Application.Features.Categories.Commands.CreateCateg
 
 public record CreateCategoryCommand(
     string ApplicationId,
+    string BoutiqueId,
     string Name,
     CategoryType Type,
     string? Icon
