@@ -38,7 +38,8 @@ public class CreateMenuHandler(
             Reference = menu.Reference,
             UrlFront = menu.UrlFront,
             Icon = menu.Icon,
-            AppAdminReference = menu.AppAdminReference
+            AppAdminReference = menu.AppAdminReference,
+            Group = menu.Group
         };
     }
 }

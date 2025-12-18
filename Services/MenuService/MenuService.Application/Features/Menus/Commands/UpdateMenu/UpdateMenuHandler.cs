@@ -55,6 +55,7 @@ public class UpdateMenuHandler(
         entity.Name = menuDto.Name;
         entity.UrlFront = menuDto.UrlFront;
         entity.Icon = menuDto.Icon;
+        entity.Group = menuDto.Group;
         return entity;
     }
 }
