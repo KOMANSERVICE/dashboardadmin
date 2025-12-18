@@ -13,7 +13,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     {
     }
     public DbSet<AppAdmin> Applications => Set<AppAdmin>();
-    public DbSet<Menu> Menus => Set<Menu>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
 

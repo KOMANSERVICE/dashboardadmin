@@ -27,7 +27,6 @@ public class CreateApiKey : ICarterModule
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .WithSummary("Cree une nouvelle API Key")
         .WithDescription("Genere une nouvelle API Key pour une application. La cle en clair n'est retournee qu'une seule fois.")
-        .RequireAuthorization()
-        .WithOpenApi();
+        .RequireAuthorization();
     }
 }

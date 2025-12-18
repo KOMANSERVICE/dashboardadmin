@@ -8,6 +8,13 @@ public static class DependencyInjection
     {
         var uri = configuration["ApiSettings:Uri"]!;
 
+        
+        if (string.IsNullOrWhiteSpace(uri))
+        {
+            throw new InvalidOperationException(
+                "ApiSettings:Uri is not configured. Please check your appsettings.json file.");
+        }
+
         services.AddBlazorLibrairyServices(configuration, (options) =>
         {
             options.Uri = uri;

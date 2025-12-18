@@ -13,9 +13,6 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["BackendAdmin/BackendAdmin.Api/BackendAdmin.Api.csproj", "BackendAdmin/BackendAdmin.Api/"]
-COPY ["BackendAdmin/BackendAdmin.Application/BackendAdmin.Application.csproj", "BackendAdmin/BackendAdmin.Application/"]
-COPY ["BackendAdmin/BackendAdmin.Domain/BackendAdmin.Domain.csproj", "BackendAdmin/BackendAdmin.Domain/"]
-COPY ["BackendAdmin/BackendAdmin.Infrastructure/BackendAdmin.Infrastructure.csproj", "BackendAdmin/BackendAdmin.Infrastructure/"]
 RUN dotnet restore "./BackendAdmin/BackendAdmin.Api/BackendAdmin.Api.csproj"
 COPY . .
 WORKDIR "/src/BackendAdmin/BackendAdmin.Api"

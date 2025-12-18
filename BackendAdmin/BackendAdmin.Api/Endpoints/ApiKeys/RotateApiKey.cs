@@ -27,7 +27,6 @@ public class RotateApiKey : ICarterModule
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .WithSummary("Effectue une rotation d'API Key")
         .WithDescription("Cree une nouvelle API Key et revoque l'ancienne apres une periode de grace configurable")
-        .RequireAuthorization()
-        .WithOpenApi();
+        .RequireAuthorization();
     }
 }

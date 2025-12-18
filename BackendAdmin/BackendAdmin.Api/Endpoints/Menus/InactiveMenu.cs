@@ -27,6 +27,6 @@ public class InactiveMenu : ICarterModule
        .WithSummary("InactiveMenu")
        .WithDescription("InactiveMenu")
        //.RequireAuthorization()
-       .WithOpenApi();
+       ;
     }
 }

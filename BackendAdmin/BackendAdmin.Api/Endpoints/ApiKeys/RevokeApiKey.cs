@@ -28,7 +28,6 @@ public class RevokeApiKey : ICarterModule
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .WithSummary("Revoque une API Key")
         .WithDescription("Revoque definitivement une API Key. L'operation est irreversible.")
-        .RequireAuthorization()
-        .WithOpenApi();
+        .RequireAuthorization();
     }
 }

@@ -26,6 +26,6 @@ public class UpdateMenu : ICarterModule
        .WithSummary("UpdateMenu")
        .WithDescription("UpdateMenu")
        //.RequireAuthorization()
-       .WithOpenApi();
+       ;
     }
 }
