@@ -1,32 +1,33 @@
 services:
   magasinDB:
-    container_name: magasinDB
     image: postgres:17
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB_MAGASIN}
       POSTGRES_USER: ${POSTGRES_USER_MAGASIN}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_MAGASIN}
-    ports:
-      - "127.0.0.1:5442:5432"
     volumes:
       - pgdata_magasin:/var/lib/postgresql/data  
     healthcheck:
-      test: ["CMD-SHELL", "PGPASSWORD=$$POSTGRES_PASSWORD_MAGASIN psql -U $$POSTGRES_USER_MAGASIN -d $$POSTGRES_DB_MAGASIN -c 'SELECT 1;' || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_MAGASIN} -d ${POSTGRES_DB_MAGASIN}"]
       interval: 10s
-      timeout: 10s
+      timeout: 5s
       retries: 5
     env_file:
       - ./.env
     networks:
       - vault-net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
             
-  ef-migrator_magasinservice:
+  ef-migrator-magasinservice:
     image: komanatse/magasinservicesql:${DOCKER_TAG}
-    container_name: ef-migrator_magasinservice
-    depends_on:
-      magasinDB:
-        condition: service_healthy
     environment:
       DB_HOST: magasinDB
       DB_PORT: 5432
@@ -37,12 +38,18 @@ services:
       - ./.env
     networks:
       - vault-net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        max_attempts: 5
+        delay: 10s
  
-  magasinservice.api:
-    container_name: magasinservice.api
+  magasinservice-api:
     image: komanatse/magasinservice:${DOCKER_TAG}
+    restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_HTTP_PORTS=8080
       - Vault__Uri=${VAULT_URI}
       - Vault__RoleId=${VAULT_ROLE_ID}
@@ -52,14 +59,23 @@ services:
       - Allow__Origins=${CORS_ALLOWED_ORIGINS}
       - ConnectionStrings__Database=${CONNECTION_STRING_API}
     ports:
-      - "127.0.0.1:9211:8080"
-    depends_on:
-      ef-migrator_magasinservice:
-        condition: service_completed_successfully
+      - target: 8080
+        published: 9211
+        protocol: tcp
+        mode: host
     env_file:
       - ./.env
     networks:
       - vault-net
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      restart_policy:
+        condition: on-failure
       
 networks:
   vault-net:

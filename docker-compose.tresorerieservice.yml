@@ -1,36 +1,36 @@
 services:
   tresorerieDB:
     image: postgres:17
-    container_name: tresorerieDB
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB_TRESORERIE}
       POSTGRES_USER: ${POSTGRES_USER_TRESORERIE}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_TRESORERIE}
-    ports:
-      - "127.0.0.1:5444:5432"
     volumes:
       - pgdata_tresorerie:/var/lib/postgresql/data  
     healthcheck:
-      test: ["CMD-SHELL", "PGPASSWORD=$$POSTGRES_PASSWORD_TRESORERIE psql -U $$POSTGRES_USER_TRESORERIE -d $$POSTGRES_DB_TRESORERIE -c 'SELECT 1;' || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_TRESORERIE} -d ${POSTGRES_DB_TRESORERIE}"]
       interval: 10s
-      timeout: 10s
+      timeout: 5s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: 1g
     env_file:
       - ./.env
     networks:
       - vault-net
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 1G
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
             
-  ef-migrator_tresorerieservice:
+  ef-migrator-tresorerieservice:
     image: komanatse/tresorerieservicesql:${DOCKER_TAG}
-    container_name: ef-migrator_tresorerieservice
-    depends_on:
-      tresorerieDB:
-        condition: service_healthy
     environment:
       DB_HOST: tresorerieDB
       DB_PORT: 5432
@@ -41,12 +41,18 @@ services:
       - ./.env
     networks:
       - vault-net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        max_attempts: 5
+        delay: 10s
  
-  tresorerieservice.api:
+  tresorerieservice-api:
     image: komanatse/tresorerieservice:${DOCKER_TAG}
-    container_name: tresorerieservice.api
+    restart: unless-stopped
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_HTTP_PORTS=8080
       - Vault__Uri=${VAULT_URI}
       - Vault__RoleId=${VAULT_ROLE_ID}
@@ -59,15 +65,23 @@ services:
       - JWT__ValidIssuer=${JWT_VALID_ISSUER_API}
       - JWT__Secret=${JWT_SECRET_API}
     ports:
-      - "127.0.0.1:9301:8080"
-    deploy:
-      resources:
-        limits:
-          memory: 1g
+      - target: 8080
+        published: 9301
+        protocol: tcp
+        mode: host
     env_file:
       - ./.env
     networks:
       - vault-net
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      restart_policy:
+        condition: on-failure
       
 networks:
   vault-net:
