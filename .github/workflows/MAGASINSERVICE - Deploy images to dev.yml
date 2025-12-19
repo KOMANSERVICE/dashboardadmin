@@ -1,4 +1,4 @@
-name: MAGASINSERVICE - Deploy to DEV
+name: MAGASINSERVICE - Deploy images to dev
 
 on:
   workflow_dispatch:
