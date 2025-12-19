@@ -65,7 +65,7 @@ jobs:
       service_name: backendadmin
       image_name: backendadmin
       deploy_path: /home/komanatse/backendadmin
-      compose_file: docker-compose.dev.yml
+      compose_file: docker-compose.prod.yml
       environment: dev
       ssh_port: 2222
       build_workflow_name: "BACKENDADMIN - Build and Push Docker Images"
