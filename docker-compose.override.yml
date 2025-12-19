@@ -228,7 +228,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER_TRESORERIE}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_TRESORERIE}
     ports:
-      - "5443:5432"
+      - "5444:5432"
     volumes:
       - pgdata_tresorerie:/var/lib/postgresql/data  
     healthcheck:
