@@ -1,4 +1,5 @@
-name: TRESORERIESERVICE - Deploy images to dev
+# .github/workflows/TRESORERIESERVICE - Deploy to DEV.yml
+name: TRESORERIESERVICE - Deploy to DEV
 
 on:
   workflow_dispatch:
@@ -8,7 +9,7 @@ on:
 
 jobs:
   deploy:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}    
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       actions: read
     uses: ./.github/workflows/reusable-deploy.yml
@@ -20,6 +21,7 @@ jobs:
       environment: dev
       ssh_port: 2222
       build_workflow_name: "TRESORERIESERVICE - Build and Push Docker Images"
+      stack_name: tresorerie
     secrets:
       SSH_HOST: ${{ secrets.SSH_HOST }}
       SSH_USER: ${{ secrets.SSH_USER }}
