@@ -3,7 +3,7 @@ name: MENUSERVICE - Deploy images to dev
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["MENUSERVICE  - Build and Push Docker Images"]
+    workflows: ["MENUSERVICE - Build and Push Docker Images"]
     types: [completed]
 
 jobs:
