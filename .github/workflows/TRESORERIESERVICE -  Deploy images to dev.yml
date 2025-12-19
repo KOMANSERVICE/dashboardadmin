@@ -1,5 +1,5 @@
 # .github/workflows/TRESORERIESERVICE - Deploy to DEV.yml
-name: TRESORERIESERVICE - Deploy to DEV
+name: TRESORERIESERVICE - Deploy images to dev
 
 on:
   workflow_dispatch:
