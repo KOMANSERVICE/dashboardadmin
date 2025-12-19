@@ -8,7 +8,9 @@ on:
 
 jobs:
   deploy:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}    
+    permissions:
+      actions: read
     uses: ./.github/workflows/reusable-deploy.yml
     with:
       service_name: tresorerieservice
