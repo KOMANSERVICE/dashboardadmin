@@ -1,4 +1,4 @@
-name: MENUSERVICE  - Deploy to DEV
+name: MENUSERVICE - Deploy images to dev
 
 on:
   workflow_dispatch:
