@@ -1,8 +1,9 @@
-name: MENUSERVICE - Deploy to PROD
+name: MENUSERVICE  - Deploy to DEV
 
 on:
+  workflow_dispatch:
   workflow_run:
-    workflows: ["MENUSERVICE - Build and Push Docker Images"]
+    workflows: ["MENUSERVICE  - Build and Push Docker Images"]
     types: [completed]
 
 jobs:
@@ -14,19 +15,19 @@ jobs:
       image_name: menuservice
       deploy_path: /home/komanatse/menuservice
       compose_file: docker-compose.menuservice.yml
-      environment: prod
-      ssh_port: 22
-      build_workflow_name: "MENUSERVICE - Build and Push Docker Images"
+      environment: dev
+      ssh_port: 2222
+      build_workflow_name: "MENUSERVICE  - Build and Push Docker Images"
     secrets:
-      SSH_HOST: ${{ secrets.SSH_HOST_PROD }}
-      SSH_USER: ${{ secrets.SSH_USER_PROD }}
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
-      SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE_PROD }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       ENV_CONTENT: |
-        POSTGRES_PASSWORD_MENU=${{ secrets.POSTGRES_PASSWORD_MENU }}
-        POSTGRES_DB_MENU=${{ secrets.POSTGRES_DB_MENU }}
-        POSTGRES_USER_MENU=${{ secrets.POSTGRES_USER_MENU }}
+        POSTGRES_PASSWORD_TRESORERIE=${{ secrets.POSTGRES_PASSWORD_TRESORERIE }}
+        POSTGRES_DB_TRESORERIE=${{ secrets.POSTGRES_DB_TRESORERIE }}
+        POSTGRES_USER_TRESORERIE=${{ secrets.POSTGRES_USER_TRESORERIE }}
         VAULT_URI=${{ secrets.VAULT_URI }}
         VAULT_ROLE_ID=${{ secrets.VAULT_ROLE_ID }}
         VAULT_SECRET_ID=${{ secrets.VAULT_SECRET_ID }}
@@ -36,5 +37,4 @@ jobs:
         JWT_SECRET_API=${{ secrets.JWT_SECRET_API }}
         CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
         CONNECTION_STRING_API=${{ secrets.CONNECTION_STRING_API }}
-        VAULT_PATH_MOUNT_POINT_MENU=${{ secrets.VAULT_PATH_MOUNT_POINT_MENU }}
-        DOCKER_TAG=$TAG
+        VAULT_PATH_MOUNT_POINT_TRESORERIE=${{ secrets.VAULT_PATH_MOUNT_POINT_TRESORERIE }}
