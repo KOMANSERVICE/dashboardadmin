@@ -9,6 +9,7 @@ public record Menu{
     public string? Group { get; set; }
     public bool IsActif { get; set; }
     public bool IsSelected { get; set; }
+    public int SortOrder { get; set; }
 }
 public record CreateMenuRequest(Menu Menu);
 public record CreateMenuResponse(Guid Id);
@@ -17,3 +18,6 @@ public record ActiveMenuRequest(string Reference, string AppAdminReference);
 public record ActiveMenuResponse(bool Success);
 public record UpdateMenuRequest(Menu Menu);
 public record UpdateMenuResponse(bool Success);
+public record MenuSortOrderItem(string Reference, int SortOrder);
+public record ReorderMenusRequest(List<MenuSortOrderItem> Items);
+public record ReorderMenusResponse(bool Success, int UpdatedCount);

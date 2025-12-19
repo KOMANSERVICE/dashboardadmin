@@ -9,5 +9,12 @@ public record MenuInfoDTO
     public string AppAdminReference { get; set; }
     public bool IsActif { get; set; }
     public string? Group { get; set; }
+    public int SortOrder { get; set; }
 }
+
+public record MenuSortOrderItem(string Reference, int SortOrder);
+
+public record ReorderMenusRequest(string AppAdminReference, List<MenuSortOrderItem> Items);
+
+public record ReorderMenusResponse(bool Success, int UpdatedCount);
 
