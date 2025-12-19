@@ -4,6 +4,7 @@ namespace MenuService.Application.Features.Menus.Commands.ReorderMenus;
 
 public class ReorderMenusHandler(
         IMenuDbContext _dbContext,
+        IGenericRepository<Menu> _menuRepository,
         IUnitOfWork unitOfWork
     )
     : ICommandHandler<ReorderMenusCommand, ReorderMenusResult>
@@ -28,6 +29,7 @@ public class ReorderMenusHandler(
         foreach (var menu in menus)
         {
             menu.SortOrder = sortOrderMap[menu.Reference];
+            _menuRepository.UpdateData(menu);
         }
 
         await unitOfWork.SaveChangesDataAsync();
