@@ -7,19 +7,24 @@ on:
       image_api:
         required: true
         type: string
-        description: "Nom de l'image API"
       image_sql:
         required: true
         type: string
-        description: "Nom de l'image SQL"
+      image_web:
+        required: false
+        type: string
+        default: ''
+        description: "Image web optionnelle"
       dockerfile_api:
         required: true
         type: string
-        description: "Chemin du Dockerfile API"
       dockerfile_sql:
         required: true
         type: string
-        description: "Chemin du Dockerfile SQL"
+      dockerfile_web:
+        required: false
+        type: string
+        default: ''
       dotnet_version:
         required: false
         type: string
@@ -27,11 +32,9 @@ on:
       ef_project:
         required: true
         type: string
-        description: "Projet EF Infrastructure"
       ef_startup_project:
         required: true
         type: string
-        description: "Projet startup pour EF"
       registry:
         required: false
         type: string
@@ -44,7 +47,6 @@ jobs:
   build-and-push:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
-    
     outputs:
       version_tag: ${{ steps.vars.outputs.version_tag }}
       env: ${{ steps.vars.outputs.env }}
@@ -93,6 +95,12 @@ jobs:
           build_and_push() {
             local image=$1
             local dockerfile=$2
+            
+            # Skip si image vide
+            if [ -z "$image" ] || [ -z "$dockerfile" ]; then
+              return
+            fi
+            
             echo "📦 Building $image:${{ steps.vars.outputs.version_tag }}"
             docker build -t ${{ inputs.registry }}/$image:${{ steps.vars.outputs.version_tag }} -f $dockerfile .
             echo "🚀 Pushing $image:${{ steps.vars.outputs.version_tag }}"
@@ -103,5 +111,7 @@ jobs:
               docker push ${{ inputs.registry }}/$image:latest
             fi
           }
+          
           build_and_push "${{ inputs.image_sql }}" "${{ inputs.dockerfile_sql }}"
           build_and_push "${{ inputs.image_api }}" "${{ inputs.dockerfile_api }}"
+          build_and_push "${{ inputs.image_web }}" "${{ inputs.dockerfile_web }}"
