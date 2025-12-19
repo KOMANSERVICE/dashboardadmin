@@ -9,6 +9,8 @@ on:
 jobs:
   deploy:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      actions: read
     uses: ./.github/workflows/reusable-deploy.yml
     with:
       service_name: magasinservice
@@ -18,6 +20,7 @@ jobs:
       environment: dev
       ssh_port: 2222
       build_workflow_name: "MAGASINSERVICE - Build and Push Docker Images"
+      stack_name: magasin
     secrets:
       SSH_HOST: ${{ secrets.SSH_HOST }}
       SSH_USER: ${{ secrets.SSH_USER }}
@@ -25,14 +28,16 @@ jobs:
       SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       ENV_CONTENT: |
-        POSTGRES_PASSWORD_MAGASIN=${{ secrets.POSTGRES_PASSWORD_MAGASIN }}
-        POSTGRES_DB_MAGASIN=${{ secrets.POSTGRES_DB_MAGASIN }}
-        POSTGRES_USER_MAGASIN=${{ secrets.POSTGRES_USER_MAGASIN }}
+        POSTGRES_PASSWORD_TRESORERIE=${{ secrets.POSTGRES_PASSWORD_TRESORERIE }}
+        POSTGRES_DB_TRESORERIE=${{ secrets.POSTGRES_DB_TRESORERIE }}
+        POSTGRES_USER_TRESORERIE=${{ secrets.POSTGRES_USER_TRESORERIE }}
         VAULT_URI=${{ secrets.VAULT_URI }}
         VAULT_ROLE_ID=${{ secrets.VAULT_ROLE_ID }}
         VAULT_SECRET_ID=${{ secrets.VAULT_SECRET_ID }}
-        VAULT_MOUNT_POINT=${{ secrets.VAULT_MOUNT_POINT }}        
+        VAULT_MOUNT_POINT=${{ secrets.VAULT_MOUNT_POINT }}
+        JWT_VALID_AUDIENCE_API=${{ secrets.JWT_VALID_AUDIENCE_API }}
+        JWT_VALID_ISSUER_API=${{ secrets.JWT_VALID_ISSUER_API }}
+        JWT_SECRET_API=${{ secrets.JWT_SECRET_API }}
         CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
         CONNECTION_STRING_API=${{ secrets.CONNECTION_STRING_API }}
-        VAULT_PATH_MOUNT_POINT_MAGASIN=${{ secrets.VAULT_PATH_MOUNT_POINT_MAGASIN }}
-        DOCKER_TAG=$TAG
+        VAULT_PATH_MOUNT_POINT_TRESORERIE=${{ secrets.VAULT_PATH_MOUNT_POINT_TRESORERIE }}
