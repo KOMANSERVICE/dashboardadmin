@@ -1,4 +1,4 @@
-﻿using MenuService.Domain.Abstractions;
+using MenuService.Domain.Abstractions;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MenuService.Domain.Models;
@@ -22,4 +22,6 @@ public class Menu : Entity<Guid>
     public string AppAdminReference { get; set; } = default!;
     [Column("cf7")]
     public string? Group { get; set; }
+    [Column("cf8")]
+    public int SortOrder { get; set; }
 }
