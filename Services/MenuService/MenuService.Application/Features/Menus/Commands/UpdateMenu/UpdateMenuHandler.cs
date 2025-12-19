@@ -1,4 +1,4 @@
-﻿using MenuService.Application.Data;
+using MenuService.Application.Data;
 using MenuService.Application.Features.Menus.DTOs;
 using Microsoft.EntityFrameworkCore;
 
@@ -56,6 +56,7 @@ public class UpdateMenuHandler(
         entity.UrlFront = menuDto.UrlFront;
         entity.Icon = menuDto.Icon;
         entity.Group = menuDto.Group;
+        entity.SortOrder = menuDto.SortOrder;
         return entity;
     }
 }
