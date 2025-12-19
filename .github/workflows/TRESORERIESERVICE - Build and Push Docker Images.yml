@@ -5,9 +5,13 @@ on:
   push:
     tags:
       - 'v*'
+    paths:
+      - 'Services/TresorerieService/**'
   pull_request:
     types: [closed]
     branches: [main]
+    paths:
+      - 'Services/TresorerieService/**'
 
 permissions:
   contents: read
