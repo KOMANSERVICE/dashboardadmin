@@ -1,0 +1,123 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900">Processus en cours</h3>
+            @if (top != null)
+            {
+                <p class="text-sm text-gray-500">@top.ContainerName</p>
+            }
+        </div>
+        <button @onclick="LoadTop" class="text-primary-600 hover:text-primary-800 text-sm" disabled="@isLoading">
+            <i class="fas fa-sync-alt @(isLoading ? "animate-spin" : "") mr-1"></i>
+            Actualiser
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <LoadingData />
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="p-4 bg-red-50 text-red-700 rounded-md">
+            @errorMessage
+        </div>
+    }
+    else if (top != null)
+    {
+        @if (top.Processes?.Any() == true)
+        {
+            <div class="bg-white shadow-md rounded-lg overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">PID</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">CPU</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">MEM</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">VSZ</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">RSS</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">STAT</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">TIME</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">CMD</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach (var process in top.Processes)
+                        {
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-2 font-mono">@process.Pid</td>
+                                <td class="px-4 py-2">@process.User</td>
+                                <td class="px-4 py-2">@(string.IsNullOrEmpty(process.Cpu) ? "-" : process.Cpu)</td>
+                                <td class="px-4 py-2">@(string.IsNullOrEmpty(process.Memory) ? "-" : process.Memory)</td>
+                                <td class="px-4 py-2">@(string.IsNullOrEmpty(process.Vsz) ? "-" : process.Vsz)</td>
+                                <td class="px-4 py-2">@(string.IsNullOrEmpty(process.Rss) ? "-" : process.Rss)</td>
+                                <td class="px-4 py-2">@(string.IsNullOrEmpty(process.Stat) ? "-" : process.Stat)</td>
+                                <td class="px-4 py-2">@(string.IsNullOrEmpty(process.Time) ? "-" : process.Time)</td>
+                                <td class="px-4 py-2 font-mono text-xs truncate max-w-[200px]" title="@process.Command">@process.Command</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="text-gray-500 py-4 text-center">Aucun processus</p>
+        }
+    }
+
+    <div class="flex justify-end mt-6">
+        <Button type="button" @onclick="OnClose" ButtonColor="ButtonColor.Light">
+            <span>Fermer</span>
+        </Button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string ContainerId { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ContainerTopDto? top;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTop();
+    }
+
+    private async Task LoadTop()
+    {
+        if (string.IsNullOrEmpty(ContainerId)) return;
+
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await SwarmService.GetContainerTopAsync(ContainerId);
+
+            if (response.Success)
+            {
+                top = response.Data.Top;
+            }
+            else
+            {
+                errorMessage = response.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

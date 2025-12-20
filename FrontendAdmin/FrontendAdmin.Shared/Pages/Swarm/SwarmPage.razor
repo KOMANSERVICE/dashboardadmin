@@ -10,7 +10,7 @@
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <div>
             <h2 class="text-3xl font-bold text-primary-700 text-gray-900 sm:text-2xl">Docker Swarm</h2>
-            <p class="text-gray-600">Gestion des services, noeuds et volumes du cluster Docker Swarm</p>
+            <p class="text-gray-600">Gestion des services, noeuds, volumes et conteneurs du cluster Docker Swarm</p>
         </div>
 
         <div class="flex gap-2 mt-4 md:mt-0">
@@ -60,6 +60,11 @@
                     <i class="fas fa-database mr-2"></i>
                     Volumes (@volumes.Count)
                 </button>
+                <button @onclick="() => SetActiveTab(3)"
+                        class="@GetTabClass(3) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-cube mr-2"></i>
+                    Conteneurs (@containers.Count)
+                </button>
             </nav>
         </div>
     </div>
@@ -85,7 +90,7 @@
         <!-- Nodes Tab -->
         <NodeListComponent Nodes="@nodes" />
     }
-    else
+    else if (activeTab == 2)
     {
         <!-- Volumes Tab -->
         <VolumeListComponent Volumes="@volumes"
@@ -93,6 +98,16 @@
                              OnViewDetails="ViewVolumeDetails"
                              OnBackup="ShowBackupModal"
                              OnDelete="ShowVolumeDeleteConfirmation" />
+    }
+    else
+    {
+        <!-- Containers Tab -->
+        <ContainerListComponent Containers="@containers"
+                                OnRefresh="RefreshData"
+                                OnViewDetails="ViewContainerDetails"
+                                OnViewStats="ViewContainerStats"
+                                OnViewLogs="ViewContainerLogs"
+                                OnExec="ShowExecModal" />
     }
 </div>
 
@@ -260,10 +275,55 @@
     </div>
 </Modal>
 
+<!-- Container Modals -->
+<Modal OnCloseModal="() => showContainerDetailsModal = false"
+       ShowModal="showContainerDetailsModal"
+       ModalTitle="@($"Details du conteneur: {selectedContainerName}")">
+    <ContainerDetailsComponent ContainerId="@selectedContainerId"
+                               OnClose="() => showContainerDetailsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showContainerStatsModal = false"
+       ShowModal="showContainerStatsModal"
+       ModalTitle="@($"Statistiques: {selectedContainerName}")">
+    <ContainerStatsComponent ContainerId="@selectedContainerId"
+                             OnClose="() => showContainerStatsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showContainerLogsModal = false"
+       ShowModal="showContainerLogsModal"
+       ModalTitle="@($"Logs: {selectedContainerName}")">
+    <ContainerLogsComponent ContainerId="@selectedContainerId"
+                            OnClose="() => showContainerLogsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showContainerExecModal = false"
+       ShowModal="showContainerExecModal"
+       ModalTitle="@($"Terminal: {selectedContainerName}")">
+    <ContainerExecComponent ContainerId="@selectedContainerId"
+                            ContainerName="@selectedContainerName"
+                            OnClose="() => showContainerExecModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showContainerTopModal = false"
+       ShowModal="showContainerTopModal"
+       ModalTitle="@($"Processus: {selectedContainerName}")">
+    <ContainerTopComponent ContainerId="@selectedContainerId"
+                           OnClose="() => showContainerTopModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showContainerChangesModal = false"
+       ShowModal="showContainerChangesModal"
+       ModalTitle="@($"Modifications: {selectedContainerName}")">
+    <ContainerChangesComponent ContainerId="@selectedContainerId"
+                               OnClose="() => showContainerChangesModal = false" />
+</Modal>
+
 @code {
     private List<SwarmServiceDto> services = new();
     private List<NodeDto> nodes = new();
     private List<VolumeDto> volumes = new();
+    private List<ContainerDto> containers = new();
     private bool isLoading = true;
     private int activeTab = 0;
 
@@ -289,6 +349,16 @@
     private bool forceDeleteVolume;
     private PruneVolumesResponse? pruneResult;
 
+    // Container state
+    private bool showContainerDetailsModal;
+    private bool showContainerStatsModal;
+    private bool showContainerLogsModal;
+    private bool showContainerExecModal;
+    private bool showContainerTopModal;
+    private bool showContainerChangesModal;
+    private string selectedContainerId = "";
+    private string selectedContainerName = "";
+
     protected override async Task OnInitializedAsync()
     {
         await RefreshData();
@@ -304,12 +374,14 @@
             var servicesTask = SwarmService.GetServicesAsync();
             var nodesTask = SwarmService.GetNodesAsync();
             var volumesTask = SwarmService.GetVolumesAsync();
+            var containersTask = SwarmService.GetContainersAsync();
 
-            await Task.WhenAll(servicesTask, nodesTask, volumesTask);
+            await Task.WhenAll(servicesTask, nodesTask, volumesTask, containersTask);
 
             var servicesResponse = await servicesTask;
             var nodesResponse = await nodesTask;
             var volumesResponse = await volumesTask;
+            var containersResponse = await containersTask;
 
             if (servicesResponse.Success)
                 services = servicesResponse.Data.Services;
@@ -319,6 +391,9 @@
 
             if (volumesResponse.Success)
                 volumes = volumesResponse.Data.Volumes;
+
+            if (containersResponse.Success)
+                containers = containersResponse.Data.Containers;
         }
         catch (Exception ex)
         {
@@ -530,5 +605,34 @@
             size /= 1024;
         }
         return $"{size:0.##} {sizes[order]}";
+    }
+
+    // Container methods
+    private void ViewContainerDetails(ContainerDto container)
+    {
+        selectedContainerId = container.Id;
+        selectedContainerName = container.Name;
+        showContainerDetailsModal = true;
+    }
+
+    private void ViewContainerStats(ContainerDto container)
+    {
+        selectedContainerId = container.Id;
+        selectedContainerName = container.Name;
+        showContainerStatsModal = true;
+    }
+
+    private void ViewContainerLogs(ContainerDto container)
+    {
+        selectedContainerId = container.Id;
+        selectedContainerName = container.Name;
+        showContainerLogsModal = true;
+    }
+
+    private void ShowExecModal(ContainerDto container)
+    {
+        selectedContainerId = container.Id;
+        selectedContainerName = container.Name;
+        showContainerExecModal = true;
     }
 }
