@@ -1599,4 +1599,278 @@ public class DockerSwarmService : IDockerSwarmService
             throw new InternalServerException($"Erreur lors de la deconnexion du conteneur du reseau '{networkName}'");
         }
     }
+
+    // Stack management methods
+    // Docker Swarm stacks are identified by the "com.docker.stack.namespace" label on services
+
+    public async Task<IList<StackDTO>> GetStacksAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var services = await GetServicesAsync(cancellationToken);
+
+            // Group services by stack name (from label com.docker.stack.namespace)
+            var stacks = services
+                .Where(s => s.Spec?.Labels?.ContainsKey("com.docker.stack.namespace") == true)
+                .GroupBy(s => s.Spec.Labels["com.docker.stack.namespace"])
+                .Select(g => new StackDTO(
+                    Name: g.Key,
+                    ServiceCount: g.Count(),
+                    Orchestrator: "swarm",
+                    CreatedAt: g.Min(s => s.CreatedAt)
+                ))
+                .OrderBy(s => s.Name)
+                .ToList();
+
+            return stacks;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker stacks");
+            throw new InternalServerException("Erreur lors de la recuperation des stacks Docker");
+        }
+    }
+
+    public async Task<StackDetailsDTO?> GetStackByNameAsync(string stackName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var services = await GetServicesAsync(cancellationToken);
+
+            // Filter services belonging to the stack
+            var stackServices = services
+                .Where(s => s.Spec?.Labels?.ContainsKey("com.docker.stack.namespace") == true
+                         && s.Spec.Labels["com.docker.stack.namespace"] == stackName)
+                .ToList();
+
+            if (stackServices.Count == 0)
+            {
+                return null;
+            }
+
+            var serviceDtos = stackServices.Select(s =>
+            {
+                var ports = s.Endpoint?.Ports?
+                    .Select(p => new StackServicePortDTO(
+                        TargetPort: (int)p.TargetPort,
+                        PublishedPort: (int)p.PublishedPort,
+                        Protocol: p.Protocol ?? "tcp"
+                    ))
+                    .ToList() ?? new List<StackServicePortDTO>();
+
+                var runningReplicas = 0;
+                var desiredReplicas = (int)(s.Spec?.Mode?.Replicated?.Replicas ?? 1);
+
+                // For mode global, count nodes
+                if (s.Spec?.Mode?.Global != null)
+                {
+                    desiredReplicas = 1; // Global services have 1 per node
+                }
+
+                // Check running replicas from ServiceStatus if available
+                if (s.ServiceStatus != null)
+                {
+                    runningReplicas = (int)s.ServiceStatus.RunningTasks;
+                    desiredReplicas = (int)s.ServiceStatus.DesiredTasks;
+                }
+
+                var status = runningReplicas >= desiredReplicas ? "running" : "updating";
+
+                return new StackServiceDTO(
+                    Id: s.ID,
+                    Name: s.Spec?.Name ?? "",
+                    Image: s.Spec?.TaskTemplate?.ContainerSpec?.Image?.Split('@')[0] ?? "",
+                    Replicas: runningReplicas,
+                    DesiredReplicas: desiredReplicas,
+                    Status: status,
+                    Ports: ports
+                );
+            }).ToList();
+
+            return new StackDetailsDTO(
+                Name: stackName,
+                ServiceCount: stackServices.Count,
+                Orchestrator: "swarm",
+                CreatedAt: stackServices.Min(s => s.CreatedAt),
+                Services: serviceDtos
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get stack {StackName}", stackName);
+            throw new InternalServerException($"Erreur lors de la recuperation de la stack '{stackName}'");
+        }
+    }
+
+    public async Task<IList<StackServiceDTO>> GetStackServicesAsync(string stackName, CancellationToken cancellationToken = default)
+    {
+        var stackDetails = await GetStackByNameAsync(stackName, cancellationToken);
+        if (stackDetails == null)
+        {
+            throw new NotFoundException($"Stack '{stackName}' non trouvee");
+        }
+        return stackDetails.Services;
+    }
+
+    public async Task<DeployStackResponse> DeployStackAsync(DeployStackRequest request, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new BadRequestException("Le nom de la stack est requis");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ComposeFileContent))
+        {
+            throw new BadRequestException("Le contenu du fichier compose est requis");
+        }
+
+        try
+        {
+            // Parse the compose file to extract services
+            var composeContent = request.ComposeFileContent;
+
+            // Create a temporary file for the compose content
+            var tempDir = Path.Combine(Path.GetTempPath(), "docker-stacks", request.Name);
+            Directory.CreateDirectory(tempDir);
+            var composeFilePath = Path.Combine(tempDir, "docker-compose.yml");
+
+            await File.WriteAllTextAsync(composeFilePath, composeContent, cancellationToken);
+
+            try
+            {
+                // Use docker stack deploy command via process
+                var args = $"stack deploy -c \"{composeFilePath}\" {request.Name}";
+                if (request.Prune)
+                {
+                    args += " --prune";
+                }
+
+                var processStartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "docker",
+                    Arguments = args,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var process = System.Diagnostics.Process.Start(processStartInfo);
+                if (process == null)
+                {
+                    throw new InternalServerException("Impossible de demarrer le processus docker");
+                }
+
+                var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+                var error = await process.StandardError.ReadToEndAsync(cancellationToken);
+
+                await process.WaitForExitAsync(cancellationToken);
+
+                if (process.ExitCode != 0)
+                {
+                    _logger.LogError("Docker stack deploy failed: {Error}", error);
+                    throw new BadRequestException($"Echec du deploiement de la stack: {error}");
+                }
+
+                _logger.LogInformation("Stack {StackName} deployed successfully", request.Name);
+
+                // Get the deployed stack to count services
+                var deployedStack = await GetStackByNameAsync(request.Name, cancellationToken);
+
+                return new DeployStackResponse(
+                    StackName: request.Name,
+                    ServicesDeployed: deployedStack?.ServiceCount ?? 0,
+                    DeployedAt: DateTime.UtcNow
+                );
+            }
+            finally
+            {
+                // Cleanup temp file
+                try
+                {
+                    if (File.Exists(composeFilePath))
+                    {
+                        File.Delete(composeFilePath);
+                    }
+                    if (Directory.Exists(tempDir))
+                    {
+                        Directory.Delete(tempDir, true);
+                    }
+                }
+                catch
+                {
+                    // Ignore cleanup errors
+                }
+            }
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to deploy stack {StackName}", request.Name);
+            throw new InternalServerException($"Erreur lors du deploiement de la stack '{request.Name}'");
+        }
+    }
+
+    public async Task DeleteStackAsync(string stackName, CancellationToken cancellationToken = default)
+    {
+        // Verify stack exists
+        var stack = await GetStackByNameAsync(stackName, cancellationToken);
+        if (stack == null)
+        {
+            throw new NotFoundException($"Stack '{stackName}' non trouvee");
+        }
+
+        try
+        {
+            // Use docker stack rm command via process
+            var processStartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "docker",
+                Arguments = $"stack rm {stackName}",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = System.Diagnostics.Process.Start(processStartInfo);
+            if (process == null)
+            {
+                throw new InternalServerException("Impossible de demarrer le processus docker");
+            }
+
+            var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var error = await process.StandardError.ReadToEndAsync(cancellationToken);
+
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (process.ExitCode != 0)
+            {
+                _logger.LogError("Docker stack rm failed: {Error}", error);
+                throw new BadRequestException($"Echec de la suppression de la stack: {error}");
+            }
+
+            _logger.LogInformation("Stack {StackName} deleted successfully", stackName);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete stack {StackName}", stackName);
+            throw new InternalServerException($"Erreur lors de la suppression de la stack '{stackName}'");
+        }
+    }
 }
