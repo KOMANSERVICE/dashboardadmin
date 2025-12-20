@@ -49,35 +49,35 @@ public interface ISwarmHttpService
     Task<BaseResponse<RollbackServiceResponse>> RollbackServiceAsync(string name);
 
     // Volumes - List
-    [Get("/swarm/volumes")]
+    [Get("/api/swarm/volumes")]
     Task<BaseResponse<GetVolumesResponse>> GetVolumesAsync();
 
     // Volumes - Details
-    [Get("/swarm/volumes/{name}")]
+    [Get("/api/swarm/volumes/{name}")]
     Task<BaseResponse<GetVolumeDetailsResponse>> GetVolumeDetailsAsync(string name);
 
     // Volumes - Unused
-    [Get("/swarm/volumes/unused")]
+    [Get("/api/swarm/volumes/unused")]
     Task<BaseResponse<GetUnusedVolumesResponse>> GetUnusedVolumesAsync();
 
     // Volumes - Create
-    [Post("/swarm/volumes")]
+    [Post("/api/swarm/volumes")]
     Task<BaseResponse<CreateVolumeResponse>> CreateVolumeAsync([Body] CreateVolumeRequest request);
 
     // Volumes - Delete
-    [Delete("/swarm/volumes/{name}")]
+    [Delete("/api/swarm/volumes/{name}")]
     Task DeleteVolumeAsync(string name, [Query] bool force = false);
 
     // Volumes - Prune
-    [Post("/swarm/volumes/prune")]
+    [Post("/api/swarm/volumes/prune")]
     Task<BaseResponse<PruneVolumesResponse>> PruneVolumesAsync();
 
     // Volumes - Backup
-    [Post("/swarm/volumes/{name}/backup")]
+    [Post("/api/swarm/volumes/{name}/backup")]
     Task<BaseResponse<BackupVolumeResponse>> BackupVolumeAsync(string name, [Body] BackupVolumeRequest request);
 
     // Volumes - Restore
-    [Post("/swarm/volumes/{name}/restore")]
+    [Post("/api/swarm/volumes/{name}/restore")]
     Task<BaseResponse<RestoreVolumeResponse>> RestoreVolumeAsync(string name, [Body] RestoreVolumeRequest request);
 
     // Containers - List

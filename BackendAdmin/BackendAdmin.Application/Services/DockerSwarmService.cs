@@ -1375,4 +1375,225 @@ public class DockerSwarmService : IDockerSwarmService
             throw new InternalServerException($"Erreur lors de la recuperation des modifications du conteneur '{containerId}'");
         }
     }
+
+    // Network management methods
+
+    public async Task<IList<NetworkResponse>> GetNetworksAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var networks = await _client.Networks.ListNetworksAsync(null, cancellationToken);
+            return networks.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker networks");
+            throw new InternalServerException("Docker socket non accessible");
+        }
+    }
+
+    public async Task<NetworkResponse?> GetNetworkByNameAsync(string name, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var networks = await GetNetworksAsync(cancellationToken);
+            return networks.FirstOrDefault(n => n.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get network {NetworkName}", name);
+            throw new InternalServerException($"Erreur lors de la recuperation du reseau '{name}'");
+        }
+    }
+
+    public async Task<string> CreateNetworkAsync(CreateNetworkRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Check if network already exists
+            var existingNetwork = await GetNetworkByNameAsync(request.Name, cancellationToken);
+            if (existingNetwork != null)
+            {
+                throw new BadRequestException($"Le reseau '{request.Name}' existe deja");
+            }
+
+            var createParams = new NetworksCreateParameters
+            {
+                Name = request.Name,
+                Driver = request.Driver,
+                Attachable = request.IsAttachable,
+                Labels = request.Labels,
+                Options = request.Options
+            };
+
+            // Add IPAM configuration if subnet is specified
+            if (!string.IsNullOrEmpty(request.Subnet))
+            {
+                createParams.IPAM = new IPAM
+                {
+                    Config = new List<IPAMConfig>
+                    {
+                        new IPAMConfig
+                        {
+                            Subnet = request.Subnet,
+                            Gateway = request.Gateway,
+                            IPRange = request.IpRange
+                        }
+                    }
+                };
+            }
+
+            var response = await _client.Networks.CreateNetworkAsync(createParams, cancellationToken);
+            _logger.LogInformation("Network {NetworkName} created with ID {NetworkId}", request.Name, response.ID);
+
+            return response.ID;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create network {NetworkName}", request.Name);
+            throw new InternalServerException($"Erreur lors de la creation du reseau '{request.Name}'");
+        }
+    }
+
+    public async Task DeleteNetworkAsync(string networkName, CancellationToken cancellationToken = default)
+    {
+        var network = await GetNetworkByNameAsync(networkName, cancellationToken);
+        if (network == null)
+        {
+            throw new NotFoundException($"Reseau '{networkName}' non trouve");
+        }
+
+        try
+        {
+            await _client.Networks.DeleteNetworkAsync(network.ID, cancellationToken);
+            _logger.LogInformation("Network {NetworkName} deleted successfully", networkName);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            throw new BadRequestException($"Le reseau '{networkName}' ne peut pas etre supprime (reseau systeme ou en cours d'utilisation)");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete network {NetworkName}", networkName);
+            throw new InternalServerException($"Erreur lors de la suppression du reseau '{networkName}'");
+        }
+    }
+
+    public async Task<(int count, List<string> deletedNetworks)> PruneNetworksAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _client.Networks.PruneNetworksAsync(null, cancellationToken);
+
+            var deletedNetworks = response.NetworksDeleted?.ToList() ?? new List<string>();
+
+            _logger.LogInformation("Pruned {Count} networks", deletedNetworks.Count);
+
+            return (deletedNetworks.Count, deletedNetworks);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to prune networks");
+            throw new InternalServerException("Erreur lors du nettoyage des reseaux");
+        }
+    }
+
+    public async Task ConnectContainerToNetworkAsync(string networkName, ConnectContainerRequest request, CancellationToken cancellationToken = default)
+    {
+        var network = await GetNetworkByNameAsync(networkName, cancellationToken);
+        if (network == null)
+        {
+            throw new NotFoundException($"Reseau '{networkName}' non trouve");
+        }
+
+        var container = await GetContainerByIdAsync(request.ContainerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{request.ContainerId}' non trouve");
+        }
+
+        try
+        {
+            var connectParams = new NetworkConnectParameters
+            {
+                Container = request.ContainerId
+            };
+
+            // Add IP address if specified
+            if (!string.IsNullOrEmpty(request.IpAddress))
+            {
+                connectParams.EndpointConfig = new EndpointSettings
+                {
+                    IPAMConfig = new EndpointIPAMConfig
+                    {
+                        IPv4Address = request.IpAddress
+                    }
+                };
+            }
+
+            await _client.Networks.ConnectNetworkAsync(network.ID, connectParams, cancellationToken);
+            _logger.LogInformation("Container {ContainerId} connected to network {NetworkName}", request.ContainerId, networkName);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            throw new BadRequestException($"Impossible de connecter le conteneur au reseau '{networkName}'");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to connect container {ContainerId} to network {NetworkName}", request.ContainerId, networkName);
+            throw new InternalServerException($"Erreur lors de la connexion du conteneur au reseau '{networkName}'");
+        }
+    }
+
+    public async Task DisconnectContainerFromNetworkAsync(string networkName, DisconnectContainerRequest request, CancellationToken cancellationToken = default)
+    {
+        var network = await GetNetworkByNameAsync(networkName, cancellationToken);
+        if (network == null)
+        {
+            throw new NotFoundException($"Reseau '{networkName}' non trouve");
+        }
+
+        var container = await GetContainerByIdAsync(request.ContainerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{request.ContainerId}' non trouve");
+        }
+
+        try
+        {
+            var disconnectParams = new NetworkDisconnectParameters
+            {
+                Container = request.ContainerId,
+                Force = request.Force
+            };
+
+            await _client.Networks.DisconnectNetworkAsync(network.ID, disconnectParams, cancellationToken);
+            _logger.LogInformation("Container {ContainerId} disconnected from network {NetworkName}", request.ContainerId, networkName);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            throw new BadRequestException($"Impossible de deconnecter le conteneur du reseau '{networkName}'");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to disconnect container {ContainerId} from network {NetworkName}", request.ContainerId, networkName);
+            throw new InternalServerException($"Erreur lors de la deconnexion du conteneur du reseau '{networkName}'");
+        }
+    }
 }

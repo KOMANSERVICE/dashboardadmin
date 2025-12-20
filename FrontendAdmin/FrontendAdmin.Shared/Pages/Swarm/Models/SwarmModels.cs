@@ -398,3 +398,82 @@ public record UpdateServiceResourcesResponse(
     string ServiceName,
     string Message
 );
+
+// Network models
+public record NetworkDto(
+    string Id,
+    string Name,
+    string Driver,
+    string Scope,
+    bool IsInternal,
+    bool IsAttachable,
+    DateTime CreatedAt,
+    int ContainerCount
+);
+
+public record NetworkDetailsDto(
+    string Id,
+    string Name,
+    string Driver,
+    string Scope,
+    bool IsInternal,
+    bool IsAttachable,
+    DateTime CreatedAt,
+    string? Subnet,
+    string? Gateway,
+    string? IpRange,
+    Dictionary<string, string> Labels,
+    Dictionary<string, string> Options,
+    List<NetworkContainerDto> Containers
+);
+
+public record NetworkContainerDto(
+    string ContainerId,
+    string ContainerName,
+    string? IpAddress,
+    string? MacAddress
+);
+
+public record GetNetworksResponse(List<NetworkDto> Networks);
+
+public record GetNetworkDetailsResponse(NetworkDetailsDto Network);
+
+public record CreateNetworkRequest(
+    string Name,
+    string Driver = "overlay",
+    bool IsAttachable = true,
+    string? Subnet = null,
+    string? Gateway = null,
+    string? IpRange = null,
+    Dictionary<string, string>? Labels = null,
+    Dictionary<string, string>? Options = null
+);
+
+public record CreateNetworkResponse(string NetworkId, string NetworkName);
+
+public record PruneNetworksResponse(
+    int DeletedCount,
+    List<string> DeletedNetworks
+);
+
+public record ConnectContainerRequest(
+    string ContainerId,
+    string? IpAddress = null
+);
+
+public record ConnectContainerResponse(
+    bool Success,
+    string NetworkName,
+    string ContainerId
+);
+
+public record DisconnectContainerRequest(
+    string ContainerId,
+    bool Force = false
+);
+
+public record DisconnectContainerResponse(
+    bool Success,
+    string NetworkName,
+    string ContainerId
+);
