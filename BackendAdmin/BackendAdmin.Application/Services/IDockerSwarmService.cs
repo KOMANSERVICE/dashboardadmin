@@ -56,4 +56,13 @@ public interface IDockerSwarmService
     Task<ContainerExecResponse> ExecContainerAsync(string containerId, ContainerExecRequest request, CancellationToken cancellationToken = default);
     Task<ContainerTopDTO> GetContainerTopAsync(string containerId, CancellationToken cancellationToken = default);
     Task<IList<ContainerFileSystemChangeResponse>> GetContainerChangesAsync(string containerId, CancellationToken cancellationToken = default);
+
+    // Network management methods
+    Task<IList<NetworkResponse>> GetNetworksAsync(CancellationToken cancellationToken = default);
+    Task<NetworkResponse?> GetNetworkByNameAsync(string name, CancellationToken cancellationToken = default);
+    Task<string> CreateNetworkAsync(CreateNetworkRequest request, CancellationToken cancellationToken = default);
+    Task DeleteNetworkAsync(string networkName, CancellationToken cancellationToken = default);
+    Task<(int count, List<string> deletedNetworks)> PruneNetworksAsync(CancellationToken cancellationToken = default);
+    Task ConnectContainerToNetworkAsync(string networkName, ConnectContainerRequest request, CancellationToken cancellationToken = default);
+    Task DisconnectContainerFromNetworkAsync(string networkName, DisconnectContainerRequest request, CancellationToken cancellationToken = default);
 }
