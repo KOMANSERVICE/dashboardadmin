@@ -115,16 +115,14 @@
 
 <Modal OnCloseModal="() => showLogsModal = false"
        ShowModal="showLogsModal"
-       ModalTitle="@($"Logs du service: {selectedServiceName}")"
-       Size="ModalSize.ExtraLarge">
+       ModalTitle="@($"Logs du service: {selectedServiceName}")">
     <ServiceLogsComponent ServiceName="@selectedServiceName"
                           OnClose="() => showLogsModal = false" />
 </Modal>
 
 <Modal OnCloseModal="() => showDetailsModal = false"
        ShowModal="showDetailsModal"
-       ModalTitle="@($"Details du service: {selectedServiceName}")"
-       Size="ModalSize.Large">
+       ModalTitle="@($"Details du service: {selectedServiceName}")">
     <ServiceDetailsComponent ServiceName="@selectedServiceName"
                              OnClose="() => showDetailsModal = false" />
 </Modal>
@@ -167,8 +165,7 @@
 
 <Modal OnCloseModal="() => showVolumeDetailsModal = false"
        ShowModal="showVolumeDetailsModal"
-       ModalTitle="@($"Details du volume: {selectedVolumeName}")"
-       ModalSize="ModalSize.Large">
+       ModalTitle="@($"Details du volume: {selectedVolumeName}")">
     <VolumeDetailsComponent VolumeName="@selectedVolumeName"
                             OnClose="() => showVolumeDetailsModal = false" />
 </Modal>
@@ -218,8 +215,7 @@
 
 <Modal OnCloseModal="() => showBackupModal = false"
        ShowModal="showBackupModal"
-       ModalTitle="@($"Backup/Restore: {selectedVolumeName}")"
-       ModalSize="ModalSize.Large">
+       ModalTitle="@($"Backup/Restore: {selectedVolumeName}")">
     <BackupRestoreComponent VolumeName="@selectedVolumeName"
                             OnClose="() => showBackupModal = false"
                             OnOperationComplete="RefreshData" />
