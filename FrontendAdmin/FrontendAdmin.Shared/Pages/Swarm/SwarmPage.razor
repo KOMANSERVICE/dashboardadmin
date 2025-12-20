@@ -83,7 +83,8 @@
                               OnScale="ShowScaleDialog"
                               OnRestart="RestartService"
                               OnRollback="RollbackService"
-                              OnDelete="ShowDeleteConfirmation" />
+                              OnDelete="ShowDeleteConfirmation"
+                              OnResources="ShowResourcesModal" />
     }
     else if (activeTab == 1)
     {
@@ -140,6 +141,14 @@
        ModalTitle="@($"Details du service: {selectedServiceName}")">
     <ServiceDetailsComponent ServiceName="@selectedServiceName"
                              OnClose="() => showDetailsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showResourcesModal = false"
+       ShowModal="showResourcesModal"
+       ModalTitle="@($"Ressources du service: {selectedServiceName}")">
+    <ServiceResourcesComponent ServiceName="@selectedServiceName"
+                               OnSaved="OnResourcesSaved"
+                               OnClose="() => showResourcesModal = false" />
 </Modal>
 
 <Modal OnCloseModal="() => showDeleteModal = false"
@@ -333,6 +342,7 @@
     private bool showLogsModal;
     private bool showDetailsModal;
     private bool showDeleteModal;
+    private bool showResourcesModal;
     private bool isDeleting;
     private string selectedServiceName = "";
     private int selectedServiceReplicas;
@@ -485,6 +495,18 @@
     {
         selectedServiceName = serviceName;
         showDeleteModal = true;
+    }
+
+    private void ShowResourcesModal(string serviceName)
+    {
+        selectedServiceName = serviceName;
+        showResourcesModal = true;
+    }
+
+    private async Task OnResourcesSaved()
+    {
+        showResourcesModal = false;
+        await RefreshData();
     }
 
     private async Task ConfirmDelete()

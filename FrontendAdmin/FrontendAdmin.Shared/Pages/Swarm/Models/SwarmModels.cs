@@ -361,3 +361,40 @@ public record ContainerSizeDto(
 );
 
 public record GetContainerSizeResponse(ContainerSizeDto Size);
+
+// Service Resources models
+public record ServiceResourcesDto(
+    string ServiceName,
+    double? CpuLimit,
+    double? CpuReservation,
+    string? MemoryLimit,
+    string? MemoryReservation,
+    long? PidsLimit,
+    int? BlkioWeight,
+    List<UlimitDto>? Ulimits,
+    DateTime? CreatedAt,
+    DateTime? UpdatedAt
+);
+
+public record UlimitDto(
+    string Name,
+    long Soft,
+    long Hard
+);
+
+public record GetServiceResourcesResponse(ServiceResourcesDto Resources);
+
+public record UpdateServiceResourcesRequest(
+    double? CpuLimit = null,
+    double? CpuReservation = null,
+    string? MemoryLimit = null,
+    string? MemoryReservation = null,
+    long? PidsLimit = null,
+    int? BlkioWeight = null,
+    List<UlimitDto>? Ulimits = null
+);
+
+public record UpdateServiceResourcesResponse(
+    string ServiceName,
+    string Message
+);

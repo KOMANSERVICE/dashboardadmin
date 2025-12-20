@@ -424,6 +424,107 @@ public class DockerSwarmService : IDockerSwarmService
         }
     }
 
+    // Resource management methods
+
+    public async Task UpdateServiceResourcesAsync(
+        string serviceName,
+        long? cpuLimitNanoCpus,
+        long? cpuReservationNanoCpus,
+        long? memoryLimitBytes,
+        long? memoryReservationBytes,
+        long? pidsLimit,
+        List<UlimitDTO>? ulimits,
+        CancellationToken cancellationToken = default)
+    {
+        var service = await GetServiceByNameAsync(serviceName, cancellationToken);
+        if (service == null)
+        {
+            throw new NotFoundException($"Service '{serviceName}' non trouve");
+        }
+
+        try
+        {
+            var spec = service.Spec;
+
+            // Initialiser les resources si necessaire
+            if (spec.TaskTemplate.Resources == null)
+            {
+                spec.TaskTemplate.Resources = new ResourceRequirements();
+            }
+            if (spec.TaskTemplate.Resources.Limits == null)
+            {
+                spec.TaskTemplate.Resources.Limits = new SwarmLimit();
+            }
+            if (spec.TaskTemplate.Resources.Reservations == null)
+            {
+                spec.TaskTemplate.Resources.Reservations = new SwarmResources();
+            }
+
+            // Appliquer les limites CPU
+            if (cpuLimitNanoCpus.HasValue)
+            {
+                spec.TaskTemplate.Resources.Limits.NanoCPUs = cpuLimitNanoCpus.Value;
+            }
+
+            // Appliquer la reservation CPU
+            if (cpuReservationNanoCpus.HasValue)
+            {
+                spec.TaskTemplate.Resources.Reservations.NanoCPUs = cpuReservationNanoCpus.Value;
+            }
+
+            // Appliquer les limites memoire
+            if (memoryLimitBytes.HasValue)
+            {
+                spec.TaskTemplate.Resources.Limits.MemoryBytes = memoryLimitBytes.Value;
+            }
+
+            // Appliquer la reservation memoire
+            if (memoryReservationBytes.HasValue)
+            {
+                spec.TaskTemplate.Resources.Reservations.MemoryBytes = memoryReservationBytes.Value;
+            }
+
+            // Appliquer la limite de PIDs
+            if (pidsLimit.HasValue)
+            {
+                spec.TaskTemplate.Resources.Limits.Pids = pidsLimit.Value;
+            }
+
+            // Appliquer les ulimits
+            if (ulimits != null && ulimits.Count > 0)
+            {
+                spec.TaskTemplate.ContainerSpec.Ulimits = ulimits.Select(u => new Ulimit
+                {
+                    Name = u.Name,
+                    Soft = u.Soft,
+                    Hard = u.Hard
+                }).ToList();
+            }
+
+            var updateParams = new ServiceUpdateParameters
+            {
+                Service = spec,
+                Version = (long)service.Version.Index
+            };
+
+            await _client.Swarm.UpdateServiceAsync(service.ID, updateParams, cancellationToken);
+            _logger.LogInformation(
+                "Service {ServiceName} resources updated: CPU limit={CpuLimit}, Memory limit={MemLimit}",
+                serviceName,
+                cpuLimitNanoCpus,
+                memoryLimitBytes);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update resources for service {ServiceName}", serviceName);
+            throw new InternalServerException($"Erreur lors de la mise a jour des ressources du service '{serviceName}'");
+        }
+    }
+
     // Volume management methods
 
     public async Task<IList<VolumeResponse>> GetVolumesAsync(CancellationToken cancellationToken = default)

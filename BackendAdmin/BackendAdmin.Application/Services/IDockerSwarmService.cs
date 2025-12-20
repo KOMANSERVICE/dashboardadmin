@@ -24,6 +24,17 @@ public interface IDockerSwarmService
     Task UpdateServiceAsync(string serviceName, UpdateServiceRequest request, CancellationToken cancellationToken = default);
     Task RollbackServiceAsync(string serviceName, CancellationToken cancellationToken = default);
 
+    // Resource management methods
+    Task UpdateServiceResourcesAsync(
+        string serviceName,
+        long? cpuLimitNanoCpus,
+        long? cpuReservationNanoCpus,
+        long? memoryLimitBytes,
+        long? memoryReservationBytes,
+        long? pidsLimit,
+        List<UlimitDTO>? ulimits,
+        CancellationToken cancellationToken = default);
+
     // Volume management methods
     Task<IList<VolumeResponse>> GetVolumesAsync(CancellationToken cancellationToken = default);
     Task<VolumeResponse?> GetVolumeByNameAsync(string name, CancellationToken cancellationToken = default);
