@@ -424,6 +424,107 @@ public class DockerSwarmService : IDockerSwarmService
         }
     }
 
+    // Resource management methods
+
+    public async Task UpdateServiceResourcesAsync(
+        string serviceName,
+        long? cpuLimitNanoCpus,
+        long? cpuReservationNanoCpus,
+        long? memoryLimitBytes,
+        long? memoryReservationBytes,
+        long? pidsLimit,
+        List<UlimitDTO>? ulimits,
+        CancellationToken cancellationToken = default)
+    {
+        var service = await GetServiceByNameAsync(serviceName, cancellationToken);
+        if (service == null)
+        {
+            throw new NotFoundException($"Service '{serviceName}' non trouve");
+        }
+
+        try
+        {
+            var spec = service.Spec;
+
+            // Initialiser les resources si necessaire
+            if (spec.TaskTemplate.Resources == null)
+            {
+                spec.TaskTemplate.Resources = new ResourceRequirements();
+            }
+            if (spec.TaskTemplate.Resources.Limits == null)
+            {
+                spec.TaskTemplate.Resources.Limits = new SwarmLimit();
+            }
+            if (spec.TaskTemplate.Resources.Reservations == null)
+            {
+                spec.TaskTemplate.Resources.Reservations = new SwarmResources();
+            }
+
+            // Appliquer les limites CPU
+            if (cpuLimitNanoCpus.HasValue)
+            {
+                spec.TaskTemplate.Resources.Limits.NanoCPUs = cpuLimitNanoCpus.Value;
+            }
+
+            // Appliquer la reservation CPU
+            if (cpuReservationNanoCpus.HasValue)
+            {
+                spec.TaskTemplate.Resources.Reservations.NanoCPUs = cpuReservationNanoCpus.Value;
+            }
+
+            // Appliquer les limites memoire
+            if (memoryLimitBytes.HasValue)
+            {
+                spec.TaskTemplate.Resources.Limits.MemoryBytes = memoryLimitBytes.Value;
+            }
+
+            // Appliquer la reservation memoire
+            if (memoryReservationBytes.HasValue)
+            {
+                spec.TaskTemplate.Resources.Reservations.MemoryBytes = memoryReservationBytes.Value;
+            }
+
+            // Appliquer la limite de PIDs
+            if (pidsLimit.HasValue)
+            {
+                spec.TaskTemplate.Resources.Limits.Pids = pidsLimit.Value;
+            }
+
+            // Appliquer les ulimits
+            if (ulimits != null && ulimits.Count > 0)
+            {
+                spec.TaskTemplate.ContainerSpec.Ulimits = ulimits.Select(u => new Ulimit
+                {
+                    Name = u.Name,
+                    Soft = u.Soft,
+                    Hard = u.Hard
+                }).ToList();
+            }
+
+            var updateParams = new ServiceUpdateParameters
+            {
+                Service = spec,
+                Version = (long)service.Version.Index
+            };
+
+            await _client.Swarm.UpdateServiceAsync(service.ID, updateParams, cancellationToken);
+            _logger.LogInformation(
+                "Service {ServiceName} resources updated: CPU limit={CpuLimit}, Memory limit={MemLimit}",
+                serviceName,
+                cpuLimitNanoCpus,
+                memoryLimitBytes);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update resources for service {ServiceName}", serviceName);
+            throw new InternalServerException($"Erreur lors de la mise a jour des ressources du service '{serviceName}'");
+        }
+    }
+
     // Volume management methods
 
     public async Task<IList<VolumeResponse>> GetVolumesAsync(CancellationToken cancellationToken = default)
@@ -765,7 +866,10 @@ public class DockerSwarmService : IDockerSwarmService
                 HostConfig = new HostConfig
                 {
                     Binds = new[] { $"{volumeName}:/data:ro" },
-                    AutoRemove = true
+                    // AutoRemove = false pour éviter une condition de course (race condition)
+                    // entre la suppression automatique du conteneur et la récupération des logs
+                    // Le nettoyage manuel est effectué dans le bloc finally
+                    AutoRemove = false
                 }
             };
 
@@ -867,6 +971,632 @@ public class DockerSwarmService : IDockerSwarmService
         {
             _logger.LogError(ex, "Failed to get containers using volume {VolumeName}", volumeName);
             return new List<string>();
+        }
+    }
+
+    // Container management methods
+
+    public async Task<IList<ContainerListResponse>> GetContainersAsync(bool all = true, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containers = await _client.Containers.ListContainersAsync(
+                new ContainersListParameters { All = all },
+                cancellationToken);
+            return containers.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker containers");
+            throw new InternalServerException("Docker socket non accessible");
+        }
+    }
+
+    public async Task<ContainerInspectResponse?> GetContainerByIdAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var container = await _client.Containers.InspectContainerAsync(containerId, cancellationToken);
+            return container;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de la recuperation du conteneur '{containerId}'");
+        }
+    }
+
+    public async Task<ContainerStatsDTO> GetContainerStatsAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        var container = await GetContainerByIdAsync(containerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{containerId}' non trouve");
+        }
+
+        try
+        {
+            // Get one-shot stats (not streaming)
+            var statsParams = new ContainerStatsParameters { Stream = false };
+
+            using var statsStream = await _client.Containers.GetContainerStatsAsync(containerId, statsParams, cancellationToken);
+
+            // Read the stats response
+            using var reader = new StreamReader(statsStream);
+            var statsJson = await reader.ReadToEndAsync(cancellationToken);
+
+            var stats = System.Text.Json.JsonSerializer.Deserialize<ContainerStatsResponse>(statsJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (stats == null)
+            {
+                throw new InternalServerException($"Impossible de parser les stats du conteneur '{containerId}'");
+            }
+
+            // Calculate CPU percentage
+            var cpuDelta = (double)(stats.CPUStats?.CPUUsage?.TotalUsage ?? 0) - (double)(stats.PreCPUStats?.CPUUsage?.TotalUsage ?? 0);
+            var systemDelta = (double)(stats.CPUStats?.SystemUsage ?? 0) - (double)(stats.PreCPUStats?.SystemUsage ?? 0);
+            var onlineCpus = stats.CPUStats?.OnlineCPUs ?? 1;
+            var cpuPercent = systemDelta > 0 ? (cpuDelta / systemDelta) * onlineCpus * 100.0 : 0;
+
+            // Calculate memory percentage
+            var memoryUsage = stats.MemoryStats?.Usage ?? 0;
+            var memoryLimit = stats.MemoryStats?.Limit ?? 1;
+            var memoryPercent = (double)memoryUsage / memoryLimit * 100.0;
+
+            // Calculate network stats
+            ulong rxBytes = 0, txBytes = 0, rxPackets = 0, txPackets = 0;
+            if (stats.Networks != null)
+            {
+                foreach (var network in stats.Networks.Values)
+                {
+                    rxBytes += network.RxBytes;
+                    txBytes += network.TxBytes;
+                    rxPackets += network.RxPackets;
+                    txPackets += network.TxPackets;
+                }
+            }
+
+            // Calculate block I/O stats
+            ulong readBytes = 0, writeBytes = 0;
+            if (stats.BlkioStats?.IoServiceBytesRecursive != null)
+            {
+                foreach (var io in stats.BlkioStats.IoServiceBytesRecursive)
+                {
+                    if (string.Equals(io.Op, "Read", StringComparison.OrdinalIgnoreCase))
+                        readBytes += io.Value;
+                    else if (string.Equals(io.Op, "Write", StringComparison.OrdinalIgnoreCase))
+                        writeBytes += io.Value;
+                }
+            }
+
+            var containerName = container.Name?.TrimStart('/') ?? containerId;
+
+            return new ContainerStatsDTO(
+                ContainerId: containerId,
+                ContainerName: containerName,
+                ReadAt: DateTime.UtcNow,
+                Cpu: new ContainerCpuStatsDTO(
+                    UsagePercent: cpuPercent,
+                    TotalUsage: stats.CPUStats?.CPUUsage?.TotalUsage ?? 0,
+                    SystemUsage: stats.CPUStats?.SystemUsage ?? 0,
+                    OnlineCpus: (int)(stats.CPUStats?.OnlineCPUs ?? 1)
+                ),
+                Memory: new ContainerMemoryStatsDTO(
+                    Usage: memoryUsage,
+                    MaxUsage: stats.MemoryStats?.MaxUsage ?? 0,
+                    Limit: memoryLimit,
+                    UsagePercent: memoryPercent
+                ),
+                Network: new ContainerNetworkStatsDTO(
+                    RxBytes: rxBytes,
+                    TxBytes: txBytes,
+                    RxPackets: rxPackets,
+                    TxPackets: txPackets
+                ),
+                BlockIO: new ContainerBlockIOStatsDTO(
+                    ReadBytes: readBytes,
+                    WriteBytes: writeBytes
+                )
+            );
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get stats for container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de la recuperation des stats du conteneur '{containerId}'");
+        }
+    }
+
+    public async Task<ContainerSizeDTO> GetContainerSizeAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        var container = await GetContainerByIdAsync(containerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{containerId}' non trouve");
+        }
+
+        try
+        {
+            // The inspect response with size=true contains size info
+            // We need to use a different approach - list containers with size option
+            var containers = await _client.Containers.ListContainersAsync(
+                new ContainersListParameters
+                {
+                    All = true,
+                    Size = true,
+                    Filters = new Dictionary<string, IDictionary<string, bool>>
+                    {
+                        ["id"] = new Dictionary<string, bool> { [containerId] = true }
+                    }
+                },
+                cancellationToken);
+
+            var containerWithSize = containers.FirstOrDefault();
+            var containerName = container.Name?.TrimStart('/') ?? containerId;
+
+            return new ContainerSizeDTO(
+                ContainerId: containerId,
+                ContainerName: containerName,
+                SizeRootFs: containerWithSize?.SizeRootFs ?? 0,
+                SizeRw: containerWithSize?.SizeRw ?? 0
+            );
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get size for container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de la recuperation de la taille du conteneur '{containerId}'");
+        }
+    }
+
+    public async Task<string> GetContainerLogsAsync(string containerId, int? tail = null, bool timestamps = false, CancellationToken cancellationToken = default)
+    {
+        var container = await GetContainerByIdAsync(containerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{containerId}' non trouve");
+        }
+
+        try
+        {
+            var parameters = new ContainerLogsParameters
+            {
+                ShowStdout = true,
+                ShowStderr = true,
+                Timestamps = timestamps
+            };
+
+            if (tail.HasValue)
+            {
+                parameters.Tail = tail.Value.ToString();
+            }
+
+            using var logsStream = await _client.Containers.GetContainerLogsAsync(containerId, false, parameters, cancellationToken);
+            var logs = await logsStream.ReadOutputToEndAsync(cancellationToken);
+            var combinedLogs = logs.stdout + logs.stderr;
+
+            return CleanDockerLogs(combinedLogs);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get logs for container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de la recuperation des logs du conteneur '{containerId}'");
+        }
+    }
+
+    public async Task<ContainerExecResponse> ExecContainerAsync(string containerId, ContainerExecRequest request, CancellationToken cancellationToken = default)
+    {
+        var container = await GetContainerByIdAsync(containerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{containerId}' non trouve");
+        }
+
+        // Check if container is running
+        if (container.State?.Running != true)
+        {
+            throw new BadRequestException($"Le conteneur '{containerId}' n'est pas en cours d'execution");
+        }
+
+        try
+        {
+            // Build command array
+            var cmd = new List<string>();
+
+            // Parse the command string - handle both simple commands and complex ones
+            if (!string.IsNullOrEmpty(request.Command))
+            {
+                // Use shell to handle complex commands
+                cmd.Add("/bin/sh");
+                cmd.Add("-c");
+
+                var fullCommand = request.Command;
+                if (request.Args?.Any() == true)
+                {
+                    fullCommand += " " + string.Join(" ", request.Args);
+                }
+                cmd.Add(fullCommand);
+            }
+
+            var execCreateParams = new ContainerExecCreateParameters
+            {
+                AttachStdout = request.AttachStdout,
+                AttachStderr = request.AttachStderr,
+                Cmd = cmd,
+                WorkingDir = request.WorkingDir,
+                Env = request.Env?.Select(kv => $"{kv.Key}={kv.Value}").ToList()
+            };
+
+            var execCreateResponse = await _client.Exec.ExecCreateContainerAsync(containerId, execCreateParams, cancellationToken);
+
+            // Start the exec instance
+            using var stream = await _client.Exec.StartAndAttachContainerExecAsync(
+                execCreateResponse.ID,
+                true,
+                cancellationToken);
+
+            // Read output
+            var output = await stream.ReadOutputToEndAsync(cancellationToken);
+
+            // Get exec exit code
+            var execInspect = await _client.Exec.InspectContainerExecAsync(execCreateResponse.ID, cancellationToken);
+
+            var containerName = container.Name?.TrimStart('/') ?? containerId;
+
+            return new ContainerExecResponse(
+                ContainerId: containerId,
+                ContainerName: containerName,
+                Command: request.Command,
+                ExitCode: (int)execInspect.ExitCode,
+                Stdout: output.stdout,
+                Stderr: output.stderr,
+                ExecutedAt: DateTime.UtcNow
+            );
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to exec in container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de l'execution de la commande dans le conteneur '{containerId}'");
+        }
+    }
+
+    public async Task<ContainerTopDTO> GetContainerTopAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        var container = await GetContainerByIdAsync(containerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{containerId}' non trouve");
+        }
+
+        // Check if container is running
+        if (container.State?.Running != true)
+        {
+            throw new BadRequestException($"Le conteneur '{containerId}' n'est pas en cours d'execution");
+        }
+
+        try
+        {
+            var topResponse = await _client.Containers.ListProcessesAsync(containerId, new ContainerListProcessesParameters(), cancellationToken);
+
+            var containerName = container.Name?.TrimStart('/') ?? containerId;
+            var titles = topResponse.Titles?.ToList() ?? new List<string>();
+
+            var processes = new List<ContainerProcessDTO>();
+
+            if (topResponse.Processes != null)
+            {
+                foreach (var process in topResponse.Processes)
+                {
+                    // Map process columns to DTO properties based on title order
+                    var processDict = new Dictionary<string, string>();
+                    for (int i = 0; i < titles.Count && i < process.Count; i++)
+                    {
+                        processDict[titles[i].ToUpperInvariant()] = process[i];
+                    }
+
+                    processes.Add(new ContainerProcessDTO(
+                        Pid: processDict.GetValueOrDefault("PID", ""),
+                        User: processDict.GetValueOrDefault("USER", ""),
+                        Cpu: processDict.GetValueOrDefault("%CPU", processDict.GetValueOrDefault("CPU", "")),
+                        Memory: processDict.GetValueOrDefault("%MEM", processDict.GetValueOrDefault("MEM", "")),
+                        Vsz: processDict.GetValueOrDefault("VSZ", ""),
+                        Rss: processDict.GetValueOrDefault("RSS", ""),
+                        Tty: processDict.GetValueOrDefault("TTY", ""),
+                        Stat: processDict.GetValueOrDefault("STAT", ""),
+                        Start: processDict.GetValueOrDefault("START", ""),
+                        Time: processDict.GetValueOrDefault("TIME", ""),
+                        Command: processDict.GetValueOrDefault("COMMAND", processDict.GetValueOrDefault("CMD", ""))
+                    ));
+                }
+            }
+
+            return new ContainerTopDTO(
+                ContainerId: containerId,
+                ContainerName: containerName,
+                Titles: titles,
+                Processes: processes
+            );
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get processes for container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de la recuperation des processus du conteneur '{containerId}'");
+        }
+    }
+
+    public async Task<IList<ContainerFileSystemChangeResponse>> GetContainerChangesAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        var container = await GetContainerByIdAsync(containerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{containerId}' non trouve");
+        }
+
+        try
+        {
+            var changes = await _client.Containers.InspectChangesAsync(containerId, cancellationToken);
+            return changes?.ToList() ?? new List<ContainerFileSystemChangeResponse>();
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get filesystem changes for container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de la recuperation des modifications du conteneur '{containerId}'");
+        }
+    }
+
+    // Network management methods
+
+    public async Task<IList<NetworkResponse>> GetNetworksAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var networks = await _client.Networks.ListNetworksAsync(null, cancellationToken);
+            return networks.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker networks");
+            throw new InternalServerException("Docker socket non accessible");
+        }
+    }
+
+    public async Task<NetworkResponse?> GetNetworkByNameAsync(string name, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var networks = await GetNetworksAsync(cancellationToken);
+            return networks.FirstOrDefault(n => n.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get network {NetworkName}", name);
+            throw new InternalServerException($"Erreur lors de la recuperation du reseau '{name}'");
+        }
+    }
+
+    public async Task<string> CreateNetworkAsync(CreateNetworkRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Check if network already exists
+            var existingNetwork = await GetNetworkByNameAsync(request.Name, cancellationToken);
+            if (existingNetwork != null)
+            {
+                throw new BadRequestException($"Le reseau '{request.Name}' existe deja");
+            }
+
+            var createParams = new NetworksCreateParameters
+            {
+                Name = request.Name,
+                Driver = request.Driver,
+                Attachable = request.IsAttachable,
+                Labels = request.Labels,
+                Options = request.Options
+            };
+
+            // Add IPAM configuration if subnet is specified
+            if (!string.IsNullOrEmpty(request.Subnet))
+            {
+                createParams.IPAM = new IPAM
+                {
+                    Config = new List<IPAMConfig>
+                    {
+                        new IPAMConfig
+                        {
+                            Subnet = request.Subnet,
+                            Gateway = request.Gateway,
+                            IPRange = request.IpRange
+                        }
+                    }
+                };
+            }
+
+            var response = await _client.Networks.CreateNetworkAsync(createParams, cancellationToken);
+            _logger.LogInformation("Network {NetworkName} created with ID {NetworkId}", request.Name, response.ID);
+
+            return response.ID;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create network {NetworkName}", request.Name);
+            throw new InternalServerException($"Erreur lors de la creation du reseau '{request.Name}'");
+        }
+    }
+
+    public async Task DeleteNetworkAsync(string networkName, CancellationToken cancellationToken = default)
+    {
+        var network = await GetNetworkByNameAsync(networkName, cancellationToken);
+        if (network == null)
+        {
+            throw new NotFoundException($"Reseau '{networkName}' non trouve");
+        }
+
+        try
+        {
+            await _client.Networks.DeleteNetworkAsync(network.ID, cancellationToken);
+            _logger.LogInformation("Network {NetworkName} deleted successfully", networkName);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            throw new BadRequestException($"Le reseau '{networkName}' ne peut pas etre supprime (reseau systeme ou en cours d'utilisation)");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete network {NetworkName}", networkName);
+            throw new InternalServerException($"Erreur lors de la suppression du reseau '{networkName}'");
+        }
+    }
+
+    public async Task<(int count, List<string> deletedNetworks)> PruneNetworksAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _client.Networks.PruneNetworksAsync(null, cancellationToken);
+
+            var deletedNetworks = response.NetworksDeleted?.ToList() ?? new List<string>();
+
+            _logger.LogInformation("Pruned {Count} networks", deletedNetworks.Count);
+
+            return (deletedNetworks.Count, deletedNetworks);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to prune networks");
+            throw new InternalServerException("Erreur lors du nettoyage des reseaux");
+        }
+    }
+
+    public async Task ConnectContainerToNetworkAsync(string networkName, ConnectContainerRequest request, CancellationToken cancellationToken = default)
+    {
+        var network = await GetNetworkByNameAsync(networkName, cancellationToken);
+        if (network == null)
+        {
+            throw new NotFoundException($"Reseau '{networkName}' non trouve");
+        }
+
+        var container = await GetContainerByIdAsync(request.ContainerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{request.ContainerId}' non trouve");
+        }
+
+        try
+        {
+            var connectParams = new NetworkConnectParameters
+            {
+                Container = request.ContainerId
+            };
+
+            // Add IP address if specified
+            if (!string.IsNullOrEmpty(request.IpAddress))
+            {
+                connectParams.EndpointConfig = new EndpointSettings
+                {
+                    IPAMConfig = new EndpointIPAMConfig
+                    {
+                        IPv4Address = request.IpAddress
+                    }
+                };
+            }
+
+            await _client.Networks.ConnectNetworkAsync(network.ID, connectParams, cancellationToken);
+            _logger.LogInformation("Container {ContainerId} connected to network {NetworkName}", request.ContainerId, networkName);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            throw new BadRequestException($"Impossible de connecter le conteneur au reseau '{networkName}'");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to connect container {ContainerId} to network {NetworkName}", request.ContainerId, networkName);
+            throw new InternalServerException($"Erreur lors de la connexion du conteneur au reseau '{networkName}'");
+        }
+    }
+
+    public async Task DisconnectContainerFromNetworkAsync(string networkName, DisconnectContainerRequest request, CancellationToken cancellationToken = default)
+    {
+        var network = await GetNetworkByNameAsync(networkName, cancellationToken);
+        if (network == null)
+        {
+            throw new NotFoundException($"Reseau '{networkName}' non trouve");
+        }
+
+        var container = await GetContainerByIdAsync(request.ContainerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{request.ContainerId}' non trouve");
+        }
+
+        try
+        {
+            var disconnectParams = new NetworkDisconnectParameters
+            {
+                Container = request.ContainerId,
+                Force = request.Force
+            };
+
+            await _client.Networks.DisconnectNetworkAsync(network.ID, disconnectParams, cancellationToken);
+            _logger.LogInformation("Container {ContainerId} disconnected from network {NetworkName}", request.ContainerId, networkName);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            throw new BadRequestException($"Impossible de deconnecter le conteneur du reseau '{networkName}'");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to disconnect container {ContainerId} from network {NetworkName}", request.ContainerId, networkName);
+            throw new InternalServerException($"Erreur lors de la deconnexion du conteneur du reseau '{networkName}'");
         }
     }
 }

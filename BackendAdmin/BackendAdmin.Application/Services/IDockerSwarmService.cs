@@ -24,6 +24,17 @@ public interface IDockerSwarmService
     Task UpdateServiceAsync(string serviceName, UpdateServiceRequest request, CancellationToken cancellationToken = default);
     Task RollbackServiceAsync(string serviceName, CancellationToken cancellationToken = default);
 
+    // Resource management methods
+    Task UpdateServiceResourcesAsync(
+        string serviceName,
+        long? cpuLimitNanoCpus,
+        long? cpuReservationNanoCpus,
+        long? memoryLimitBytes,
+        long? memoryReservationBytes,
+        long? pidsLimit,
+        List<UlimitDTO>? ulimits,
+        CancellationToken cancellationToken = default);
+
     // Volume management methods
     Task<IList<VolumeResponse>> GetVolumesAsync(CancellationToken cancellationToken = default);
     Task<VolumeResponse?> GetVolumeByNameAsync(string name, CancellationToken cancellationToken = default);
@@ -35,4 +46,23 @@ public interface IDockerSwarmService
     Task<RestoreVolumeResponse> RestoreVolumeAsync(string volumeName, string sourcePath, CancellationToken cancellationToken = default);
     Task<long> GetVolumeSizeAsync(string volumeName, CancellationToken cancellationToken = default);
     Task<IList<string>> GetContainersUsingVolumeAsync(string volumeName, CancellationToken cancellationToken = default);
+
+    // Container management methods
+    Task<IList<ContainerListResponse>> GetContainersAsync(bool all = true, CancellationToken cancellationToken = default);
+    Task<ContainerInspectResponse?> GetContainerByIdAsync(string containerId, CancellationToken cancellationToken = default);
+    Task<ContainerStatsDTO> GetContainerStatsAsync(string containerId, CancellationToken cancellationToken = default);
+    Task<ContainerSizeDTO> GetContainerSizeAsync(string containerId, CancellationToken cancellationToken = default);
+    Task<string> GetContainerLogsAsync(string containerId, int? tail = null, bool timestamps = false, CancellationToken cancellationToken = default);
+    Task<ContainerExecResponse> ExecContainerAsync(string containerId, ContainerExecRequest request, CancellationToken cancellationToken = default);
+    Task<ContainerTopDTO> GetContainerTopAsync(string containerId, CancellationToken cancellationToken = default);
+    Task<IList<ContainerFileSystemChangeResponse>> GetContainerChangesAsync(string containerId, CancellationToken cancellationToken = default);
+
+    // Network management methods
+    Task<IList<NetworkResponse>> GetNetworksAsync(CancellationToken cancellationToken = default);
+    Task<NetworkResponse?> GetNetworkByNameAsync(string name, CancellationToken cancellationToken = default);
+    Task<string> CreateNetworkAsync(CreateNetworkRequest request, CancellationToken cancellationToken = default);
+    Task DeleteNetworkAsync(string networkName, CancellationToken cancellationToken = default);
+    Task<(int count, List<string> deletedNetworks)> PruneNetworksAsync(CancellationToken cancellationToken = default);
+    Task ConnectContainerToNetworkAsync(string networkName, ConnectContainerRequest request, CancellationToken cancellationToken = default);
+    Task DisconnectContainerFromNetworkAsync(string networkName, DisconnectContainerRequest request, CancellationToken cancellationToken = default);
 }

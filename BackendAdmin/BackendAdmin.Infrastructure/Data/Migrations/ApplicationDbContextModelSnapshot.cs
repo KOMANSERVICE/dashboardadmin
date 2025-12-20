@@ -258,6 +258,64 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
                     b.ToTable("TR00001");
                 });
 
+            modelBuilder.Entity("BackendAdmin.Domain.Models.ServiceResourceConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("rc1");
+
+                    b.Property<int?>("BlkioWeight")
+                        .HasColumnType("integer")
+                        .HasColumnName("rc8");
+
+                    b.Property<long?>("CpuLimit")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rc3");
+
+                    b.Property<long?>("CpuReservation")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rc4");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rc10");
+
+                    b.Property<long?>("MemoryLimit")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rc5");
+
+                    b.Property<long?>("MemoryReservation")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rc6");
+
+                    b.Property<long?>("PidsLimit")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rc7");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("rc2");
+
+                    b.Property<string>("UlimitsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("rc9");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rc11");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceName")
+                        .IsUnique();
+
+                    b.ToTable("TK00002");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")

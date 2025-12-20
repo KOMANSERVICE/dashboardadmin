@@ -10,7 +10,7 @@
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <div>
             <h2 class="text-3xl font-bold text-primary-700 text-gray-900 sm:text-2xl">Docker Swarm</h2>
-            <p class="text-gray-600">Gestion des services, noeuds et volumes du cluster Docker Swarm</p>
+            <p class="text-gray-600">Gestion des services, noeuds, volumes, conteneurs et reseaux du cluster Docker Swarm</p>
         </div>
 
         <div class="flex gap-2 mt-4 md:mt-0">
@@ -38,6 +38,18 @@
                     <span>Pruner</span>
                 </Button>
             }
+            else if (activeTab == 4)
+            {
+                <Button type="button" @onclick="ShowCreateNetworkModal" id="addNetworkBtn"
+                        IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
+                    <span>Nouveau reseau</span>
+                </Button>
+                <Button type="button" @onclick="ShowNetworkPruneConfirmation" id="pruneNetworksBtn"
+                        ButtonColor="ButtonColor.Warning"
+                        IconCss="fas fa-broom" IconPlacement="ButtonIconPlacement.Left">
+                    <span>Pruner</span>
+                </Button>
+            }
         </div>
     </div>
 
@@ -60,6 +72,16 @@
                     <i class="fas fa-database mr-2"></i>
                     Volumes (@volumes.Count)
                 </button>
+                <button @onclick="() => SetActiveTab(3)"
+                        class="@GetTabClass(3) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-cube mr-2"></i>
+                    Conteneurs (@containers.Count)
+                </button>
+                <button @onclick="() => SetActiveTab(4)"
+                        class="@GetTabClass(4) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-network-wired mr-2"></i>
+                    Reseaux (@networks.Count)
+                </button>
             </nav>
         </div>
     </div>
@@ -78,14 +100,15 @@
                               OnScale="ShowScaleDialog"
                               OnRestart="RestartService"
                               OnRollback="RollbackService"
-                              OnDelete="ShowDeleteConfirmation" />
+                              OnDelete="ShowDeleteConfirmation"
+                              OnResources="ShowResourcesModal" />
     }
     else if (activeTab == 1)
     {
         <!-- Nodes Tab -->
         <NodeListComponent Nodes="@nodes" />
     }
-    else
+    else if (activeTab == 2)
     {
         <!-- Volumes Tab -->
         <VolumeListComponent Volumes="@volumes"
@@ -93,6 +116,25 @@
                              OnViewDetails="ViewVolumeDetails"
                              OnBackup="ShowBackupModal"
                              OnDelete="ShowVolumeDeleteConfirmation" />
+    }
+    else if (activeTab == 3)
+    {
+        <!-- Containers Tab -->
+        <ContainerListComponent Containers="@containers"
+                                OnRefresh="RefreshData"
+                                OnViewDetails="ViewContainerDetails"
+                                OnViewStats="ViewContainerStats"
+                                OnViewLogs="ViewContainerLogs"
+                                OnExec="ShowExecModal" />
+    }
+    else if (activeTab == 4)
+    {
+        <!-- Networks Tab -->
+        <NetworkListComponent Networks="@networks"
+                              OnRefresh="RefreshData"
+                              OnViewDetails="ViewNetworkDetails"
+                              OnConnect="ShowConnectContainerModal"
+                              OnDelete="ShowNetworkDeleteConfirmation" />
     }
 </div>
 
@@ -115,18 +157,24 @@
 
 <Modal OnCloseModal="() => showLogsModal = false"
        ShowModal="showLogsModal"
-       ModalTitle="@($"Logs du service: {selectedServiceName}")"
-       ModalSize="ModalSize.ExtraLarge">
+       ModalTitle="@($"Logs du service: {selectedServiceName}")">
     <ServiceLogsComponent ServiceName="@selectedServiceName"
                           OnClose="() => showLogsModal = false" />
 </Modal>
 
 <Modal OnCloseModal="() => showDetailsModal = false"
        ShowModal="showDetailsModal"
-       ModalTitle="@($"Details du service: {selectedServiceName}")"
-       ModalSize="ModalSize.Large">
+       ModalTitle="@($"Details du service: {selectedServiceName}")">
     <ServiceDetailsComponent ServiceName="@selectedServiceName"
                              OnClose="() => showDetailsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showResourcesModal = false"
+       ShowModal="showResourcesModal"
+       ModalTitle="@($"Ressources du service: {selectedServiceName}")">
+    <ServiceResourcesComponent ServiceName="@selectedServiceName"
+                               OnSaved="OnResourcesSaved"
+                               OnClose="() => showResourcesModal = false" />
 </Modal>
 
 <Modal OnCloseModal="() => showDeleteModal = false"
@@ -264,10 +312,154 @@
     </div>
 </Modal>
 
+<!-- Container Modals -->
+<Modal OnCloseModal="() => showContainerDetailsModal = false"
+       ShowModal="showContainerDetailsModal"
+       ModalTitle="@($"Details du conteneur: {selectedContainerName}")">
+    <ContainerDetailsComponent ContainerId="@selectedContainerId"
+                               OnClose="() => showContainerDetailsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showContainerStatsModal = false"
+       ShowModal="showContainerStatsModal"
+       ModalTitle="@($"Statistiques: {selectedContainerName}")">
+    <ContainerStatsComponent ContainerId="@selectedContainerId"
+                             OnClose="() => showContainerStatsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showContainerLogsModal = false"
+       ShowModal="showContainerLogsModal"
+       ModalTitle="@($"Logs: {selectedContainerName}")">
+    <ContainerLogsComponent ContainerId="@selectedContainerId"
+                            OnClose="() => showContainerLogsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showContainerExecModal = false"
+       ShowModal="showContainerExecModal"
+       ModalTitle="@($"Terminal: {selectedContainerName}")">
+    <ContainerExecComponent ContainerId="@selectedContainerId"
+                            ContainerName="@selectedContainerName"
+                            OnClose="() => showContainerExecModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showContainerTopModal = false"
+       ShowModal="showContainerTopModal"
+       ModalTitle="@($"Processus: {selectedContainerName}")">
+    <ContainerTopComponent ContainerId="@selectedContainerId"
+                           OnClose="() => showContainerTopModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showContainerChangesModal = false"
+       ShowModal="showContainerChangesModal"
+       ModalTitle="@($"Modifications: {selectedContainerName}")">
+    <ContainerChangesComponent ContainerId="@selectedContainerId"
+                               OnClose="() => showContainerChangesModal = false" />
+</Modal>
+
+<!-- Network Modals -->
+<Modal OnCloseModal="() => showCreateNetworkModal = false"
+       ShowModal="showCreateNetworkModal"
+       ModalTitle="Nouveau reseau Docker">
+    <CreateNetworkComponent OnNetworkCreated="OnNetworkCreated"
+                            OnCancel="() => showCreateNetworkModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showNetworkDetailsModal = false"
+       ShowModal="showNetworkDetailsModal"
+       ModalTitle="@($"Details du reseau: {selectedNetworkName}")">
+    <NetworkDetailsComponent NetworkName="@selectedNetworkName"
+                             OnClose="() => showNetworkDetailsModal = false"
+                             OnNetworkUpdated="RefreshData" />
+</Modal>
+
+<Modal OnCloseModal="() => showConnectContainerModal = false"
+       ShowModal="showConnectContainerModal"
+       ModalTitle="@($"Connecter un conteneur au reseau: {selectedNetworkName}")">
+    <ConnectContainerComponent NetworkName="@selectedNetworkName"
+                               OnContainerConnected="OnContainerConnected"
+                               OnCancel="() => showConnectContainerModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showNetworkDeleteModal = false"
+       ShowModal="showNetworkDeleteModal"
+       ModalTitle="Confirmer la suppression">
+    <div class="p-4">
+        <p class="text-gray-700 mb-4">
+            Etes-vous sur de vouloir supprimer le reseau <strong>@selectedNetworkName</strong> ?
+            @if (selectedNetworkContainerCount > 0)
+            {
+                <span class="text-red-600 font-medium">
+                    <br />Ce reseau est utilise par @selectedNetworkContainerCount conteneur(s).
+                </span>
+            }
+            Cette action est irreversible.
+        </p>
+        <div class="flex justify-end gap-2">
+            <Button type="button" @onclick="() => showNetworkDeleteModal = false"
+                    ButtonColor="ButtonColor.Light">
+                <span>Annuler</span>
+            </Button>
+            <Button type="button" @onclick="ConfirmNetworkDelete"
+                    ButtonColor="ButtonColor.Danger"
+                    Disabled="@isDeleting">
+                @if (isDeleting)
+                {
+                    <span class="animate-spin mr-2">
+                        <i class="fas fa-spinner"></i>
+                    </span>
+                }
+                <span>Supprimer</span>
+            </Button>
+        </div>
+    </div>
+</Modal>
+
+<Modal OnCloseModal="() => showNetworkPruneModal = false"
+       ShowModal="showNetworkPruneModal"
+       ModalTitle="Pruner les reseaux inutilises">
+    <div class="p-4">
+        <p class="text-gray-700 mb-4">
+            <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
+            Cette action va supprimer tous les reseaux non utilises par des containers.
+            Les reseaux systeme (bridge, host, none, ingress) ne seront pas affectes.
+            Cette operation est irreversible.
+        </p>
+        @if (networkPruneResult != null)
+        {
+            <div class="p-3 bg-green-100 text-green-700 rounded-md text-sm mb-4">
+                <i class="fas fa-check-circle mr-2"></i>
+                @networkPruneResult.DeletedCount reseau(x) supprime(s)
+            </div>
+        }
+        <div class="flex justify-end gap-2">
+            <Button type="button" @onclick="() => { showNetworkPruneModal = false; networkPruneResult = null; }"
+                    ButtonColor="ButtonColor.Light">
+                <span>@(networkPruneResult != null ? "Fermer" : "Annuler")</span>
+            </Button>
+            @if (networkPruneResult == null)
+            {
+                <Button type="button" @onclick="ConfirmNetworkPrune"
+                        ButtonColor="ButtonColor.Warning"
+                        Disabled="@isNetworkPruning">
+                    @if (isNetworkPruning)
+                    {
+                        <span class="animate-spin mr-2">
+                            <i class="fas fa-spinner"></i>
+                        </span>
+                    }
+                    <span>Pruner</span>
+                </Button>
+            }
+        </div>
+    </div>
+</Modal>
+
 @code {
     private List<SwarmServiceDto> services = new();
     private List<NodeDto> nodes = new();
     private List<VolumeDto> volumes = new();
+    private List<ContainerDto> containers = new();
+    private List<NetworkDto> networks = new();
     private bool isLoading = true;
     private int activeTab = 0;
 
@@ -277,6 +469,7 @@
     private bool showLogsModal;
     private bool showDetailsModal;
     private bool showDeleteModal;
+    private bool showResourcesModal;
     private bool isDeleting;
     private string selectedServiceName = "";
     private int selectedServiceReplicas;
@@ -293,6 +486,27 @@
     private bool forceDeleteVolume;
     private PruneVolumesResponse? pruneResult;
 
+    // Container state
+    private bool showContainerDetailsModal;
+    private bool showContainerStatsModal;
+    private bool showContainerLogsModal;
+    private bool showContainerExecModal;
+    private bool showContainerTopModal;
+    private bool showContainerChangesModal;
+    private string selectedContainerId = "";
+    private string selectedContainerName = "";
+
+    // Network state
+    private bool showCreateNetworkModal;
+    private bool showNetworkDetailsModal;
+    private bool showConnectContainerModal;
+    private bool showNetworkDeleteModal;
+    private bool showNetworkPruneModal;
+    private bool isNetworkPruning;
+    private string selectedNetworkName = "";
+    private int selectedNetworkContainerCount;
+    private PruneNetworksResponse? networkPruneResult;
+
     protected override async Task OnInitializedAsync()
     {
         await RefreshData();
@@ -308,12 +522,16 @@
             var servicesTask = SwarmService.GetServicesAsync();
             var nodesTask = SwarmService.GetNodesAsync();
             var volumesTask = SwarmService.GetVolumesAsync();
+            var containersTask = SwarmService.GetContainersAsync();
+            var networksTask = SwarmService.GetNetworksAsync();
 
-            await Task.WhenAll(servicesTask, nodesTask, volumesTask);
+            await Task.WhenAll(servicesTask, nodesTask, volumesTask, containersTask, networksTask);
 
             var servicesResponse = await servicesTask;
             var nodesResponse = await nodesTask;
             var volumesResponse = await volumesTask;
+            var containersResponse = await containersTask;
+            var networksResponse = await networksTask;
 
             if (servicesResponse.Success)
                 services = servicesResponse.Data.Services;
@@ -323,6 +541,12 @@
 
             if (volumesResponse.Success)
                 volumes = volumesResponse.Data.Volumes;
+
+            if (containersResponse.Success)
+                containers = containersResponse.Data.Containers;
+
+            if (networksResponse.Success)
+                networks = networksResponse.Data.Networks;
         }
         catch (Exception ex)
         {
@@ -414,6 +638,18 @@
     {
         selectedServiceName = serviceName;
         showDeleteModal = true;
+    }
+
+    private void ShowResourcesModal(string serviceName)
+    {
+        selectedServiceName = serviceName;
+        showResourcesModal = true;
+    }
+
+    private async Task OnResourcesSaved()
+    {
+        showResourcesModal = false;
+        await RefreshData();
     }
 
     private async Task ConfirmDelete()
@@ -534,5 +770,124 @@
             size /= 1024;
         }
         return $"{size:0.##} {sizes[order]}";
+    }
+
+    // Container methods
+    private void ViewContainerDetails(ContainerDto container)
+    {
+        selectedContainerId = container.Id;
+        selectedContainerName = container.Name;
+        showContainerDetailsModal = true;
+    }
+
+    private void ViewContainerStats(ContainerDto container)
+    {
+        selectedContainerId = container.Id;
+        selectedContainerName = container.Name;
+        showContainerStatsModal = true;
+    }
+
+    private void ViewContainerLogs(ContainerDto container)
+    {
+        selectedContainerId = container.Id;
+        selectedContainerName = container.Name;
+        showContainerLogsModal = true;
+    }
+
+    private void ShowExecModal(ContainerDto container)
+    {
+        selectedContainerId = container.Id;
+        selectedContainerName = container.Name;
+        showContainerExecModal = true;
+    }
+
+    // Network methods
+    private void ShowCreateNetworkModal()
+    {
+        showCreateNetworkModal = true;
+    }
+
+    private async Task OnNetworkCreated()
+    {
+        showCreateNetworkModal = false;
+        await RefreshData();
+    }
+
+    private void ViewNetworkDetails(string networkName)
+    {
+        selectedNetworkName = networkName;
+        showNetworkDetailsModal = true;
+    }
+
+    private void ShowConnectContainerModal(NetworkDto network)
+    {
+        selectedNetworkName = network.Name;
+        showConnectContainerModal = true;
+    }
+
+    private async Task OnContainerConnected()
+    {
+        showConnectContainerModal = false;
+        await RefreshData();
+    }
+
+    private void ShowNetworkDeleteConfirmation(NetworkDto network)
+    {
+        selectedNetworkName = network.Name;
+        selectedNetworkContainerCount = network.ContainerCount;
+        showNetworkDeleteModal = true;
+    }
+
+    private async Task ConfirmNetworkDelete()
+    {
+        isDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            await SwarmService.DeleteNetworkAsync(selectedNetworkName);
+            showNetworkDeleteModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting network: {ex.Message}");
+        }
+        finally
+        {
+            isDeleting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ShowNetworkPruneConfirmation()
+    {
+        networkPruneResult = null;
+        showNetworkPruneModal = true;
+    }
+
+    private async Task ConfirmNetworkPrune()
+    {
+        isNetworkPruning = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SwarmService.PruneNetworksAsync();
+            if (response.Success)
+            {
+                networkPruneResult = response.Data;
+                await RefreshData();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error pruning networks: {ex.Message}");
+        }
+        finally
+        {
+            isNetworkPruning = false;
+            StateHasChanged();
+        }
     }
 }

@@ -71,6 +71,11 @@
                                         title="Scaler">
                                     <i class="fas fa-expand-arrows-alt"></i>
                                 </button>
+                                <button @onclick="() => OnResources.InvokeAsync(service.Name)"
+                                        class="text-gray-400 hover:text-green-600 transition"
+                                        title="Ressources">
+                                    <i class="fas fa-microchip"></i>
+                                </button>
                                 <button @onclick="() => OnRestart.InvokeAsync(service.Name)"
                                         class="text-gray-400 hover:text-yellow-600 transition"
                                         title="Redemarrer">
@@ -104,6 +109,7 @@
     [Parameter] public EventCallback<string> OnRestart { get; set; }
     [Parameter] public EventCallback<string> OnRollback { get; set; }
     [Parameter] public EventCallback<string> OnDelete { get; set; }
+    [Parameter] public EventCallback<string> OnResources { get; set; }
 
     private string GetImageShortName(string image)
     {
