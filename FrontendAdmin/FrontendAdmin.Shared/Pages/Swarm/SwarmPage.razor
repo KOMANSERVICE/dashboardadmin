@@ -215,7 +215,8 @@
 
 <Modal OnCloseModal="() => showVolumeDetailsModal = false"
        ShowModal="showVolumeDetailsModal"
-       ModalTitle="@($"Details du volume: {selectedVolumeName}")">
+       ModalTitle="@($"Details du volume: {selectedVolumeName}")"
+       ModalSize="ModalSize.Large">
     <VolumeDetailsComponent VolumeName="@selectedVolumeName"
                             OnClose="() => showVolumeDetailsModal = false" />
 </Modal>
@@ -265,7 +266,8 @@
 
 <Modal OnCloseModal="() => showBackupModal = false"
        ShowModal="showBackupModal"
-       ModalTitle="@($"Backup/Restore: {selectedVolumeName}")">
+       ModalTitle="@($"Backup/Restore: {selectedVolumeName}")"
+       ModalSize="ModalSize.Large">
     <BackupRestoreComponent VolumeName="@selectedVolumeName"
                             OnClose="() => showBackupModal = false"
                             OnOperationComplete="RefreshData" />
