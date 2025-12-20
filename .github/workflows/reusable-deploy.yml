@@ -181,7 +181,7 @@ jobs:
             echo "🔄 Forçage de la mise à jour des services..."
             sleep 5
             for svc in $(docker service ls --filter "name=${STACK_NAME}_" -q); do
-              docker service update --force "$svc"
+              docker service update --force --detach "$svc"
             done
 
             # Nettoyer le fichier temporaire
