@@ -119,4 +119,32 @@ public interface ISwarmHttpService
     // Services - Update Resources
     [Put("/api/swarm/services/{name}/resources")]
     Task<BaseResponse<UpdateServiceResourcesResponse>> UpdateServiceResourcesAsync(string name, [Body] UpdateServiceResourcesRequest request);
+
+    // Networks - List
+    [Get("/api/swarm/networks")]
+    Task<BaseResponse<GetNetworksResponse>> GetNetworksAsync();
+
+    // Networks - Details
+    [Get("/api/swarm/networks/{name}")]
+    Task<BaseResponse<GetNetworkDetailsResponse>> GetNetworkDetailsAsync(string name);
+
+    // Networks - Create
+    [Post("/api/swarm/networks")]
+    Task<BaseResponse<CreateNetworkResponse>> CreateNetworkAsync([Body] CreateNetworkRequest request);
+
+    // Networks - Delete
+    [Delete("/api/swarm/networks/{name}")]
+    Task DeleteNetworkAsync(string name);
+
+    // Networks - Prune
+    [Post("/api/swarm/networks/prune")]
+    Task<BaseResponse<PruneNetworksResponse>> PruneNetworksAsync();
+
+    // Networks - Connect Container
+    [Post("/api/swarm/networks/{name}/connect")]
+    Task<BaseResponse<ConnectContainerResponse>> ConnectContainerAsync(string name, [Body] ConnectContainerRequest request);
+
+    // Networks - Disconnect Container
+    [Post("/api/swarm/networks/{name}/disconnect")]
+    Task<BaseResponse<DisconnectContainerResponse>> DisconnectContainerAsync(string name, [Body] DisconnectContainerRequest request);
 }
