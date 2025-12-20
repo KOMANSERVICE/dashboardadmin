@@ -65,4 +65,11 @@ public interface IDockerSwarmService
     Task<(int count, List<string> deletedNetworks)> PruneNetworksAsync(CancellationToken cancellationToken = default);
     Task ConnectContainerToNetworkAsync(string networkName, ConnectContainerRequest request, CancellationToken cancellationToken = default);
     Task DisconnectContainerFromNetworkAsync(string networkName, DisconnectContainerRequest request, CancellationToken cancellationToken = default);
+
+    // Stack management methods
+    Task<IList<StackDTO>> GetStacksAsync(CancellationToken cancellationToken = default);
+    Task<StackDetailsDTO?> GetStackByNameAsync(string stackName, CancellationToken cancellationToken = default);
+    Task<DeployStackResponse> DeployStackAsync(DeployStackRequest request, CancellationToken cancellationToken = default);
+    Task DeleteStackAsync(string stackName, CancellationToken cancellationToken = default);
+    Task<IList<StackServiceDTO>> GetStackServicesAsync(string stackName, CancellationToken cancellationToken = default);
 }
