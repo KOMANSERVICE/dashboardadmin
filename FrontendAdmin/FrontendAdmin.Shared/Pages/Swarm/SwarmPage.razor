@@ -10,7 +10,7 @@
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <div>
             <h2 class="text-3xl font-bold text-primary-700 text-gray-900 sm:text-2xl">Docker Swarm</h2>
-            <p class="text-gray-600">Gestion des services et noeuds du cluster Docker Swarm</p>
+            <p class="text-gray-600">Gestion des services, noeuds et volumes du cluster Docker Swarm</p>
         </div>
 
         <div class="flex gap-2 mt-4 md:mt-0">
@@ -19,10 +19,25 @@
                     Disabled="@isLoading">
                 <span>Actualiser</span>
             </Button>
-            <Button type="button" @onclick="ShowCreateServiceModal" id="addServiceBtn"
-                    IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
-                <span>Nouveau service</span>
-            </Button>
+            @if (activeTab == 0)
+            {
+                <Button type="button" @onclick="ShowCreateServiceModal" id="addServiceBtn"
+                        IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
+                    <span>Nouveau service</span>
+                </Button>
+            }
+            else if (activeTab == 2)
+            {
+                <Button type="button" @onclick="ShowCreateVolumeModal" id="addVolumeBtn"
+                        IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
+                    <span>Nouveau volume</span>
+                </Button>
+                <Button type="button" @onclick="ShowPruneConfirmation" id="pruneVolumesBtn"
+                        ButtonColor="ButtonColor.Warning"
+                        IconCss="fas fa-broom" IconPlacement="ButtonIconPlacement.Left">
+                    <span>Pruner</span>
+                </Button>
+            }
         </div>
     </div>
 
@@ -39,6 +54,11 @@
                         class="@GetTabClass(1) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                     <i class="fas fa-server mr-2"></i>
                     Noeuds (@nodes.Count)
+                </button>
+                <button @onclick="() => SetActiveTab(2)"
+                        class="@GetTabClass(2) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-database mr-2"></i>
+                    Volumes (@volumes.Count)
                 </button>
             </nav>
         </div>
@@ -60,14 +80,23 @@
                               OnRollback="RollbackService"
                               OnDelete="ShowDeleteConfirmation" />
     }
-    else
+    else if (activeTab == 1)
     {
         <!-- Nodes Tab -->
         <NodeListComponent Nodes="@nodes" />
     }
+    else
+    {
+        <!-- Volumes Tab -->
+        <VolumeListComponent Volumes="@volumes"
+                             OnRefresh="RefreshData"
+                             OnViewDetails="ViewVolumeDetails"
+                             OnBackup="ShowBackupModal"
+                             OnDelete="ShowVolumeDeleteConfirmation" />
+    }
 </div>
 
-<!-- Modals -->
+<!-- Service Modals -->
 <Modal OnCloseModal="() => showCreateModal = false"
        ShowModal="showCreateModal"
        ModalTitle="Nouveau service Docker">
@@ -128,21 +157,141 @@
     </div>
 </Modal>
 
+<!-- Volume Modals -->
+<Modal OnCloseModal="() => showCreateVolumeModal = false"
+       ShowModal="showCreateVolumeModal"
+       ModalTitle="Nouveau volume Docker">
+    <CreateVolumeComponent OnVolumeCreated="OnVolumeCreated"
+                           OnCancel="() => showCreateVolumeModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showVolumeDetailsModal = false"
+       ShowModal="showVolumeDetailsModal"
+       ModalTitle="@($"Details du volume: {selectedVolumeName}")"
+       ModalSize="ModalSize.Large">
+    <VolumeDetailsComponent VolumeName="@selectedVolumeName"
+                            OnClose="() => showVolumeDetailsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showVolumeDeleteModal = false"
+       ShowModal="showVolumeDeleteModal"
+       ModalTitle="Confirmer la suppression">
+    <div class="p-4">
+        <p class="text-gray-700 mb-4">
+            Etes-vous sur de vouloir supprimer le volume <strong>@selectedVolumeName</strong> ?
+            @if (selectedVolumeIsUsed)
+            {
+                <span class="text-red-600 font-medium">
+                    <br />Ce volume est utilise par un ou plusieurs containers.
+                </span>
+            }
+        </p>
+        @if (selectedVolumeIsUsed)
+        {
+            <div class="flex items-center mb-4">
+                <input type="checkbox" @bind="forceDeleteVolume" id="forceDelete"
+                       class="mr-2 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded" />
+                <label for="forceDelete" class="text-sm text-gray-700">
+                    Forcer la suppression (peut causer des problemes avec les containers)
+                </label>
+            </div>
+        }
+        <div class="flex justify-end gap-2">
+            <Button type="button" @onclick="() => showVolumeDeleteModal = false"
+                    ButtonColor="ButtonColor.Light">
+                <span>Annuler</span>
+            </Button>
+            <Button type="button" @onclick="ConfirmVolumeDelete"
+                    ButtonColor="ButtonColor.Danger"
+                    Disabled="@(isDeleting || (selectedVolumeIsUsed && !forceDeleteVolume))">
+                @if (isDeleting)
+                {
+                    <span class="animate-spin mr-2">
+                        <i class="fas fa-spinner"></i>
+                    </span>
+                }
+                <span>Supprimer</span>
+            </Button>
+        </div>
+    </div>
+</Modal>
+
+<Modal OnCloseModal="() => showBackupModal = false"
+       ShowModal="showBackupModal"
+       ModalTitle="@($"Backup/Restore: {selectedVolumeName}")"
+       ModalSize="ModalSize.Large">
+    <BackupRestoreComponent VolumeName="@selectedVolumeName"
+                            OnClose="() => showBackupModal = false"
+                            OnOperationComplete="RefreshData" />
+</Modal>
+
+<Modal OnCloseModal="() => showPruneModal = false"
+       ShowModal="showPruneModal"
+       ModalTitle="Pruner les volumes inutilises">
+    <div class="p-4">
+        <p class="text-gray-700 mb-4">
+            <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
+            Cette action va supprimer tous les volumes non utilises par des containers.
+            Cette operation est irreversible.
+        </p>
+        @if (pruneResult != null)
+        {
+            <div class="p-3 bg-green-100 text-green-700 rounded-md text-sm mb-4">
+                <i class="fas fa-check-circle mr-2"></i>
+                @pruneResult.DeletedCount volume(s) supprime(s), @FormatBytes(pruneResult.SpaceReclaimed) recupere(s)
+            </div>
+        }
+        <div class="flex justify-end gap-2">
+            <Button type="button" @onclick="() => { showPruneModal = false; pruneResult = null; }"
+                    ButtonColor="ButtonColor.Light">
+                <span>@(pruneResult != null ? "Fermer" : "Annuler")</span>
+            </Button>
+            @if (pruneResult == null)
+            {
+                <Button type="button" @onclick="ConfirmPrune"
+                        ButtonColor="ButtonColor.Warning"
+                        Disabled="@isPruning">
+                    @if (isPruning)
+                    {
+                        <span class="animate-spin mr-2">
+                            <i class="fas fa-spinner"></i>
+                        </span>
+                    }
+                    <span>Pruner</span>
+                </Button>
+            }
+        </div>
+    </div>
+</Modal>
+
 @code {
     private List<SwarmServiceDto> services = new();
     private List<NodeDto> nodes = new();
+    private List<VolumeDto> volumes = new();
     private bool isLoading = true;
     private int activeTab = 0;
 
+    // Service state
     private bool showCreateModal;
     private bool showScaleModal;
     private bool showLogsModal;
     private bool showDetailsModal;
     private bool showDeleteModal;
     private bool isDeleting;
-
     private string selectedServiceName = "";
     private int selectedServiceReplicas;
+
+    // Volume state
+    private bool showCreateVolumeModal;
+    private bool showVolumeDetailsModal;
+    private bool showVolumeDeleteModal;
+    private bool showBackupModal;
+    private bool showPruneModal;
+    private bool isPruning;
+    private string selectedVolumeName = "";
+    private bool selectedVolumeIsUsed;
+    private bool forceDeleteVolume;
+    private PruneVolumesResponse? pruneResult;
 
     protected override async Task OnInitializedAsync()
     {
@@ -158,17 +307,22 @@
         {
             var servicesTask = SwarmService.GetServicesAsync();
             var nodesTask = SwarmService.GetNodesAsync();
+            var volumesTask = SwarmService.GetVolumesAsync();
 
-            await Task.WhenAll(servicesTask, nodesTask);
+            await Task.WhenAll(servicesTask, nodesTask, volumesTask);
 
             var servicesResponse = await servicesTask;
             var nodesResponse = await nodesTask;
+            var volumesResponse = await volumesTask;
 
             if (servicesResponse.Success)
                 services = servicesResponse.Data.Services;
 
             if (nodesResponse.Success)
                 nodes = nodesResponse.Data.Nodes;
+
+            if (volumesResponse.Success)
+                volumes = volumesResponse.Data.Volumes;
         }
         catch (Exception ex)
         {
@@ -193,6 +347,7 @@
             : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300";
     }
 
+    // Service methods
     private void ShowCreateServiceModal()
     {
         showCreateModal = true;
@@ -281,5 +436,103 @@
             isDeleting = false;
             StateHasChanged();
         }
+    }
+
+    // Volume methods
+    private void ShowCreateVolumeModal()
+    {
+        showCreateVolumeModal = true;
+    }
+
+    private async Task OnVolumeCreated()
+    {
+        showCreateVolumeModal = false;
+        await RefreshData();
+    }
+
+    private void ViewVolumeDetails(string volumeName)
+    {
+        selectedVolumeName = volumeName;
+        showVolumeDetailsModal = true;
+    }
+
+    private void ShowBackupModal(string volumeName)
+    {
+        selectedVolumeName = volumeName;
+        showBackupModal = true;
+    }
+
+    private void ShowVolumeDeleteConfirmation(VolumeDto volume)
+    {
+        selectedVolumeName = volume.Name;
+        selectedVolumeIsUsed = volume.IsUsed;
+        forceDeleteVolume = false;
+        showVolumeDeleteModal = true;
+    }
+
+    private async Task ConfirmVolumeDelete()
+    {
+        isDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            await SwarmService.DeleteVolumeAsync(selectedVolumeName, forceDeleteVolume);
+            showVolumeDeleteModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting volume: {ex.Message}");
+        }
+        finally
+        {
+            isDeleting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ShowPruneConfirmation()
+    {
+        pruneResult = null;
+        showPruneModal = true;
+    }
+
+    private async Task ConfirmPrune()
+    {
+        isPruning = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SwarmService.PruneVolumesAsync();
+            if (response.Success)
+            {
+                pruneResult = response.Data;
+                await RefreshData();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error pruning volumes: {ex.Message}");
+        }
+        finally
+        {
+            isPruning = false;
+            StateHasChanged();
+        }
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:0.##} {sizes[order]}";
     }
 }
