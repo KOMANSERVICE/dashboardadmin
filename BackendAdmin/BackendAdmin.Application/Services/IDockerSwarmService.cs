@@ -35,4 +35,14 @@ public interface IDockerSwarmService
     Task<RestoreVolumeResponse> RestoreVolumeAsync(string volumeName, string sourcePath, CancellationToken cancellationToken = default);
     Task<long> GetVolumeSizeAsync(string volumeName, CancellationToken cancellationToken = default);
     Task<IList<string>> GetContainersUsingVolumeAsync(string volumeName, CancellationToken cancellationToken = default);
+
+    // Container management methods
+    Task<IList<ContainerListResponse>> GetContainersAsync(bool all = true, CancellationToken cancellationToken = default);
+    Task<ContainerInspectResponse?> GetContainerByIdAsync(string containerId, CancellationToken cancellationToken = default);
+    Task<ContainerStatsDTO> GetContainerStatsAsync(string containerId, CancellationToken cancellationToken = default);
+    Task<ContainerSizeDTO> GetContainerSizeAsync(string containerId, CancellationToken cancellationToken = default);
+    Task<string> GetContainerLogsAsync(string containerId, int? tail = null, bool timestamps = false, CancellationToken cancellationToken = default);
+    Task<ContainerExecResponse> ExecContainerAsync(string containerId, ContainerExecRequest request, CancellationToken cancellationToken = default);
+    Task<ContainerTopDTO> GetContainerTopAsync(string containerId, CancellationToken cancellationToken = default);
+    Task<IList<ContainerFileSystemChangeResponse>> GetContainerChangesAsync(string containerId, CancellationToken cancellationToken = default);
 }

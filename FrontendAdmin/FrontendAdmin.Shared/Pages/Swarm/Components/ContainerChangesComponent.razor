@@ -1,0 +1,155 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900">Modifications du filesystem</h3>
+            @if (changes != null)
+            {
+                <p class="text-sm text-gray-500">@changes.ContainerName</p>
+            }
+        </div>
+        <button @onclick="LoadChanges" class="text-primary-600 hover:text-primary-800 text-sm" disabled="@isLoading">
+            <i class="fas fa-sync-alt @(isLoading ? "animate-spin" : "") mr-1"></i>
+            Actualiser
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <LoadingData />
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="p-4 bg-red-50 text-red-700 rounded-md">
+            @errorMessage
+        </div>
+    }
+    else if (changes != null)
+    {
+        @if (changes.Changes?.Any() == true)
+        {
+            <!-- Stats summary -->
+            <div class="flex gap-4 mb-4">
+                <div class="bg-green-50 px-3 py-2 rounded">
+                    <span class="text-green-800 font-semibold">@changes.Changes.Count(c => c.Kind == "Added")</span>
+                    <span class="text-green-600 text-sm"> ajoute(s)</span>
+                </div>
+                <div class="bg-blue-50 px-3 py-2 rounded">
+                    <span class="text-blue-800 font-semibold">@changes.Changes.Count(c => c.Kind == "Modified")</span>
+                    <span class="text-blue-600 text-sm"> modifie(s)</span>
+                </div>
+                <div class="bg-red-50 px-3 py-2 rounded">
+                    <span class="text-red-800 font-semibold">@changes.Changes.Count(c => c.Kind == "Deleted")</span>
+                    <span class="text-red-600 text-sm"> supprime(s)</span>
+                </div>
+            </div>
+
+            <div class="bg-white shadow-md rounded-lg overflow-hidden max-h-[400px] overflow-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase w-24">Type</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Chemin</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach (var change in changes.Changes.OrderBy(c => c.Path))
+                        {
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-2">
+                                    <span class="@GetKindBadgeClass(change.Kind) px-2 py-0.5 rounded text-xs font-semibold">
+                                        @GetKindLabel(change.Kind)
+                                    </span>
+                                </td>
+                                <td class="px-4 py-2 font-mono text-xs">@change.Path</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="bg-gray-50 p-8 rounded-lg text-center">
+                <i class="fas fa-check-circle text-4xl text-green-500 mb-2"></i>
+                <p class="text-gray-600">Aucune modification du filesystem</p>
+                <p class="text-sm text-gray-500">Le conteneur n'a pas modifie de fichiers depuis sa creation</p>
+            </div>
+        }
+    }
+
+    <div class="flex justify-end mt-6">
+        <Button type="button" @onclick="OnClose" ButtonColor="ButtonColor.Light">
+            <span>Fermer</span>
+        </Button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string ContainerId { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ContainerChangesDto? changes;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadChanges();
+    }
+
+    private async Task LoadChanges()
+    {
+        if (string.IsNullOrEmpty(ContainerId)) return;
+
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await SwarmService.GetContainerChangesAsync(ContainerId);
+
+            if (response.Success)
+            {
+                changes = response.Data.Changes;
+            }
+            else
+            {
+                errorMessage = response.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetKindBadgeClass(string kind)
+    {
+        return kind switch
+        {
+            "Added" => "bg-green-100 text-green-800",
+            "Modified" => "bg-blue-100 text-blue-800",
+            "Deleted" => "bg-red-100 text-red-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+
+    private string GetKindLabel(string kind)
+    {
+        return kind switch
+        {
+            "Added" => "A",
+            "Modified" => "M",
+            "Deleted" => "D",
+            _ => "?"
+        };
+    }
+}

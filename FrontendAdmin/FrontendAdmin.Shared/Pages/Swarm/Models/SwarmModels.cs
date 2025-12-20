@@ -175,3 +175,189 @@ public record RestoreVolumeResponse(
     string SourcePath,
     DateTime RestoreDate
 );
+
+// Container models
+public record ContainerDto(
+    string Id,
+    string Name,
+    string Image,
+    string State,
+    string Status,
+    DateTime CreatedAt
+);
+
+public record GetContainersResponse(List<ContainerDto> Containers);
+
+public record ContainerDetailsDto(
+    string Id,
+    string Name,
+    string Image,
+    string State,
+    string Status,
+    DateTime CreatedAt,
+    string Platform,
+    string Driver,
+    long SizeRootFs,
+    long SizeRw,
+    string? Command,
+    string? WorkingDir,
+    Dictionary<string, string> Labels,
+    Dictionary<string, string> Env,
+    List<ContainerMountDto> Mounts,
+    List<ContainerNetworkDto> Networks,
+    List<ContainerPortDto> Ports,
+    ContainerHostConfigDto HostConfig
+);
+
+public record ContainerMountDto(
+    string Type,
+    string Source,
+    string Destination,
+    bool ReadOnly
+);
+
+public record ContainerNetworkDto(
+    string NetworkId,
+    string NetworkName,
+    string? IpAddress,
+    string? Gateway,
+    string? MacAddress
+);
+
+public record ContainerPortDto(
+    int PrivatePort,
+    int? PublicPort,
+    string Type,
+    string? Ip
+);
+
+public record ContainerHostConfigDto(
+    long Memory,
+    long MemorySwap,
+    long CpuShares,
+    long NanoCpus,
+    string RestartPolicy,
+    bool Privileged,
+    bool ReadonlyRootfs
+);
+
+public record GetContainerInspectResponse(ContainerDetailsDto Details);
+
+// Container stats models
+public record ContainerStatsDto(
+    string ContainerId,
+    string ContainerName,
+    DateTime ReadAt,
+    ContainerCpuStatsDto Cpu,
+    ContainerMemoryStatsDto Memory,
+    ContainerNetworkStatsDto Network,
+    ContainerBlockIOStatsDto BlockIO
+);
+
+public record ContainerCpuStatsDto(
+    double UsagePercent,
+    ulong TotalUsage,
+    ulong SystemUsage,
+    int OnlineCpus
+);
+
+public record ContainerMemoryStatsDto(
+    ulong Usage,
+    ulong MaxUsage,
+    ulong Limit,
+    double UsagePercent
+);
+
+public record ContainerNetworkStatsDto(
+    ulong RxBytes,
+    ulong TxBytes,
+    ulong RxPackets,
+    ulong TxPackets
+);
+
+public record ContainerBlockIOStatsDto(
+    ulong ReadBytes,
+    ulong WriteBytes
+);
+
+public record GetContainerStatsResponse(ContainerStatsDto Stats);
+
+// Container logs models
+public record ContainerLogsDto(
+    string ContainerId,
+    string ContainerName,
+    string Logs,
+    DateTime FetchedAt
+);
+
+public record GetContainerLogsResponse(ContainerLogsDto Logs);
+
+// Container exec models
+public record ContainerExecRequest(
+    string Command,
+    string[]? Args = null,
+    bool AttachStdout = true,
+    bool AttachStderr = true,
+    string? WorkingDir = null,
+    Dictionary<string, string>? Env = null
+);
+
+public record ContainerExecResponseDto(
+    string ContainerId,
+    string ContainerName,
+    string Command,
+    int ExitCode,
+    string Stdout,
+    string Stderr,
+    DateTime ExecutedAt
+);
+
+public record ExecContainerResponse(ContainerExecResponseDto Response);
+
+// Container top models
+public record ContainerProcessDto(
+    string Pid,
+    string User,
+    string Cpu,
+    string Memory,
+    string Vsz,
+    string Rss,
+    string Tty,
+    string Stat,
+    string Start,
+    string Time,
+    string Command
+);
+
+public record ContainerTopDto(
+    string ContainerId,
+    string ContainerName,
+    List<string> Titles,
+    List<ContainerProcessDto> Processes
+);
+
+public record GetContainerTopResponse(ContainerTopDto Top);
+
+// Container changes models
+public record FilesystemChangeDto(
+    string Path,
+    string Kind
+);
+
+public record ContainerChangesDto(
+    string ContainerId,
+    string ContainerName,
+    List<FilesystemChangeDto> Changes
+);
+
+public record GetContainerChangesResponse(ContainerChangesDto Changes);
+
+// Container size models
+public record ContainerSizeDto(
+    string ContainerId,
+    string ContainerName,
+    long SizeRootFs,
+    long SizeRw
+);
+
+public record GetContainerSizeResponse(ContainerSizeDto Size);

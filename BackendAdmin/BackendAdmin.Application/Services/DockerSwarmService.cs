@@ -869,4 +869,409 @@ public class DockerSwarmService : IDockerSwarmService
             return new List<string>();
         }
     }
+
+    // Container management methods
+
+    public async Task<IList<ContainerListResponse>> GetContainersAsync(bool all = true, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containers = await _client.Containers.ListContainersAsync(
+                new ContainersListParameters { All = all },
+                cancellationToken);
+            return containers.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker containers");
+            throw new InternalServerException("Docker socket non accessible");
+        }
+    }
+
+    public async Task<ContainerInspectResponse?> GetContainerByIdAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var container = await _client.Containers.InspectContainerAsync(containerId, cancellationToken);
+            return container;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de la recuperation du conteneur '{containerId}'");
+        }
+    }
+
+    public async Task<ContainerStatsDTO> GetContainerStatsAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        var container = await GetContainerByIdAsync(containerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{containerId}' non trouve");
+        }
+
+        try
+        {
+            // Get one-shot stats (not streaming)
+            var statsParams = new ContainerStatsParameters { Stream = false };
+
+            using var statsStream = await _client.Containers.GetContainerStatsAsync(containerId, statsParams, cancellationToken);
+
+            // Read the stats response
+            using var reader = new StreamReader(statsStream);
+            var statsJson = await reader.ReadToEndAsync(cancellationToken);
+
+            var stats = System.Text.Json.JsonSerializer.Deserialize<ContainerStatsResponse>(statsJson,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (stats == null)
+            {
+                throw new InternalServerException($"Impossible de parser les stats du conteneur '{containerId}'");
+            }
+
+            // Calculate CPU percentage
+            var cpuDelta = (double)(stats.CPUStats?.CPUUsage?.TotalUsage ?? 0) - (double)(stats.PreCPUStats?.CPUUsage?.TotalUsage ?? 0);
+            var systemDelta = (double)(stats.CPUStats?.SystemUsage ?? 0) - (double)(stats.PreCPUStats?.SystemUsage ?? 0);
+            var onlineCpus = stats.CPUStats?.OnlineCPUs ?? 1;
+            var cpuPercent = systemDelta > 0 ? (cpuDelta / systemDelta) * onlineCpus * 100.0 : 0;
+
+            // Calculate memory percentage
+            var memoryUsage = stats.MemoryStats?.Usage ?? 0;
+            var memoryLimit = stats.MemoryStats?.Limit ?? 1;
+            var memoryPercent = (double)memoryUsage / memoryLimit * 100.0;
+
+            // Calculate network stats
+            ulong rxBytes = 0, txBytes = 0, rxPackets = 0, txPackets = 0;
+            if (stats.Networks != null)
+            {
+                foreach (var network in stats.Networks.Values)
+                {
+                    rxBytes += network.RxBytes;
+                    txBytes += network.TxBytes;
+                    rxPackets += network.RxPackets;
+                    txPackets += network.TxPackets;
+                }
+            }
+
+            // Calculate block I/O stats
+            ulong readBytes = 0, writeBytes = 0;
+            if (stats.BlkioStats?.IoServiceBytesRecursive != null)
+            {
+                foreach (var io in stats.BlkioStats.IoServiceBytesRecursive)
+                {
+                    if (string.Equals(io.Op, "Read", StringComparison.OrdinalIgnoreCase))
+                        readBytes += io.Value;
+                    else if (string.Equals(io.Op, "Write", StringComparison.OrdinalIgnoreCase))
+                        writeBytes += io.Value;
+                }
+            }
+
+            var containerName = container.Name?.TrimStart('/') ?? containerId;
+
+            return new ContainerStatsDTO(
+                ContainerId: containerId,
+                ContainerName: containerName,
+                ReadAt: DateTime.UtcNow,
+                Cpu: new ContainerCpuStatsDTO(
+                    UsagePercent: cpuPercent,
+                    TotalUsage: stats.CPUStats?.CPUUsage?.TotalUsage ?? 0,
+                    SystemUsage: stats.CPUStats?.SystemUsage ?? 0,
+                    OnlineCpus: (int)(stats.CPUStats?.OnlineCPUs ?? 1)
+                ),
+                Memory: new ContainerMemoryStatsDTO(
+                    Usage: memoryUsage,
+                    MaxUsage: stats.MemoryStats?.MaxUsage ?? 0,
+                    Limit: memoryLimit,
+                    UsagePercent: memoryPercent
+                ),
+                Network: new ContainerNetworkStatsDTO(
+                    RxBytes: rxBytes,
+                    TxBytes: txBytes,
+                    RxPackets: rxPackets,
+                    TxPackets: txPackets
+                ),
+                BlockIO: new ContainerBlockIOStatsDTO(
+                    ReadBytes: readBytes,
+                    WriteBytes: writeBytes
+                )
+            );
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get stats for container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de la recuperation des stats du conteneur '{containerId}'");
+        }
+    }
+
+    public async Task<ContainerSizeDTO> GetContainerSizeAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        var container = await GetContainerByIdAsync(containerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{containerId}' non trouve");
+        }
+
+        try
+        {
+            // The inspect response with size=true contains size info
+            // We need to use a different approach - list containers with size option
+            var containers = await _client.Containers.ListContainersAsync(
+                new ContainersListParameters
+                {
+                    All = true,
+                    Size = true,
+                    Filters = new Dictionary<string, IDictionary<string, bool>>
+                    {
+                        ["id"] = new Dictionary<string, bool> { [containerId] = true }
+                    }
+                },
+                cancellationToken);
+
+            var containerWithSize = containers.FirstOrDefault();
+            var containerName = container.Name?.TrimStart('/') ?? containerId;
+
+            return new ContainerSizeDTO(
+                ContainerId: containerId,
+                ContainerName: containerName,
+                SizeRootFs: containerWithSize?.SizeRootFs ?? 0,
+                SizeRw: containerWithSize?.SizeRw ?? 0
+            );
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get size for container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de la recuperation de la taille du conteneur '{containerId}'");
+        }
+    }
+
+    public async Task<string> GetContainerLogsAsync(string containerId, int? tail = null, bool timestamps = false, CancellationToken cancellationToken = default)
+    {
+        var container = await GetContainerByIdAsync(containerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{containerId}' non trouve");
+        }
+
+        try
+        {
+            var parameters = new ContainerLogsParameters
+            {
+                ShowStdout = true,
+                ShowStderr = true,
+                Timestamps = timestamps
+            };
+
+            if (tail.HasValue)
+            {
+                parameters.Tail = tail.Value.ToString();
+            }
+
+            using var logsStream = await _client.Containers.GetContainerLogsAsync(containerId, false, parameters, cancellationToken);
+            var logs = await logsStream.ReadOutputToEndAsync(cancellationToken);
+            var combinedLogs = logs.stdout + logs.stderr;
+
+            return CleanDockerLogs(combinedLogs);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get logs for container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de la recuperation des logs du conteneur '{containerId}'");
+        }
+    }
+
+    public async Task<ContainerExecResponse> ExecContainerAsync(string containerId, ContainerExecRequest request, CancellationToken cancellationToken = default)
+    {
+        var container = await GetContainerByIdAsync(containerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{containerId}' non trouve");
+        }
+
+        // Check if container is running
+        if (container.State?.Running != true)
+        {
+            throw new BadRequestException($"Le conteneur '{containerId}' n'est pas en cours d'execution");
+        }
+
+        try
+        {
+            // Build command array
+            var cmd = new List<string>();
+
+            // Parse the command string - handle both simple commands and complex ones
+            if (!string.IsNullOrEmpty(request.Command))
+            {
+                // Use shell to handle complex commands
+                cmd.Add("/bin/sh");
+                cmd.Add("-c");
+
+                var fullCommand = request.Command;
+                if (request.Args?.Any() == true)
+                {
+                    fullCommand += " " + string.Join(" ", request.Args);
+                }
+                cmd.Add(fullCommand);
+            }
+
+            var execCreateParams = new ContainerExecCreateParameters
+            {
+                AttachStdout = request.AttachStdout,
+                AttachStderr = request.AttachStderr,
+                Cmd = cmd,
+                WorkingDir = request.WorkingDir,
+                Env = request.Env?.Select(kv => $"{kv.Key}={kv.Value}").ToList()
+            };
+
+            var execCreateResponse = await _client.Exec.ExecCreateContainerAsync(containerId, execCreateParams, cancellationToken);
+
+            // Start the exec instance
+            using var stream = await _client.Exec.StartAndAttachContainerExecAsync(
+                execCreateResponse.ID,
+                true,
+                cancellationToken);
+
+            // Read output
+            var output = await stream.ReadOutputToEndAsync(cancellationToken);
+
+            // Get exec exit code
+            var execInspect = await _client.Exec.InspectContainerExecAsync(execCreateResponse.ID, cancellationToken);
+
+            var containerName = container.Name?.TrimStart('/') ?? containerId;
+
+            return new ContainerExecResponse(
+                ContainerId: containerId,
+                ContainerName: containerName,
+                Command: request.Command,
+                ExitCode: (int)execInspect.ExitCode,
+                Stdout: output.stdout,
+                Stderr: output.stderr,
+                ExecutedAt: DateTime.UtcNow
+            );
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to exec in container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de l'execution de la commande dans le conteneur '{containerId}'");
+        }
+    }
+
+    public async Task<ContainerTopDTO> GetContainerTopAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        var container = await GetContainerByIdAsync(containerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{containerId}' non trouve");
+        }
+
+        // Check if container is running
+        if (container.State?.Running != true)
+        {
+            throw new BadRequestException($"Le conteneur '{containerId}' n'est pas en cours d'execution");
+        }
+
+        try
+        {
+            var topResponse = await _client.Containers.ListProcessesAsync(containerId, new ContainerListProcessesParameters(), cancellationToken);
+
+            var containerName = container.Name?.TrimStart('/') ?? containerId;
+            var titles = topResponse.Titles?.ToList() ?? new List<string>();
+
+            var processes = new List<ContainerProcessDTO>();
+
+            if (topResponse.Processes != null)
+            {
+                foreach (var process in topResponse.Processes)
+                {
+                    // Map process columns to DTO properties based on title order
+                    var processDict = new Dictionary<string, string>();
+                    for (int i = 0; i < titles.Count && i < process.Count; i++)
+                    {
+                        processDict[titles[i].ToUpperInvariant()] = process[i];
+                    }
+
+                    processes.Add(new ContainerProcessDTO(
+                        Pid: processDict.GetValueOrDefault("PID", ""),
+                        User: processDict.GetValueOrDefault("USER", ""),
+                        Cpu: processDict.GetValueOrDefault("%CPU", processDict.GetValueOrDefault("CPU", "")),
+                        Memory: processDict.GetValueOrDefault("%MEM", processDict.GetValueOrDefault("MEM", "")),
+                        Vsz: processDict.GetValueOrDefault("VSZ", ""),
+                        Rss: processDict.GetValueOrDefault("RSS", ""),
+                        Tty: processDict.GetValueOrDefault("TTY", ""),
+                        Stat: processDict.GetValueOrDefault("STAT", ""),
+                        Start: processDict.GetValueOrDefault("START", ""),
+                        Time: processDict.GetValueOrDefault("TIME", ""),
+                        Command: processDict.GetValueOrDefault("COMMAND", processDict.GetValueOrDefault("CMD", ""))
+                    ));
+                }
+            }
+
+            return new ContainerTopDTO(
+                ContainerId: containerId,
+                ContainerName: containerName,
+                Titles: titles,
+                Processes: processes
+            );
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get processes for container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de la recuperation des processus du conteneur '{containerId}'");
+        }
+    }
+
+    public async Task<IList<ContainerFileSystemChangeResponse>> GetContainerChangesAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        var container = await GetContainerByIdAsync(containerId, cancellationToken);
+        if (container == null)
+        {
+            throw new NotFoundException($"Conteneur '{containerId}' non trouve");
+        }
+
+        try
+        {
+            var changes = await _client.Containers.InspectChangesAsync(containerId, cancellationToken);
+            return changes?.ToList() ?? new List<ContainerFileSystemChangeResponse>();
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get filesystem changes for container {ContainerId}", containerId);
+            throw new InternalServerException($"Erreur lors de la recuperation des modifications du conteneur '{containerId}'");
+        }
+    }
 }

@@ -79,4 +79,36 @@ public interface ISwarmHttpService
     // Volumes - Restore
     [Post("/swarm/volumes/{name}/restore")]
     Task<BaseResponse<RestoreVolumeResponse>> RestoreVolumeAsync(string name, [Body] RestoreVolumeRequest request);
+
+    // Containers - List
+    [Get("/api/swarm/containers")]
+    Task<BaseResponse<GetContainersResponse>> GetContainersAsync([Query] bool? all = true);
+
+    // Containers - Stats
+    [Get("/api/swarm/containers/{id}/stats")]
+    Task<BaseResponse<GetContainerStatsResponse>> GetContainerStatsAsync(string id);
+
+    // Containers - Size
+    [Get("/api/swarm/containers/{id}/size")]
+    Task<BaseResponse<GetContainerSizeResponse>> GetContainerSizeAsync(string id);
+
+    // Containers - Logs
+    [Get("/api/swarm/containers/{id}/logs")]
+    Task<BaseResponse<GetContainerLogsResponse>> GetContainerLogsAsync(string id, [Query] int? tail = null, [Query] bool? timestamps = false);
+
+    // Containers - Exec
+    [Post("/api/swarm/containers/{id}/exec")]
+    Task<BaseResponse<ExecContainerResponse>> ExecContainerAsync(string id, [Body] ContainerExecRequest request);
+
+    // Containers - Inspect
+    [Get("/api/swarm/containers/{id}/inspect")]
+    Task<BaseResponse<GetContainerInspectResponse>> GetContainerInspectAsync(string id);
+
+    // Containers - Top (processes)
+    [Get("/api/swarm/containers/{id}/top")]
+    Task<BaseResponse<GetContainerTopResponse>> GetContainerTopAsync(string id);
+
+    // Containers - Changes
+    [Get("/api/swarm/containers/{id}/changes")]
+    Task<BaseResponse<GetContainerChangesResponse>> GetContainerChangesAsync(string id);
 }

@@ -1,0 +1,110 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900">Logs</h3>
+            @if (logs != null)
+            {
+                <p class="text-sm text-gray-500">@logs.ContainerName - @logs.FetchedAt.ToString("HH:mm:ss")</p>
+            }
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+                <label class="text-sm text-gray-600">Lignes:</label>
+                <select @bind="tailLines" class="px-2 py-1 border rounded text-sm">
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                    <option value="500">500</option>
+                </select>
+            </div>
+            <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" @bind="showTimestamps" class="rounded" />
+                Timestamps
+            </label>
+            <button @onclick="LoadLogs" class="text-primary-600 hover:text-primary-800 text-sm" disabled="@isLoading">
+                <i class="fas fa-sync-alt @(isLoading ? "animate-spin" : "") mr-1"></i>
+                Actualiser
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <LoadingData />
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="p-4 bg-red-50 text-red-700 rounded-md">
+            @errorMessage
+        </div>
+    }
+    else if (logs != null)
+    {
+        <div class="bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-auto max-h-[500px]">
+            @if (string.IsNullOrWhiteSpace(logs.Logs))
+            {
+                <p class="text-gray-500 italic">Aucun log disponible</p>
+            }
+            else
+            {
+                <pre class="whitespace-pre-wrap break-all">@logs.Logs</pre>
+            }
+        </div>
+    }
+
+    <div class="flex justify-end mt-6">
+        <Button type="button" @onclick="OnClose" ButtonColor="ButtonColor.Light">
+            <span>Fermer</span>
+        </Button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string ContainerId { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ContainerLogsDto? logs;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private int tailLines = 100;
+    private bool showTimestamps = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogs();
+    }
+
+    private async Task LoadLogs()
+    {
+        if (string.IsNullOrEmpty(ContainerId)) return;
+
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await SwarmService.GetContainerLogsAsync(ContainerId, tailLines, showTimestamps);
+
+            if (response.Success)
+            {
+                logs = response.Data.Logs;
+            }
+            else
+            {
+                errorMessage = response.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}
