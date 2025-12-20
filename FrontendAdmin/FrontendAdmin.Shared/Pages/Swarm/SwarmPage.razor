@@ -1,0 +1,285 @@
+@page "/swarm"
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@using FrontendAdmin.Shared.Pages.Swarm.Components
+@inject ISwarmHttpService SwarmService
+@inject NavigationManager NavigationManager
+
+<PageTitleComponent Title="Docker Swarm" />
+
+<div class="container mx-auto px-4 py-8">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+            <h2 class="text-3xl font-bold text-primary-700 text-gray-900 sm:text-2xl">Docker Swarm</h2>
+            <p class="text-gray-600">Gestion des services et noeuds du cluster Docker Swarm</p>
+        </div>
+
+        <div class="flex gap-2 mt-4 md:mt-0">
+            <Button type="button" @onclick="RefreshData" id="refreshBtn"
+                    IconCss="fas fa-sync-alt" IconPlacement="ButtonIconPlacement.Left"
+                    Disabled="@isLoading">
+                <span>Actualiser</span>
+            </Button>
+            <Button type="button" @onclick="ShowCreateServiceModal" id="addServiceBtn"
+                    IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
+                <span>Nouveau service</span>
+            </Button>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="mb-6">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8">
+                <button @onclick="() => SetActiveTab(0)"
+                        class="@GetTabClass(0) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-cubes mr-2"></i>
+                    Services (@services.Count)
+                </button>
+                <button @onclick="() => SetActiveTab(1)"
+                        class="@GetTabClass(1) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-server mr-2"></i>
+                    Noeuds (@nodes.Count)
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <LoadingData />
+    }
+    else if (activeTab == 0)
+    {
+        <!-- Services Tab -->
+        <ServiceListComponent Services="@services"
+                              OnRefresh="RefreshData"
+                              OnViewDetails="ViewServiceDetails"
+                              OnViewLogs="ViewServiceLogs"
+                              OnScale="ShowScaleDialog"
+                              OnRestart="RestartService"
+                              OnRollback="RollbackService"
+                              OnDelete="ShowDeleteConfirmation" />
+    }
+    else
+    {
+        <!-- Nodes Tab -->
+        <NodeListComponent Nodes="@nodes" />
+    }
+</div>
+
+<!-- Modals -->
+<Modal OnCloseModal="() => showCreateModal = false"
+       ShowModal="showCreateModal"
+       ModalTitle="Nouveau service Docker">
+    <CreateServiceComponent OnServiceCreated="OnServiceCreated"
+                            OnCancel="() => showCreateModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showScaleModal = false"
+       ShowModal="showScaleModal"
+       ModalTitle="@($"Scaler le service: {selectedServiceName}")">
+    <ScaleServiceComponent ServiceName="@selectedServiceName"
+                           CurrentReplicas="@selectedServiceReplicas"
+                           OnScaled="OnServiceScaled"
+                           OnCancel="() => showScaleModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showLogsModal = false"
+       ShowModal="showLogsModal"
+       ModalTitle="@($"Logs du service: {selectedServiceName}")"
+       ModalSize="ModalSize.ExtraLarge">
+    <ServiceLogsComponent ServiceName="@selectedServiceName"
+                          OnClose="() => showLogsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showDetailsModal = false"
+       ShowModal="showDetailsModal"
+       ModalTitle="@($"Details du service: {selectedServiceName}")"
+       ModalSize="ModalSize.Large">
+    <ServiceDetailsComponent ServiceName="@selectedServiceName"
+                             OnClose="() => showDetailsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showDeleteModal = false"
+       ShowModal="showDeleteModal"
+       ModalTitle="Confirmer la suppression">
+    <div class="p-4">
+        <p class="text-gray-700 mb-4">
+            Etes-vous sur de vouloir supprimer le service <strong>@selectedServiceName</strong> ?
+            Cette action est irreversible.
+        </p>
+        <div class="flex justify-end gap-2">
+            <Button type="button" @onclick="() => showDeleteModal = false"
+                    ButtonColor="ButtonColor.Light">
+                <span>Annuler</span>
+            </Button>
+            <Button type="button" @onclick="ConfirmDelete"
+                    ButtonColor="ButtonColor.Danger"
+                    Disabled="@isDeleting">
+                @if (isDeleting)
+                {
+                    <span class="animate-spin mr-2">
+                        <i class="fas fa-spinner"></i>
+                    </span>
+                }
+                <span>Supprimer</span>
+            </Button>
+        </div>
+    </div>
+</Modal>
+
+@code {
+    private List<SwarmServiceDto> services = new();
+    private List<NodeDto> nodes = new();
+    private bool isLoading = true;
+    private int activeTab = 0;
+
+    private bool showCreateModal;
+    private bool showScaleModal;
+    private bool showLogsModal;
+    private bool showDetailsModal;
+    private bool showDeleteModal;
+    private bool isDeleting;
+
+    private string selectedServiceName = "";
+    private int selectedServiceReplicas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshData();
+    }
+
+    private async Task RefreshData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var servicesTask = SwarmService.GetServicesAsync();
+            var nodesTask = SwarmService.GetNodesAsync();
+
+            await Task.WhenAll(servicesTask, nodesTask);
+
+            var servicesResponse = await servicesTask;
+            var nodesResponse = await nodesTask;
+
+            if (servicesResponse.Success)
+                services = servicesResponse.Data.Services;
+
+            if (nodesResponse.Success)
+                nodes = nodesResponse.Data.Nodes;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading Swarm data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SetActiveTab(int tab)
+    {
+        activeTab = tab;
+    }
+
+    private string GetTabClass(int tab)
+    {
+        return activeTab == tab
+            ? "border-primary-700 text-primary-700"
+            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300";
+    }
+
+    private void ShowCreateServiceModal()
+    {
+        showCreateModal = true;
+    }
+
+    private async Task OnServiceCreated()
+    {
+        showCreateModal = false;
+        await RefreshData();
+    }
+
+    private void ViewServiceDetails(string serviceName)
+    {
+        selectedServiceName = serviceName;
+        showDetailsModal = true;
+    }
+
+    private void ViewServiceLogs(string serviceName)
+    {
+        selectedServiceName = serviceName;
+        showLogsModal = true;
+    }
+
+    private void ShowScaleDialog(SwarmServiceDto service)
+    {
+        selectedServiceName = service.Name;
+        selectedServiceReplicas = service.DesiredReplicas;
+        showScaleModal = true;
+    }
+
+    private async Task OnServiceScaled()
+    {
+        showScaleModal = false;
+        await RefreshData();
+    }
+
+    private async Task RestartService(string serviceName)
+    {
+        try
+        {
+            await SwarmService.RestartServiceAsync(serviceName);
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error restarting service: {ex.Message}");
+        }
+    }
+
+    private async Task RollbackService(string serviceName)
+    {
+        try
+        {
+            await SwarmService.RollbackServiceAsync(serviceName);
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error rolling back service: {ex.Message}");
+        }
+    }
+
+    private void ShowDeleteConfirmation(string serviceName)
+    {
+        selectedServiceName = serviceName;
+        showDeleteModal = true;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        isDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            await SwarmService.DeleteServiceAsync(selectedServiceName);
+            showDeleteModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting service: {ex.Message}");
+        }
+        finally
+        {
+            isDeleting = false;
+            StateHasChanged();
+        }
+    }
+}

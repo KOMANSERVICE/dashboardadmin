@@ -41,6 +41,12 @@ public static class DependencyInjection
             .AddHttpMessageHandler<CookieHandler>()
             .AddHttpMessageHandler<JwtAuthorizationHandler>();
 
+        // Swarm Service
+        services.AddRefitClient<ISwarmHttpService>()
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri(uri))
+            .AddHttpMessageHandler<CookieHandler>()
+            .AddHttpMessageHandler<JwtAuthorizationHandler>();
+
         // Tresorerie Service
         var tresorerieUri = configuration["ApiSettings:TresorerieUri"] ?? uri;
         services.AddRefitClient<ITresorerieHttpService>()
