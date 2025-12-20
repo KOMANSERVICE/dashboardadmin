@@ -1,0 +1,234 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    <!-- Tabs -->
+    <div class="border-b border-gray-200 mb-4">
+        <nav class="-mb-px flex space-x-8">
+            <button @onclick="() => activeTab = 0"
+                    class="@GetTabClass(0) whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                <i class="fas fa-download mr-2"></i>Backup
+            </button>
+            <button @onclick="() => activeTab = 1"
+                    class="@GetTabClass(1) whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                <i class="fas fa-upload mr-2"></i>Restore
+            </button>
+        </nav>
+    </div>
+
+    @if (activeTab == 0)
+    {
+        <!-- Backup Tab -->
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Volume a sauvegarder</label>
+                <p class="text-gray-900 font-medium">@VolumeName</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Chemin de destination *</label>
+                <input type="text" @bind="backupPath"
+                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-700 focus:border-transparent"
+                       placeholder="/backups/volumes" />
+                <p class="text-sm text-gray-500 mt-1">Le fichier backup.tar sera cree dans ce dossier</p>
+            </div>
+
+            @if (backupResult != null)
+            {
+                <div class="p-3 bg-green-100 text-green-700 rounded-md text-sm">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    Backup cree: @backupResult.BackupPath (@FormatBytes(backupResult.SizeBytes))
+                </div>
+            }
+        </div>
+
+        <div class="flex justify-end gap-2 mt-6">
+            <Button type="button" @onclick="OnClose" ButtonColor="ButtonColor.Light">
+                <span>Fermer</span>
+            </Button>
+            <Button type="button" @onclick="HandleBackup" ButtonColor="ButtonColor.Primary" Disabled="@isProcessing">
+                @if (isProcessing)
+                {
+                    <span class="animate-spin mr-2"><i class="fas fa-spinner"></i></span>
+                }
+                <span>Lancer le backup</span>
+            </Button>
+        </div>
+    }
+    else
+    {
+        <!-- Restore Tab -->
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Volume de destination</label>
+                <input type="text" @bind="restoreVolumeName"
+                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-700 focus:border-transparent"
+                       placeholder="nom-du-volume" />
+                <p class="text-sm text-gray-500 mt-1">Le volume sera cree s'il n'existe pas</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Chemin du fichier backup *</label>
+                <input type="text" @bind="restorePath"
+                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-700 focus:border-transparent"
+                       placeholder="/backups/volumes/backup.tar" />
+            </div>
+
+            @if (restoreResult != null)
+            {
+                <div class="p-3 bg-green-100 text-green-700 rounded-md text-sm">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    Volume @restoreResult.VolumeName restaure avec succes
+                </div>
+            }
+        </div>
+
+        <div class="flex justify-end gap-2 mt-6">
+            <Button type="button" @onclick="OnClose" ButtonColor="ButtonColor.Light">
+                <span>Fermer</span>
+            </Button>
+            <Button type="button" @onclick="HandleRestore" ButtonColor="ButtonColor.Primary" Disabled="@isProcessing">
+                @if (isProcessing)
+                {
+                    <span class="animate-spin mr-2"><i class="fas fa-spinner"></i></span>
+                }
+                <span>Restaurer</span>
+            </Button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="mt-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
+            <i class="fas fa-exclamation-triangle mr-2"></i>@errorMessage
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string VolumeName { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnOperationComplete { get; set; }
+
+    private int activeTab = 0;
+    private bool isProcessing;
+    private string? errorMessage;
+
+    // Backup
+    private string backupPath = "";
+    private BackupVolumeResponse? backupResult;
+
+    // Restore
+    private string restoreVolumeName = "";
+    private string restorePath = "";
+    private RestoreVolumeResponse? restoreResult;
+
+    protected override void OnParametersSet()
+    {
+        restoreVolumeName = VolumeName;
+    }
+
+    private string GetTabClass(int tab)
+    {
+        return activeTab == tab
+            ? "border-primary-700 text-primary-700"
+            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300";
+    }
+
+    private async Task HandleBackup()
+    {
+        if (string.IsNullOrWhiteSpace(backupPath))
+        {
+            errorMessage = "Le chemin de destination est requis";
+            return;
+        }
+
+        isProcessing = true;
+        errorMessage = null;
+        backupResult = null;
+        StateHasChanged();
+
+        try
+        {
+            var request = new BackupVolumeRequest(backupPath);
+            var response = await SwarmService.BackupVolumeAsync(VolumeName, request);
+
+            if (response.Success)
+            {
+                backupResult = response.Data;
+                await OnOperationComplete.InvokeAsync();
+            }
+            else
+            {
+                errorMessage = response.Message ?? "Erreur lors du backup";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleRestore()
+    {
+        if (string.IsNullOrWhiteSpace(restoreVolumeName))
+        {
+            errorMessage = "Le nom du volume est requis";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(restorePath))
+        {
+            errorMessage = "Le chemin du fichier backup est requis";
+            return;
+        }
+
+        isProcessing = true;
+        errorMessage = null;
+        restoreResult = null;
+        StateHasChanged();
+
+        try
+        {
+            var request = new RestoreVolumeRequest(restorePath);
+            var response = await SwarmService.RestoreVolumeAsync(restoreVolumeName, request);
+
+            if (response.Success)
+            {
+                restoreResult = response.Data;
+                await OnOperationComplete.InvokeAsync();
+            }
+            else
+            {
+                errorMessage = response.Message ?? "Erreur lors de la restauration";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:0.##} {sizes[order]}";
+    }
+}

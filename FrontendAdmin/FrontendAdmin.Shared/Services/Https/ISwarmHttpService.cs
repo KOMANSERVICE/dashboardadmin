@@ -47,4 +47,36 @@ public interface ISwarmHttpService
     // Services - Rollback
     [Post("/swarm/services/{name}/rollback")]
     Task<BaseResponse<RollbackServiceResponse>> RollbackServiceAsync(string name);
+
+    // Volumes - List
+    [Get("/swarm/volumes")]
+    Task<BaseResponse<GetVolumesResponse>> GetVolumesAsync();
+
+    // Volumes - Details
+    [Get("/swarm/volumes/{name}")]
+    Task<BaseResponse<GetVolumeDetailsResponse>> GetVolumeDetailsAsync(string name);
+
+    // Volumes - Unused
+    [Get("/swarm/volumes/unused")]
+    Task<BaseResponse<GetUnusedVolumesResponse>> GetUnusedVolumesAsync();
+
+    // Volumes - Create
+    [Post("/swarm/volumes")]
+    Task<BaseResponse<CreateVolumeResponse>> CreateVolumeAsync([Body] CreateVolumeRequest request);
+
+    // Volumes - Delete
+    [Delete("/swarm/volumes/{name}")]
+    Task DeleteVolumeAsync(string name, [Query] bool force = false);
+
+    // Volumes - Prune
+    [Post("/swarm/volumes/prune")]
+    Task<BaseResponse<PruneVolumesResponse>> PruneVolumesAsync();
+
+    // Volumes - Backup
+    [Post("/swarm/volumes/{name}/backup")]
+    Task<BaseResponse<BackupVolumeResponse>> BackupVolumeAsync(string name, [Body] BackupVolumeRequest request);
+
+    // Volumes - Restore
+    [Post("/swarm/volumes/{name}/restore")]
+    Task<BaseResponse<RestoreVolumeResponse>> RestoreVolumeAsync(string name, [Body] RestoreVolumeRequest request);
 }

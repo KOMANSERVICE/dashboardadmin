@@ -113,3 +113,65 @@ public record ScaleServiceResponse(
 
 // Rollback service models
 public record RollbackServiceResponse(string ServiceName);
+
+// Volume models
+public record VolumeDto(
+    string Name,
+    string Driver,
+    string Mountpoint,
+    long SizeBytes,
+    DateTime CreatedAt,
+    Dictionary<string, string> Labels,
+    bool IsUsed
+);
+
+public record VolumeDetailsDto(
+    string Name,
+    string Driver,
+    string Mountpoint,
+    long SizeBytes,
+    DateTime CreatedAt,
+    Dictionary<string, string> Labels,
+    bool IsUsed,
+    Dictionary<string, string> Options,
+    string Scope,
+    List<string> UsedByContainers
+);
+
+public record GetVolumesResponse(List<VolumeDto> Volumes);
+
+public record GetVolumeDetailsResponse(VolumeDetailsDto Volume);
+
+public record GetUnusedVolumesResponse(List<VolumeDto> Volumes);
+
+public record CreateVolumeRequest(
+    string Name,
+    string Driver = "local",
+    Dictionary<string, string>? Labels = null,
+    Dictionary<string, string>? DriverOpts = null
+);
+
+public record CreateVolumeResponse(string VolumeName);
+
+public record PruneVolumesResponse(
+    int DeletedCount,
+    long SpaceReclaimed,
+    List<string> DeletedVolumes
+);
+
+public record BackupVolumeRequest(string DestinationPath);
+
+public record BackupVolumeResponse(
+    string VolumeName,
+    string BackupPath,
+    DateTime BackupDate,
+    long SizeBytes
+);
+
+public record RestoreVolumeRequest(string SourcePath);
+
+public record RestoreVolumeResponse(
+    string VolumeName,
+    string SourcePath,
+    DateTime RestoreDate
+);
