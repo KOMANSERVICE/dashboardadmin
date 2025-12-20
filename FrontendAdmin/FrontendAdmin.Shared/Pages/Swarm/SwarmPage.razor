@@ -116,7 +116,7 @@
 <Modal OnCloseModal="() => showLogsModal = false"
        ShowModal="showLogsModal"
        ModalTitle="@($"Logs du service: {selectedServiceName}")"
-       ModalSize="ModalSize.ExtraLarge">
+       Size="ModalSize.ExtraLarge">
     <ServiceLogsComponent ServiceName="@selectedServiceName"
                           OnClose="() => showLogsModal = false" />
 </Modal>
@@ -124,7 +124,7 @@
 <Modal OnCloseModal="() => showDetailsModal = false"
        ShowModal="showDetailsModal"
        ModalTitle="@($"Details du service: {selectedServiceName}")"
-       ModalSize="ModalSize.Large">
+       Size="ModalSize.Large">
     <ServiceDetailsComponent ServiceName="@selectedServiceName"
                              OnClose="() => showDetailsModal = false" />
 </Modal>
