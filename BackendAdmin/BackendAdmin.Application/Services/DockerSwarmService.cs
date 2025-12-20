@@ -866,7 +866,10 @@ public class DockerSwarmService : IDockerSwarmService
                 HostConfig = new HostConfig
                 {
                     Binds = new[] { $"{volumeName}:/data:ro" },
-                    AutoRemove = true
+                    // AutoRemove = false pour éviter une condition de course (race condition)
+                    // entre la suppression automatique du conteneur et la récupération des logs
+                    // Le nettoyage manuel est effectué dans le bloc finally
+                    AutoRemove = false
                 }
             };
 
