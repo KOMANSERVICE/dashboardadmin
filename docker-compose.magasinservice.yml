@@ -83,3 +83,4 @@ networks:
       
 volumes:
   pgdata_magasin:
+    external: true 

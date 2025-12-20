@@ -123,3 +123,4 @@ networks:
       
 volumes:
   pgdata_dashadmin:
+    external: true 

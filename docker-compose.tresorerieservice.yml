@@ -89,3 +89,4 @@ networks:
       
 volumes:
   pgdata_tresorerie:
+    external: true 
