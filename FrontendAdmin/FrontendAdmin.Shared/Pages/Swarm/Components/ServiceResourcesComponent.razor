@@ -1,0 +1,329 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+@inject ToastService ToastService
+
+<div class="p-4">
+    @if (isLoading)
+    {
+        <LoadingData />
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="p-4 bg-red-50 text-red-700 rounded-md">
+            @errorMessage
+        </div>
+    }
+    else
+    {
+        <EditForm Model="@formModel" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            <div class="space-y-6">
+                <!-- CPU -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-microchip mr-2 text-blue-500"></i>
+                        CPU
+                    </h3>
+                    <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-md">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Limite CPU (cores)</label>
+                            <input type="number" step="0.1" min="0"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Ex: 2.0"
+                                   @bind="formModel.CpuLimit" />
+                            <p class="text-xs text-gray-500 mt-1">Nombre maximum de CPUs</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Reservation CPU (cores)</label>
+                            <input type="number" step="0.1" min="0"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Ex: 0.5"
+                                   @bind="formModel.CpuReservation" />
+                            <p class="text-xs text-gray-500 mt-1">CPUs garantis</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Memoire -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-memory mr-2 text-green-500"></i>
+                        Memoire
+                    </h3>
+                    <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-md">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Limite memoire</label>
+                            <input type="text"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Ex: 512MB, 1GB"
+                                   @bind="formModel.MemoryLimit" />
+                            <p class="text-xs text-gray-500 mt-1">RAM maximum (ex: 512MB, 1GB)</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Reservation memoire</label>
+                            <input type="text"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Ex: 256MB"
+                                   @bind="formModel.MemoryReservation" />
+                            <p class="text-xs text-gray-500 mt-1">RAM garantie (ex: 256MB)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PIDs et I/O -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-cogs mr-2 text-purple-500"></i>
+                        Processus et I/O
+                    </h3>
+                    <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-md">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Limite PIDs</label>
+                            <input type="number" min="0"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Ex: 100"
+                                   @bind="formModel.PidsLimit" />
+                            <p class="text-xs text-gray-500 mt-1">Nombre max de processus</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Poids I/O (1-1000)</label>
+                            <input type="number" min="1" max="1000"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                   placeholder="Ex: 500"
+                                   @bind="formModel.BlkioWeight" />
+                            <p class="text-xs text-gray-500 mt-1">Priorite I/O disque</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ulimits -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-sliders-h mr-2 text-orange-500"></i>
+                        Ulimits (Limites systeme)
+                    </h3>
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        @if (formModel.Ulimits?.Any() == true)
+                        {
+                            <table class="min-w-full text-sm mb-4">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-gray-500">Nom</th>
+                                        <th class="px-3 py-2 text-left text-gray-500">Soft</th>
+                                        <th class="px-3 py-2 text-left text-gray-500">Hard</th>
+                                        <th class="px-3 py-2 text-center text-gray-500">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < formModel.Ulimits.Count; i++)
+                                    {
+                                        var index = i;
+                                        <tr class="border-t border-gray-200">
+                                            <td class="px-3 py-2">
+                                                <select class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                                                        @bind="formModel.Ulimits[index].Name">
+                                                    <option value="nofile">nofile</option>
+                                                    <option value="nproc">nproc</option>
+                                                    <option value="memlock">memlock</option>
+                                                    <option value="core">core</option>
+                                                    <option value="stack">stack</option>
+                                                </select>
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <input type="number" min="0"
+                                                       class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                                                       @bind="formModel.Ulimits[index].Soft" />
+                                            </td>
+                                            <td class="px-3 py-2">
+                                                <input type="number" min="0"
+                                                       class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                                                       @bind="formModel.Ulimits[index].Hard" />
+                                            </td>
+                                            <td class="px-3 py-2 text-center">
+                                                <button type="button"
+                                                        class="text-red-600 hover:text-red-800"
+                                                        @onclick="() => RemoveUlimit(index)">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        <button type="button"
+                                class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm"
+                                @onclick="AddUlimit">
+                            <i class="fas fa-plus mr-1"></i>
+                            Ajouter un ulimit
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Info persistance -->
+                <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+                    <div class="flex">
+                        <i class="fas fa-info-circle text-blue-500 mt-0.5 mr-2"></i>
+                        <p class="text-sm text-blue-700">
+                            Ces valeurs seront sauvegardees et reappliquees automatiquement lors des redeploiements,
+                            meme si le docker-compose est modifie manuellement.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6">
+                <Button type="button" @onclick="OnClose" ButtonColor="ButtonColor.Light">
+                    <span>Annuler</span>
+                </Button>
+                <Button type="submit" ButtonColor="ButtonColor.Primary" Disabled="@isSaving">
+                    @if (isSaving)
+                    {
+                        <span class="flex items-center">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>
+                            Enregistrement...
+                        </span>
+                    }
+                    else
+                    {
+                        <span>Enregistrer</span>
+                    }
+                </Button>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    [Parameter] public string ServiceName { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private ResourceFormModel formModel = new();
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadResources();
+    }
+
+    private async Task LoadResources()
+    {
+        if (string.IsNullOrEmpty(ServiceName)) return;
+
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await SwarmService.GetServiceResourcesAsync(ServiceName);
+
+            if (response.Success && response.Data?.Resources != null)
+            {
+                var resources = response.Data.Resources;
+                formModel = new ResourceFormModel
+                {
+                    CpuLimit = resources.CpuLimit,
+                    CpuReservation = resources.CpuReservation,
+                    MemoryLimit = resources.MemoryLimit,
+                    MemoryReservation = resources.MemoryReservation,
+                    PidsLimit = resources.PidsLimit,
+                    BlkioWeight = resources.BlkioWeight,
+                    Ulimits = resources.Ulimits?.Select(u => new UlimitFormModel
+                    {
+                        Name = u.Name,
+                        Soft = u.Soft,
+                        Hard = u.Hard
+                    }).ToList() ?? new List<UlimitFormModel>()
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors du chargement des ressources: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSaving = true;
+        errorMessage = null;
+
+        try
+        {
+            var request = new UpdateServiceResourcesRequest(
+                CpuLimit: formModel.CpuLimit,
+                CpuReservation: formModel.CpuReservation,
+                MemoryLimit: formModel.MemoryLimit,
+                MemoryReservation: formModel.MemoryReservation,
+                PidsLimit: formModel.PidsLimit,
+                BlkioWeight: formModel.BlkioWeight,
+                Ulimits: formModel.Ulimits?.Select(u => new UlimitDto(u.Name, u.Soft, u.Hard)).ToList()
+            );
+
+            var response = await SwarmService.UpdateServiceResourcesAsync(ServiceName, request);
+
+            if (response.Success)
+            {
+                ToastService.ShowToast("Succes", $"Ressources du service '{ServiceName}' mises a jour avec succes", "success");
+                await OnSaved.InvokeAsync();
+            }
+            else
+            {
+                errorMessage = response.Message ?? "Erreur lors de la mise a jour des ressources";
+                ToastService.ShowToast("Erreur", errorMessage, "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur: {ex.Message}";
+            ToastService.ShowToast("Erreur", errorMessage, "error");
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AddUlimit()
+    {
+        formModel.Ulimits ??= new List<UlimitFormModel>();
+        formModel.Ulimits.Add(new UlimitFormModel { Name = "nofile", Soft = 65536, Hard = 65536 });
+        StateHasChanged();
+    }
+
+    private void RemoveUlimit(int index)
+    {
+        if (formModel.Ulimits != null && index >= 0 && index < formModel.Ulimits.Count)
+        {
+            formModel.Ulimits.RemoveAt(index);
+            StateHasChanged();
+        }
+    }
+
+    private class ResourceFormModel
+    {
+        public double? CpuLimit { get; set; }
+        public double? CpuReservation { get; set; }
+        public string? MemoryLimit { get; set; }
+        public string? MemoryReservation { get; set; }
+        public long? PidsLimit { get; set; }
+        public int? BlkioWeight { get; set; }
+        public List<UlimitFormModel>? Ulimits { get; set; } = new();
+    }
+
+    private class UlimitFormModel
+    {
+        public string Name { get; set; } = "nofile";
+        public long Soft { get; set; }
+        public long Hard { get; set; }
+    }
+}

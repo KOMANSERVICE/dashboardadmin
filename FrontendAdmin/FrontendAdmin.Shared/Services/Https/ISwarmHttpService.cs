@@ -111,4 +111,12 @@ public interface ISwarmHttpService
     // Containers - Changes
     [Get("/api/swarm/containers/{id}/changes")]
     Task<BaseResponse<GetContainerChangesResponse>> GetContainerChangesAsync(string id);
+
+    // Services - Resources
+    [Get("/api/swarm/services/{name}/resources")]
+    Task<BaseResponse<GetServiceResourcesResponse>> GetServiceResourcesAsync(string name);
+
+    // Services - Update Resources
+    [Put("/api/swarm/services/{name}/resources")]
+    Task<BaseResponse<UpdateServiceResourcesResponse>> UpdateServiceResourcesAsync(string name, [Body] UpdateServiceResourcesRequest request);
 }
