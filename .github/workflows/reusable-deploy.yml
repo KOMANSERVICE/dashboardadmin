@@ -215,5 +215,14 @@ jobs:
             # Nettoyer le build cache
             docker builder prune -a -f
 
+            # Supprimer les anciennes images du même service (garde seulement les 2 dernières)
+            echo "🧹 Nettoyage des anciennes images..."
+            docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" | \
+              grep "${{ inputs.image_name }}:dev-" | \
+              sort -r | \
+              tail -n +3 | \
+              awk '{print $2}' | \
+              xargs -r docker rmi -f 2>/dev/null || true
+
             echo ""
             echo "✅ Déploiement $SERVICE_NAME terminé (stack=$STACK_NAME, tag=${TAG})"
