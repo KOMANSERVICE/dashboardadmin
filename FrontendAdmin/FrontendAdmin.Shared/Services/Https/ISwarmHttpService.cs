@@ -147,4 +147,40 @@ public interface ISwarmHttpService
     // Networks - Disconnect Container
     [Post("/api/swarm/networks/{name}/disconnect")]
     Task<BaseResponse<DisconnectContainerResponse>> DisconnectContainerAsync(string name, [Body] DisconnectContainerRequest request);
+
+    // Images - List
+    [Get("/api/swarm/images")]
+    Task<BaseResponse<GetImagesResponse>> GetImagesAsync([Query] bool? all = false);
+
+    // Images - Details
+    [Get("/api/swarm/images/{id}")]
+    Task<BaseResponse<GetImageDetailsResponse>> GetImageDetailsAsync(string id);
+
+    // Images - History
+    [Get("/api/swarm/images/{id}/history")]
+    Task<BaseResponse<GetImageHistoryResponse>> GetImageHistoryAsync(string id);
+
+    // Images - Dangling
+    [Get("/api/swarm/images/dangling")]
+    Task<BaseResponse<GetDanglingImagesResponse>> GetDanglingImagesAsync();
+
+    // Images - Pull
+    [Post("/api/swarm/images/pull")]
+    Task<BaseResponse<PullImageResponse>> PullImageAsync([Body] PullImageRequest request);
+
+    // Images - Delete
+    [Delete("/api/swarm/images/{id}")]
+    Task DeleteImageAsync(string id, [Query] bool force = false, [Query] bool pruneChildren = false);
+
+    // Images - Tag
+    [Post("/api/swarm/images/{id}/tag")]
+    Task<BaseResponse<TagImageResponse>> TagImageAsync(string id, [Body] TagImageRequest request);
+
+    // Images - Push
+    [Post("/api/swarm/images/{id}/push")]
+    Task<BaseResponse<PushImageResponse>> PushImageAsync(string id, [Body] PushImageRequest request);
+
+    // Images - Prune
+    [Post("/api/swarm/images/prune")]
+    Task<BaseResponse<PruneImagesResponse>> PruneImagesAsync([Query] bool? dangling = true);
 }

@@ -1,0 +1,150 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    <form @onsubmit="HandleSubmit" @onsubmit:preventDefault>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Nom de l'image <span class="text-red-500">*</span>
+                </label>
+                <input type="text" @bind="imageName" @bind:event="oninput"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                       placeholder="nginx, redis:7, docker.io/library/postgres:15" />
+                <p class="text-xs text-gray-500 mt-1">
+                    Format: [registry/]repository[:tag]
+                </p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Tag (optionnel)
+                </label>
+                <input type="text" @bind="tag"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                       placeholder="latest" />
+                <p class="text-xs text-gray-500 mt-1">
+                    Si non specifie, le tag dans le nom de l'image ou "latest" sera utilise
+                </p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Registry (optionnel)
+                </label>
+                <input type="text" @bind="registry"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                       placeholder="docker.io" />
+                <p class="text-xs text-gray-500 mt-1">
+                    Registry Docker a utiliser (Docker Hub par defaut)
+                </p>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="p-3 bg-red-100 text-red-700 rounded-md text-sm">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    @errorMessage
+                </div>
+            }
+
+            @if (isPulling)
+            {
+                <div class="p-3 bg-blue-100 text-blue-700 rounded-md text-sm">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                    Telechargement de l'image en cours... Cela peut prendre plusieurs minutes.
+                </div>
+            }
+
+            @if (pullSuccess)
+            {
+                <div class="p-3 bg-green-100 text-green-700 rounded-md text-sm">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    Image telechargee avec succes!
+                </div>
+            }
+        </div>
+
+        <div class="flex justify-end gap-2 mt-6">
+            <Button type="button" @onclick="HandleCancel"
+                    ButtonColor="ButtonColor.Light"
+                    Disabled="@isPulling">
+                <span>@(pullSuccess ? "Fermer" : "Annuler")</span>
+            </Button>
+            @if (!pullSuccess)
+            {
+                <Button type="submit"
+                        ButtonColor="ButtonColor.Primary"
+                        Disabled="@(isPulling || string.IsNullOrWhiteSpace(imageName))">
+                    @if (isPulling)
+                    {
+                        <span class="animate-spin mr-2">
+                            <i class="fas fa-spinner"></i>
+                        </span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-download mr-2"></i>
+                    }
+                    <span>Telecharger</span>
+                </Button>
+            }
+        </div>
+    </form>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnImagePulled { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private string imageName = "";
+    private string tag = "";
+    private string registry = "";
+    private bool isPulling;
+    private bool pullSuccess;
+    private string? errorMessage;
+
+    private async Task HandleSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(imageName)) return;
+
+        isPulling = true;
+        errorMessage = null;
+        pullSuccess = false;
+        StateHasChanged();
+
+        try
+        {
+            var request = new PullImageRequest(
+                Image: imageName.Trim(),
+                Tag: string.IsNullOrWhiteSpace(tag) ? null : tag.Trim(),
+                Registry: string.IsNullOrWhiteSpace(registry) ? null : registry.Trim()
+            );
+
+            var response = await SwarmService.PullImageAsync(request);
+            if (response.Success)
+            {
+                pullSuccess = true;
+                await OnImagePulled.InvokeAsync();
+            }
+            else
+            {
+                errorMessage = response.Message ?? "Erreur lors du telechargement de l'image";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur: {ex.Message}";
+        }
+        finally
+        {
+            isPulling = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleCancel()
+    {
+        await OnCancel.InvokeAsync();
+    }
+}
