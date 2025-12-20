@@ -172,8 +172,16 @@ jobs:
             docker stack deploy \
               -c /tmp/stack-resolved.yml \
               --with-registry-auth \
+              --resolve-image always \
               --prune \
               "$STACK_NAME"
+            
+            # Forcer la mise à jour des services pour appliquer la nouvelle image
+            echo "🔄 Forçage de la mise à jour des services..."
+            sleep 5
+            for svc in $(docker service ls --filter "name=${STACK_NAME}_" -q); do
+              docker service update --force "$svc"
+            done
 
             # Nettoyer le fichier temporaire
             rm -f /tmp/stack-resolved.yml
