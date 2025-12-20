@@ -1,0 +1,205 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    <EditForm Model="@createRequest" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nom du service *</label>
+                <InputText @bind-Value="createRequest.Name"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                           placeholder="mon-service" />
+                <ValidationMessage For="@(() => createRequest.Name)" class="text-red-500 text-sm" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Image Docker *</label>
+                <InputText @bind-Value="createRequest.Image"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                           placeholder="nginx:latest" />
+                <ValidationMessage For="@(() => createRequest.Image)" class="text-red-500 text-sm" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre de replicas</label>
+                <InputNumber @bind-Value="createRequest.Replicas"
+                             class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                             min="0" max="100" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Ports (format: published:target)</label>
+                <div class="flex gap-2">
+                    <InputText @bind-Value="portInput"
+                               class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                               placeholder="8080:80" />
+                    <button type="button" @onclick="AddPort"
+                            class="px-4 py-2 bg-primary-700 text-white rounded-md hover:bg-primary-800">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                @if (ports.Any())
+                {
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        @foreach (var port in ports)
+                        {
+                            <span class="inline-flex items-center px-2 py-1 bg-gray-100 rounded-md text-sm">
+                                @port.PublishedPort:@port.TargetPort
+                                <button type="button" @onclick="() => RemovePort(port)"
+                                        class="ml-1 text-gray-500 hover:text-red-600">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </span>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Variables d'environnement (KEY=VALUE)</label>
+                <div class="flex gap-2">
+                    <InputText @bind-Value="envInput"
+                               class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                               placeholder="MY_VAR=my_value" />
+                    <button type="button" @onclick="AddEnv"
+                            class="px-4 py-2 bg-primary-700 text-white rounded-md hover:bg-primary-800">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                @if (envVars.Any())
+                {
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        @foreach (var env in envVars)
+                        {
+                            <span class="inline-flex items-center px-2 py-1 bg-gray-100 rounded-md text-sm">
+                                @env.Key=@env.Value
+                                <button type="button" @onclick="() => RemoveEnv(env.Key)"
+                                        class="ml-1 text-gray-500 hover:text-red-600">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="mt-4 p-3 bg-red-50 text-red-700 rounded-md">
+                @errorMessage
+            </div>
+        }
+
+        <div class="flex justify-end gap-2 mt-6">
+            <Button type="button" @onclick="OnCancel" ButtonColor="ButtonColor.Light">
+                <span>Annuler</span>
+            </Button>
+            <Button type="submit" Disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <span class="animate-spin mr-2">
+                        <i class="fas fa-spinner"></i>
+                    </span>
+                }
+                <span>Creer le service</span>
+            </Button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnServiceCreated { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private CreateServiceFormModel createRequest = new();
+    private List<CreateServicePortRequest> ports = new();
+    private Dictionary<string, string> envVars = new();
+    private string portInput = "";
+    private string envInput = "";
+    private bool isLoading;
+    private string? errorMessage;
+
+    private async Task HandleSubmit()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var request = new CreateServiceRequest(
+                Name: createRequest.Name,
+                Image: createRequest.Image,
+                Replicas: createRequest.Replicas,
+                Ports: ports.Any() ? ports : null,
+                Env: envVars.Any() ? envVars : null
+            );
+
+            var response = await SwarmService.CreateServiceAsync(request);
+
+            if (response.Success)
+            {
+                await OnServiceCreated.InvokeAsync();
+            }
+            else
+            {
+                errorMessage = response.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AddPort()
+    {
+        if (string.IsNullOrEmpty(portInput)) return;
+
+        var parts = portInput.Split(':');
+        if (parts.Length == 2 &&
+            int.TryParse(parts[0], out var published) &&
+            int.TryParse(parts[1], out var target))
+        {
+            ports.Add(new CreateServicePortRequest(target, published));
+            portInput = "";
+        }
+    }
+
+    private void RemovePort(CreateServicePortRequest port)
+    {
+        ports.Remove(port);
+    }
+
+    private void AddEnv()
+    {
+        if (string.IsNullOrEmpty(envInput)) return;
+
+        var parts = envInput.Split('=', 2);
+        if (parts.Length == 2)
+        {
+            envVars[parts[0]] = parts[1];
+            envInput = "";
+        }
+    }
+
+    private void RemoveEnv(string key)
+    {
+        envVars.Remove(key);
+    }
+
+    public class CreateServiceFormModel
+    {
+        public string Name { get; set; } = "";
+        public string Image { get; set; } = "";
+        public int Replicas { get; set; } = 1;
+    }
+}
