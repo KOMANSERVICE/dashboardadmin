@@ -65,7 +65,7 @@
       - target: 8080
         published: 9021
         protocol: tcp
-        mode: host
+        mode: ingress
     env_file:
       - ./.env
     networks:
