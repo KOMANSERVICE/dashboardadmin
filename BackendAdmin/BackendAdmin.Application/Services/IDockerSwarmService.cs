@@ -88,4 +88,10 @@ public interface IDockerSwarmService
     Task<DeployStackResponse> DeployStackAsync(DeployStackRequest request, CancellationToken cancellationToken = default);
     Task DeleteStackAsync(string stackName, CancellationToken cancellationToken = default);
     Task<IList<StackServiceDTO>> GetStackServicesAsync(string stackName, CancellationToken cancellationToken = default);
+
+    // System management methods
+    Task<SystemInfoDTO> GetSystemInfoAsync(CancellationToken cancellationToken = default);
+    Task<DockerVersionDTO> GetDockerVersionAsync(CancellationToken cancellationToken = default);
+    Task<DiskUsageDTO> GetDiskUsageAsync(CancellationToken cancellationToken = default);
+    Task<PruneAllResponseDTO> PruneAllAsync(CancellationToken cancellationToken = default);
 }

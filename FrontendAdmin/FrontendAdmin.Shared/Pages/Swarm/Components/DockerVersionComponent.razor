@@ -1,0 +1,74 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+
+<div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="bg-gray-50 px-6 py-3 border-b">
+        <h3 class="text-lg font-semibold text-gray-800">
+            <i class="fab fa-docker mr-2 text-blue-600"></i>Version Docker Engine
+        </h3>
+    </div>
+    <div class="p-6">
+        @if (Version == null)
+        {
+            <div class="flex items-center justify-center py-8 text-gray-500">
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+                Chargement...
+            </div>
+        }
+        else
+        {
+            <div class="flex items-center gap-6 mb-6">
+                <div class="flex-shrink-0">
+                    <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fab fa-docker text-4xl text-blue-600"></i>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-3xl font-bold text-gray-900">@Version.Version</h4>
+                    <p class="text-gray-500">Docker Engine</p>
+                    <span class="@GetExperimentalBadge(Version.Experimental) px-2 py-1 rounded text-xs mt-1 inline-block">
+                        @(Version.Experimental ? "Experimental" : "Stable")
+                    </span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-sm text-gray-500">API Version</p>
+                    <p class="font-semibold">@Version.ApiVersion</p>
+                    <p class="text-xs text-gray-400">Min: @Version.MinAPIVersion</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-sm text-gray-500">Git Commit</p>
+                    <p class="font-semibold font-mono text-sm">@(Version.GitCommit.Length > 10 ? Version.GitCommit[..10] : Version.GitCommit)</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-sm text-gray-500">Go Version</p>
+                    <p class="font-semibold">@Version.GoVersion</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-sm text-gray-500">OS / Arch</p>
+                    <p class="font-semibold">@Version.Os / @Version.Arch</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-sm text-gray-500">Kernel Version</p>
+                    <p class="font-semibold">@Version.KernelVersion</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-sm text-gray-500">Build Time</p>
+                    <p class="font-semibold">@Version.BuildTime.ToString("dd/MM/yyyy")</p>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public DockerVersionDto? Version { get; set; }
+
+    private string GetExperimentalBadge(bool experimental)
+    {
+        return experimental
+            ? "bg-yellow-100 text-yellow-800"
+            : "bg-green-100 text-green-800";
+    }
+}
