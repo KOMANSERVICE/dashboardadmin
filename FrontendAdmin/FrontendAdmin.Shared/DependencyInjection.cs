@@ -41,6 +41,7 @@ public static class DependencyInjection
             .AddHttpMessageHandler<CookieHandler>()
             .AddHttpMessageHandler<JwtAuthorizationHandler>();
 
+
         // Swarm Service
         services.AddRefitClient<ISwarmHttpService>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(uri))
@@ -53,6 +54,7 @@ public static class DependencyInjection
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(tresorerieUri))
             .AddHttpMessageHandler<CookieHandler>()
             .AddHttpMessageHandler<JwtAuthorizationHandler>();
+
 
         services.AddScoped<ToastService>();
 

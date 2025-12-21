@@ -67,6 +67,7 @@ public record CreateApiKeyResponseWrapper(ApiKeyCreatedResponse ApiKey);
 public record RotateApiKeyResponseWrapper(ApiKeyCreatedResponse NewApiKey);
 
 /// <summary>
+
 /// Response containing list of API Keys
 /// </summary>
 public record GetApiKeysResponse(List<ApiKeyInfo> ApiKeys);
