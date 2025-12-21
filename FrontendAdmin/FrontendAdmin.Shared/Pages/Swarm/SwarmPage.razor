@@ -265,7 +265,7 @@
 <Modal OnCloseModal="() => showVolumeDetailsModal = false"
        ShowModal="showVolumeDetailsModal"
        ModalTitle="@($"Details du volume: {selectedVolumeName}")"
-       ModalSize="ModalSize.Large">
+       Size="ModalSize.Large">
     <VolumeDetailsComponent VolumeName="@selectedVolumeName"
                             OnClose="() => showVolumeDetailsModal = false" />
 </Modal>
@@ -316,7 +316,7 @@
 <Modal OnCloseModal="() => showBackupModal = false"
        ShowModal="showBackupModal"
        ModalTitle="@($"Backup/Restore: {selectedVolumeName}")"
-       ModalSize="ModalSize.Large">
+       Size="ModalSize.Large">
     <BackupRestoreComponent VolumeName="@selectedVolumeName"
                             OnClose="() => showBackupModal = false"
                             OnOperationComplete="RefreshData" />
@@ -514,7 +514,7 @@
 <Modal OnCloseModal="() => showImageDetailsModal = false"
        ShowModal="showImageDetailsModal"
        ModalTitle="@($"Details de l'image: {selectedImageName}")"
-       ModalSize="ModalSize.Large">
+       Size="ModalSize.Large">
     <ImageDetailsComponent ImageId="@selectedImageId"
                            OnClose="() => showImageDetailsModal = false" />
 </Modal>
@@ -522,7 +522,7 @@
 <Modal OnCloseModal="() => showImageHistoryModal = false"
        ShowModal="showImageHistoryModal"
        ModalTitle="@($"Historique de l'image: {selectedImageName}")"
-       ModalSize="ModalSize.Large">
+       Size="ModalSize.Large">
     <ImageHistoryComponent ImageId="@selectedImageId"
                            OnClose="() => showImageHistoryModal = false" />
 </Modal>
@@ -631,7 +631,7 @@
 <Modal OnCloseModal="() => showDeployStackModal = false"
        ShowModal="showDeployStackModal"
        ModalTitle="Deployer une stack Docker"
-       ModalSize="ModalSize.Large">
+       Size="ModalSize.Large">
     <DeployStackComponent OnStackDeployed="OnStackDeployed"
                           OnCancel="() => showDeployStackModal = false" />
 </Modal>
@@ -639,7 +639,7 @@
 <Modal OnCloseModal="() => showStackDetailsModal = false"
        ShowModal="showStackDetailsModal"
        ModalTitle="@($"Details de la stack: {selectedStackName}")"
-       ModalSize="ModalSize.Large">
+       Size="ModalSize.Large">
     <StackDetailsComponent StackName="@selectedStackName"
                            OnClose="() => showStackDetailsModal = false" />
 </Modal>
@@ -647,7 +647,7 @@
 <Modal OnCloseModal="() => showStackServicesModal = false"
        ShowModal="showStackServicesModal"
        ModalTitle="@($"Services de la stack: {selectedStackName}")"
-       ModalSize="ModalSize.Large">
+       Size="ModalSize.Large">
     <StackServicesComponent StackName="@selectedStackName"
                             OnClose="() => showStackServicesModal = false" />
 </Modal>
