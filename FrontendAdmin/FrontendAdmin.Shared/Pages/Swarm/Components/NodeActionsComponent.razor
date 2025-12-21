@@ -1,0 +1,436 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@using IDR.Library.Blazor.Modals
+@using IDR.Library.Blazor.Enums
+@using IDR.Library.Blazor.Buttons
+
+<Modal ModalTitle="@($"Actions sur le noeud: {Node?.Hostname ?? "..."}")" ShowModal="@ShowModal" Size="ModalSize.Medium" OnCloseModal="OnClose">
+    @if (Node != null)
+    {
+        <div class="space-y-4">
+            <!-- Info du noeud -->
+            <div class="bg-gray-50 rounded-lg p-4">
+                <div class="flex items-center gap-4">
+                    <div class="flex-shrink-0">
+                        <i class="@GetNodeIcon(Node.Role) text-3xl text-primary-600"></i>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-lg">@Node.Hostname</div>
+                        <div class="flex gap-2 mt-1">
+                            <span class="@GetRoleBadgeClass(Node.Role) px-2 py-0.5 text-xs font-semibold rounded-full">
+                                @Node.Role
+                            </span>
+                            <span class="@GetStateBadgeClass(Node.State) px-2 py-0.5 text-xs font-semibold rounded-full">
+                                @Node.State
+                            </span>
+                            <span class="@GetAvailabilityBadgeClass(Node.Availability) px-2 py-0.5 text-xs font-semibold rounded-full">
+                                @Node.Availability
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <div class="p-3 bg-red-100 text-red-700 rounded-md text-sm flex justify-between items-center">
+                    <span>@ErrorMessage</span>
+                    <button type="button" @onclick="ClearError" class="text-red-500 hover:text-red-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(SuccessMessage))
+            {
+                <div class="p-3 bg-green-100 text-green-700 rounded-md text-sm flex justify-between items-center">
+                    <span>@SuccessMessage</span>
+                    <button type="button" @onclick="ClearSuccess" class="text-green-500 hover:text-green-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            }
+
+            <!-- Actions de role -->
+            <div class="border rounded-lg p-4">
+                <h4 class="font-semibold text-gray-700 mb-3">
+                    <i class="fas fa-user-tag mr-2"></i>Gestion du role
+                </h4>
+                <div class="flex gap-2">
+                    @if (Node.Role.ToLower() == "worker")
+                    {
+                        <Button type="button" @onclick="OnPromote"
+                                ButtonColor="ButtonColor.Primary"
+                                IconCss="fas fa-crown" IconPlacement="ButtonIconPlacement.Left"
+                                Disabled="@IsAnyActionInProgress">
+                            @if (IsPromoting)
+                            {
+                                <span class="animate-spin mr-2"><i class="fas fa-spinner"></i></span>
+                            }
+                            <span>Promouvoir en Manager</span>
+                        </Button>
+                    }
+                    else
+                    {
+                        <Button type="button" @onclick="OnDemote"
+                                ButtonColor="ButtonColor.Warning"
+                                IconCss="fas fa-cog" IconPlacement="ButtonIconPlacement.Left"
+                                Disabled="@IsAnyActionInProgress">
+                            @if (IsDemoting)
+                            {
+                                <span class="animate-spin mr-2"><i class="fas fa-spinner"></i></span>
+                            }
+                            <span>Retrograder en Worker</span>
+                        </Button>
+                    }
+                </div>
+                @if (Node.Role.ToLower() == "manager")
+                {
+                    <p class="text-sm text-yellow-600 mt-2">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        Attention: Impossible de retrograder le dernier manager du cluster.
+                    </p>
+                }
+            </div>
+
+            <!-- Actions de disponibilite -->
+            <div class="border rounded-lg p-4">
+                <h4 class="font-semibold text-gray-700 mb-3">
+                    <i class="fas fa-power-off mr-2"></i>Gestion de la disponibilite
+                </h4>
+                <div class="flex gap-2">
+                    @if (Node.Availability.ToLower() != "drain")
+                    {
+                        <Button type="button" @onclick="OnDrain"
+                                ButtonColor="ButtonColor.Warning"
+                                IconCss="fas fa-sign-out-alt" IconPlacement="ButtonIconPlacement.Left"
+                                Disabled="@IsAnyActionInProgress">
+                            @if (IsDraining)
+                            {
+                                <span class="animate-spin mr-2"><i class="fas fa-spinner"></i></span>
+                            }
+                            <span>Drain (evacuer)</span>
+                        </Button>
+                    }
+                    @if (Node.Availability.ToLower() != "active")
+                    {
+                        <Button type="button" @onclick="OnActivate"
+                                ButtonColor="ButtonColor.Success"
+                                IconCss="fas fa-play" IconPlacement="ButtonIconPlacement.Left"
+                                Disabled="@IsAnyActionInProgress">
+                            @if (IsActivating)
+                            {
+                                <span class="animate-spin mr-2"><i class="fas fa-spinner"></i></span>
+                            }
+                            <span>Activer</span>
+                        </Button>
+                    }
+                </div>
+                @if (Node.Availability.ToLower() == "drain")
+                {
+                    <p class="text-sm text-gray-600 mt-2">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Le noeud est en mode drain: les taches sont evacuees et aucune nouvelle tache ne sera programmee.
+                    </p>
+                }
+            </div>
+
+            <!-- Suppression -->
+            <div class="border border-red-200 rounded-lg p-4 bg-red-50">
+                <h4 class="font-semibold text-red-700 mb-3">
+                    <i class="fas fa-trash-alt mr-2"></i>Zone de danger
+                </h4>
+                <p class="text-sm text-gray-600 mb-3">
+                    Supprimer ce noeud du cluster Docker Swarm. Cette action est irreversible.
+                </p>
+                <div class="flex gap-2 items-center">
+                    <Button type="button" @onclick="OnRemove"
+                            ButtonColor="ButtonColor.Danger"
+                            IconCss="fas fa-times-circle" IconPlacement="ButtonIconPlacement.Left"
+                            Disabled="@(IsAnyActionInProgress || Node.Availability.ToLower() == "active")">
+                        @if (IsRemoving)
+                        {
+                            <span class="animate-spin mr-2"><i class="fas fa-spinner"></i></span>
+                        }
+                        <span>Supprimer du cluster</span>
+                    </Button>
+                    @if (Node.Availability.ToLower() == "active")
+                    {
+                        <span class="text-sm text-red-600">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>
+                            Le noeud doit etre en mode drain avant suppression
+                        </span>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</Modal>
+
+<!-- Confirmation Modal -->
+<Modal ModalTitle="@ConfirmTitle" ShowModal="@ShowConfirmDialog" Size="ModalSize.Small" OnCloseModal="CancelConfirm">
+    <div class="p-4">
+        <p class="text-gray-700 mb-4">@ConfirmMessage</p>
+        <div class="flex justify-end gap-2">
+            <Button type="button" @onclick="CancelConfirm" ButtonColor="ButtonColor.Light">
+                <span>Annuler</span>
+            </Button>
+            @if (IsDangerAction)
+            {
+                <Button type="button" @onclick="ExecuteConfirmedAction" ButtonColor="ButtonColor.Danger">
+                    <span>Confirmer</span>
+                </Button>
+            }
+            else
+            {
+                <Button type="button" @onclick="ExecuteConfirmedAction" ButtonColor="ButtonColor.Primary">
+                    <span>Confirmer</span>
+                </Button>
+            }
+        </div>
+    </div>
+</Modal>
+
+@code {
+    [Parameter] public bool ShowModal { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnCloseModal { get; set; }
+    [Parameter] public NodeDto? Node { get; set; }
+
+    [Parameter] public EventCallback<string> OnPromoteNode { get; set; }
+    [Parameter] public EventCallback<string> OnDemoteNode { get; set; }
+    [Parameter] public EventCallback<string> OnDrainNode { get; set; }
+    [Parameter] public EventCallback<string> OnActivateNode { get; set; }
+    [Parameter] public EventCallback<(string nodeId, bool force)> OnRemoveNode { get; set; }
+
+    private bool IsPromoting { get; set; }
+    private bool IsDemoting { get; set; }
+    private bool IsDraining { get; set; }
+    private bool IsActivating { get; set; }
+    private bool IsRemoving { get; set; }
+
+    private string? ErrorMessage { get; set; }
+    private string? SuccessMessage { get; set; }
+
+    private bool ShowConfirmDialog { get; set; }
+    private string ConfirmTitle { get; set; } = "";
+    private string ConfirmMessage { get; set; } = "";
+    private bool IsDangerAction { get; set; }
+    private Func<Task>? ConfirmedAction { get; set; }
+
+    private bool IsAnyActionInProgress => IsPromoting || IsDemoting || IsDraining || IsActivating || IsRemoving;
+
+    private async Task OnClose(MouseEventArgs e)
+    {
+        await OnCloseModal.InvokeAsync(e);
+    }
+
+    private void ClearError()
+    {
+        ErrorMessage = null;
+    }
+
+    private void ClearSuccess()
+    {
+        SuccessMessage = null;
+    }
+
+    private void OnPromote()
+    {
+        ConfirmTitle = "Promouvoir en Manager";
+        ConfirmMessage = $"Etes-vous sur de vouloir promouvoir le noeud '{Node?.Hostname}' en manager?";
+        IsDangerAction = false;
+        ConfirmedAction = ExecutePromote;
+        ShowConfirmDialog = true;
+    }
+
+    private void OnDemote()
+    {
+        ConfirmTitle = "Retrograder en Worker";
+        ConfirmMessage = $"Etes-vous sur de vouloir retrograder le noeud '{Node?.Hostname}' en worker?";
+        IsDangerAction = true;
+        ConfirmedAction = ExecuteDemote;
+        ShowConfirmDialog = true;
+    }
+
+    private void OnDrain()
+    {
+        ConfirmTitle = "Drain du noeud";
+        ConfirmMessage = $"Etes-vous sur de vouloir mettre le noeud '{Node?.Hostname}' en mode drain? Les taches en cours seront evacuees.";
+        IsDangerAction = true;
+        ConfirmedAction = ExecuteDrain;
+        ShowConfirmDialog = true;
+    }
+
+    private void OnActivate()
+    {
+        ConfirmTitle = "Activer le noeud";
+        ConfirmMessage = $"Etes-vous sur de vouloir activer le noeud '{Node?.Hostname}'? Il pourra recevoir de nouvelles taches.";
+        IsDangerAction = false;
+        ConfirmedAction = ExecuteActivate;
+        ShowConfirmDialog = true;
+    }
+
+    private void OnRemove()
+    {
+        ConfirmTitle = "Supprimer du cluster";
+        ConfirmMessage = $"Etes-vous sur de vouloir supprimer definitivement le noeud '{Node?.Hostname}' du cluster? Cette action est irreversible.";
+        IsDangerAction = true;
+        ConfirmedAction = ExecuteRemove;
+        ShowConfirmDialog = true;
+    }
+
+    private void CancelConfirm(MouseEventArgs? e = null)
+    {
+        ShowConfirmDialog = false;
+    }
+
+    private async Task ExecuteConfirmedAction()
+    {
+        ShowConfirmDialog = false;
+        if (ConfirmedAction != null)
+        {
+            await ConfirmedAction();
+        }
+    }
+
+    private async Task ExecutePromote()
+    {
+        if (Node == null) return;
+        IsPromoting = true;
+        ErrorMessage = null;
+        try
+        {
+            await OnPromoteNode.InvokeAsync(Node.Id);
+            SuccessMessage = "Noeud promu en manager avec succes";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsPromoting = false;
+        }
+    }
+
+    private async Task ExecuteDemote()
+    {
+        if (Node == null) return;
+        IsDemoting = true;
+        ErrorMessage = null;
+        try
+        {
+            await OnDemoteNode.InvokeAsync(Node.Id);
+            SuccessMessage = "Noeud retrograde en worker avec succes";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsDemoting = false;
+        }
+    }
+
+    private async Task ExecuteDrain()
+    {
+        if (Node == null) return;
+        IsDraining = true;
+        ErrorMessage = null;
+        try
+        {
+            await OnDrainNode.InvokeAsync(Node.Id);
+            SuccessMessage = "Noeud mis en mode drain avec succes";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsDraining = false;
+        }
+    }
+
+    private async Task ExecuteActivate()
+    {
+        if (Node == null) return;
+        IsActivating = true;
+        ErrorMessage = null;
+        try
+        {
+            await OnActivateNode.InvokeAsync(Node.Id);
+            SuccessMessage = "Noeud active avec succes";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsActivating = false;
+        }
+    }
+
+    private async Task ExecuteRemove()
+    {
+        if (Node == null) return;
+        IsRemoving = true;
+        ErrorMessage = null;
+        try
+        {
+            await OnRemoveNode.InvokeAsync((Node.Id, false));
+            SuccessMessage = "Noeud supprime du cluster avec succes";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsRemoving = false;
+        }
+    }
+
+    private string GetNodeIcon(string role)
+    {
+        return role.ToLower() switch
+        {
+            "manager" => "fas fa-crown",
+            "worker" => "fas fa-cog",
+            _ => "fas fa-server"
+        };
+    }
+
+    private string GetRoleBadgeClass(string role)
+    {
+        return role.ToLower() switch
+        {
+            "manager" => "bg-purple-100 text-purple-800",
+            "worker" => "bg-blue-100 text-blue-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+
+    private string GetStateBadgeClass(string state)
+    {
+        return state.ToLower() switch
+        {
+            "ready" => "bg-green-100 text-green-800",
+            "down" => "bg-red-100 text-red-800",
+            "disconnected" => "bg-yellow-100 text-yellow-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+
+    private string GetAvailabilityBadgeClass(string availability)
+    {
+        return availability.ToLower() switch
+        {
+            "active" => "bg-green-100 text-green-800",
+            "pause" => "bg-yellow-100 text-yellow-800",
+            "drain" => "bg-red-100 text-red-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+}
