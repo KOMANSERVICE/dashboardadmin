@@ -14,6 +14,11 @@
         </div>
 
         <div class="flex gap-2 mt-4 md:mt-0">
+            <Button type="button" @onclick="NavigateToMetrics" id="metricsBtn"
+                    ButtonColor="ButtonColor.Secondary"
+                    IconCss="fas fa-chart-line" IconPlacement="ButtonIconPlacement.Left">
+                <span>Metriques</span>
+            </Button>
             <Button type="button" @onclick="RefreshData" id="refreshBtn"
                     IconCss="fas fa-sync-alt" IconPlacement="ButtonIconPlacement.Left"
                     Disabled="@isLoading">
@@ -1317,5 +1322,10 @@
             isImagePruning = false;
             StateHasChanged();
         }
+    }
+
+    private void NavigateToMetrics()
+    {
+        NavigationManager.NavigateTo("/swarm/metrics");
     }
 }

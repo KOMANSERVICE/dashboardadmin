@@ -1037,16 +1037,16 @@ public class DockerSwarmService : IDockerSwarmService
                 throw new InternalServerException($"Impossible de parser les stats du conteneur '{containerId}'");
             }
 
-            // Calculate CPU percentage
+            // Calculate CPU percentage (capped to 0-100)
             var cpuDelta = (double)(stats.CPUStats?.CPUUsage?.TotalUsage ?? 0) - (double)(stats.PreCPUStats?.CPUUsage?.TotalUsage ?? 0);
             var systemDelta = (double)(stats.CPUStats?.SystemUsage ?? 0) - (double)(stats.PreCPUStats?.SystemUsage ?? 0);
             var onlineCpus = stats.CPUStats?.OnlineCPUs ?? 1;
-            var cpuPercent = systemDelta > 0 ? (cpuDelta / systemDelta) * onlineCpus * 100.0 : 0;
+            var cpuPercent = systemDelta > 0 ? Math.Min(100.0, Math.Max(0.0, (cpuDelta / systemDelta) * onlineCpus * 100.0)) : 0;
 
-            // Calculate memory percentage
+            // Calculate memory percentage (capped to 0-100)
             var memoryUsage = stats.MemoryStats?.Usage ?? 0;
             var memoryLimit = stats.MemoryStats?.Limit ?? 1;
-            var memoryPercent = (double)memoryUsage / memoryLimit * 100.0;
+            var memoryPercent = Math.Min(100.0, Math.Max(0.0, (double)memoryUsage / memoryLimit * 100.0));
 
             // Calculate network stats
             ulong rxBytes = 0, txBytes = 0, rxPackets = 0, txPackets = 0;
@@ -1076,6 +1076,35 @@ public class DockerSwarmService : IDockerSwarmService
 
             var containerName = container.Name?.TrimStart('/') ?? containerId;
 
+            // Get restart count from container state
+            var restartCount = container.RestartCount;
+
+            // Get health status from container state
+            var healthStatus = "Unknown";
+            if (container.State?.Health != null)
+            {
+                healthStatus = container.State.Health.Status ?? "Unknown";
+            }
+            else if (container.State?.Running == true)
+            {
+                healthStatus = "Healthy"; // No healthcheck configured, assume healthy if running
+            }
+            else if (container.State?.Status != null)
+            {
+                healthStatus = container.State.Status;
+            }
+
+            // Calculate uptime from StartedAt
+            DateTime startedAt = DateTime.UtcNow;
+            if (!string.IsNullOrEmpty(container.State?.StartedAt))
+            {
+                if (DateTime.TryParse(container.State.StartedAt, out var parsedDate))
+                {
+                    startedAt = parsedDate;
+                }
+            }
+            var uptime = DateTime.UtcNow - startedAt;
+
             return new ContainerStatsDTO(
                 ContainerId: containerId,
                 ContainerName: containerName,
@@ -1101,7 +1130,11 @@ public class DockerSwarmService : IDockerSwarmService
                 BlockIO: new ContainerBlockIOStatsDTO(
                     ReadBytes: readBytes,
                     WriteBytes: writeBytes
-                )
+                ),
+                RestartCount: (int)restartCount,
+                HealthStatus: healthStatus,
+                Uptime: uptime,
+                StartedAt: startedAt
             );
         }
         catch (NotFoundException)
@@ -1376,6 +1409,129 @@ public class DockerSwarmService : IDockerSwarmService
         {
             _logger.LogError(ex, "Failed to get filesystem changes for container {ContainerId}", containerId);
             throw new InternalServerException($"Erreur lors de la recuperation des modifications du conteneur '{containerId}'");
+        }
+    }
+
+    // Metrics and monitoring methods
+
+    public async Task<IList<ContainerMetricsSummaryDTO>> GetAllContainersMetricsSummaryAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containers = await GetContainersAsync(all: false, cancellationToken); // Only running containers
+            var summaries = new List<ContainerMetricsSummaryDTO>();
+
+            foreach (var container in containers)
+            {
+                try
+                {
+                    var stats = await GetContainerStatsAsync(container.ID, cancellationToken);
+                    var containerName = container.Names?.FirstOrDefault()?.TrimStart('/') ?? container.ID[..12];
+
+                    summaries.Add(new ContainerMetricsSummaryDTO(
+                        ContainerId: container.ID,
+                        ContainerName: containerName,
+                        Image: container.Image ?? "unknown",
+                        State: container.State ?? "unknown",
+                        CpuPercent: stats.Cpu.UsagePercent,
+                        MemoryPercent: stats.Memory.UsagePercent,
+                        MemoryUsage: stats.Memory.Usage,
+                        MemoryLimit: stats.Memory.Limit,
+                        RestartCount: stats.RestartCount,
+                        HealthStatus: stats.HealthStatus,
+                        Uptime: stats.Uptime
+                    ));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to get stats for container {ContainerId}", container.ID);
+                    // Continue with other containers
+                }
+            }
+
+            return summaries;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get containers metrics summary");
+            throw new InternalServerException("Erreur lors de la recuperation du resume des metriques des conteneurs");
+        }
+    }
+
+    public async Task<IList<DockerEventDTO>> GetDockerEventsAsync(DateTime? since = null, DateTime? until = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var events = new List<DockerEventDTO>();
+
+            var parameters = new ContainerEventsParameters();
+
+            // Set default time range: last 15 minutes
+            var sinceTime = since ?? DateTime.UtcNow.AddMinutes(-15);
+            var untilTime = until ?? DateTime.UtcNow;
+
+            parameters.Since = ((DateTimeOffset)sinceTime).ToUnixTimeSeconds().ToString();
+            parameters.Until = ((DateTimeOffset)untilTime).ToUnixTimeSeconds().ToString();
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(5)); // Timeout for safety
+
+            try
+            {
+                using var stream = await _client.System.MonitorEventsAsync(parameters, cts.Token);
+                using var reader = new StreamReader(stream);
+
+                while (!reader.EndOfStream && !cts.Token.IsCancellationRequested)
+                {
+                    var line = await reader.ReadLineAsync(cts.Token);
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    try
+                    {
+                        var dockerEvent = System.Text.Json.JsonSerializer.Deserialize<Docker.DotNet.Models.Message>(line);
+                        if (dockerEvent != null)
+                        {
+                            var actorName = "unknown";
+                            if (dockerEvent.Actor?.Attributes != null && dockerEvent.Actor.Attributes.TryGetValue("name", out var name))
+                            {
+                                actorName = name;
+                            }
+                            else if (dockerEvent.Actor?.ID != null && dockerEvent.Actor.ID.Length >= 12)
+                            {
+                                actorName = dockerEvent.Actor.ID[..12];
+                            }
+
+                            var attributes = dockerEvent.Actor?.Attributes != null
+                                ? new Dictionary<string, string>(dockerEvent.Actor.Attributes)
+                                : new Dictionary<string, string>();
+
+                            events.Add(new DockerEventDTO(
+                                Type: dockerEvent.Type ?? "unknown",
+                                Action: dockerEvent.Action ?? "unknown",
+                                ActorId: dockerEvent.Actor?.ID ?? "unknown",
+                                ActorName: actorName,
+                                Timestamp: DateTimeOffset.FromUnixTimeSeconds(dockerEvent.Time).DateTime,
+                                Attributes: attributes
+                            ));
+                        }
+                    }
+                    catch (System.Text.Json.JsonException)
+                    {
+                        // Skip malformed events
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when timeout or cancellation occurs
+            }
+
+            return events.OrderByDescending(e => e.Timestamp).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker events");
+            throw new InternalServerException("Erreur lors de la recuperation des evenements Docker");
         }
     }
 

@@ -1,0 +1,34 @@
+@using ApexCharts
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+
+@if (Stats != null && Stats.Any())
+{
+    <ApexChart TItem="ContainerMetricsSummaryDto"
+               Title="Temps de fonctionnement (heures)"
+               Height="300">
+
+        <ApexPointSeries TItem="ContainerMetricsSummaryDto"
+                         Items="Stats"
+                         Name="Uptime (h)"
+                         XValue="@(e => TruncateName(e.ContainerName))"
+                         YValue="@(e => (decimal)e.Uptime.TotalHours)"
+                         SeriesType="SeriesType.Bar"
+                         Color="#8B5CF6" />
+    </ApexChart>
+}
+else
+{
+    <div class="flex items-center justify-center h-[300px] text-gray-500">
+        Aucune donnee disponible
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IEnumerable<ContainerMetricsSummaryDto> Stats { get; set; } = new List<ContainerMetricsSummaryDto>();
+
+    private string TruncateName(string name)
+    {
+        return name.Length > 15 ? name[..15] + "..." : name;
+    }
+}
