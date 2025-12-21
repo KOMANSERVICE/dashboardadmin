@@ -72,7 +72,7 @@ public class CreateTransferHandler(
             AccountId = command.AccountId,
             DestinationAccountId = command.DestinationAccountId,
             PaymentMethod = "TRANSFER",
-            Date = command.Date,
+            Date = command.Date.ToUtc(),
             ThirdPartyType = null,
             ThirdPartyName = null,
             ThirdPartyId = null,
