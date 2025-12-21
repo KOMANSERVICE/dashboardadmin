@@ -32,5 +32,13 @@ public class CashFlowConfigurations : IEntityTypeConfiguration<CashFlow>
 
         // RecurringCashFlowId est une string (pas un FK), donc on ignore la navigation
         builder.Ignore(e => e.RecurringCashFlow);
+
+        // CategoryId est une string (pas une FK), donc on ignore la navigation
+        // Cela evite la creation d'une colonne shadow CategoryId1
+        builder.Ignore(e => e.Category);
+
+        // La relation avec CashFlowHistory utilise CashFlowId comme string, pas comme FK
+        // On ignore la navigation pour eviter la creation d'une colonne shadow
+        builder.Ignore(e => e.History);
     }
 }

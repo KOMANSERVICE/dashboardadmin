@@ -14,5 +14,9 @@ internal class CategoryConfiguration : IEntityTypeConfiguration<Category>
                 id => id,
                 id => id)
             .ValueGeneratedOnAdd();
+
+        // La relation avec CashFlow utilise CategoryId comme string, pas comme FK
+        // On ignore la navigation pour eviter la creation d'une colonne shadow
+        builder.Ignore(c => c.CashFlows);
     }
 }

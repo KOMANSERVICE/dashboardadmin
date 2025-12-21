@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using TresorerieService.Infrastructure.Data;
@@ -11,9 +12,11 @@ using TresorerieService.Infrastructure.Data;
 namespace TresorerieService.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(TresorerieDbContext))]
-    partial class TresorerieDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251221143843_RemoveCategoryId1ShadowProperty")]
+    partial class RemoveCategoryId1ShadowProperty
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -312,6 +315,9 @@ namespace TresorerieService.Infrastructure.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("fld1");
 
+                    b.Property<Guid>("CashFlowId1")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Comment")
                         .HasColumnType("text")
                         .HasColumnName("fld25");
@@ -343,6 +349,8 @@ namespace TresorerieService.Infrastructure.Data.Migrations
                         .HasColumnName("ch5");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CashFlowId1");
 
                     b.ToTable("TC00002");
                 });
@@ -598,6 +606,17 @@ namespace TresorerieService.Infrastructure.Data.Migrations
                     b.Navigation("DestinationAccount");
                 });
 
+            modelBuilder.Entity("TresorerieService.Domain.Entities.CashFlowHistory", b =>
+                {
+                    b.HasOne("TresorerieService.Domain.Entities.CashFlow", "CashFlow")
+                        .WithMany("History")
+                        .HasForeignKey("CashFlowId1")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CashFlow");
+                });
+
             modelBuilder.Entity("TresorerieService.Domain.Entities.RecurringCashFlow", b =>
                 {
                     b.HasOne("TresorerieService.Domain.Entities.Account", "Account")
@@ -614,6 +633,11 @@ namespace TresorerieService.Infrastructure.Data.Migrations
                     b.Navigation("CashFlows");
 
                     b.Navigation("DestinationCashFlows");
+                });
+
+            modelBuilder.Entity("TresorerieService.Domain.Entities.CashFlow", b =>
+                {
+                    b.Navigation("History");
                 });
 #pragma warning restore 612, 618
         }
