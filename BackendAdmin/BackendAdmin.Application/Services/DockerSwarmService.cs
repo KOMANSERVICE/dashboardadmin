@@ -198,6 +198,278 @@ public class DockerSwarmService : IDockerSwarmService
         }
     }
 
+    public async Task<NodeListResponse?> GetNodeByIdAsync(string nodeId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var node = await _client.Swarm.InspectNodeAsync(nodeId, cancellationToken);
+            return node;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de la recuperation du noeud '{nodeId}'");
+        }
+    }
+
+    public async Task PromoteNodeAsync(string nodeId, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        if (node.Spec?.Role?.Equals("manager", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            throw new BadRequestException($"Le noeud '{nodeId}' est deja manager");
+        }
+
+        try
+        {
+            var updateParams = new NodeUpdateParameters
+            {
+                Role = "manager",
+                Availability = node.Spec?.Availability ?? "active"
+            };
+
+            await _client.Swarm.UpdateNodeAsync(nodeId, node.Version.Index, updateParams, cancellationToken);
+            _logger.LogInformation("Node {NodeId} promoted to manager", nodeId);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to promote node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de la promotion du noeud '{nodeId}'");
+        }
+    }
+
+    public async Task DemoteNodeAsync(string nodeId, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        if (node.Spec?.Role?.Equals("worker", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            throw new BadRequestException($"Le noeud '{nodeId}' est deja worker");
+        }
+
+        // Check if this is the last manager
+        var allNodes = await GetNodesAsync(cancellationToken);
+        var managerCount = allNodes.Count(n => n.Spec?.Role?.Equals("manager", StringComparison.OrdinalIgnoreCase) == true);
+        if (managerCount <= 1)
+        {
+            throw new BadRequestException("Impossible de retrograder le dernier manager du cluster");
+        }
+
+        try
+        {
+            var updateParams = new NodeUpdateParameters
+            {
+                Role = "worker",
+                Availability = node.Spec?.Availability ?? "active"
+            };
+
+            await _client.Swarm.UpdateNodeAsync(nodeId, node.Version.Index, updateParams, cancellationToken);
+            _logger.LogInformation("Node {NodeId} demoted to worker", nodeId);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to demote node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de la retrogradation du noeud '{nodeId}'");
+        }
+    }
+
+    public async Task DrainNodeAsync(string nodeId, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        if (node.Spec?.Availability?.Equals("drain", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            throw new BadRequestException($"Le noeud '{nodeId}' est deja en mode drain");
+        }
+
+        try
+        {
+            var updateParams = new NodeUpdateParameters
+            {
+                Role = node.Spec?.Role ?? "worker",
+                Availability = "drain"
+            };
+
+            await _client.Swarm.UpdateNodeAsync(nodeId, node.Version.Index, updateParams, cancellationToken);
+            _logger.LogInformation("Node {NodeId} set to drain mode", nodeId);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to drain node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de la mise en drain du noeud '{nodeId}'");
+        }
+    }
+
+    public async Task ActivateNodeAsync(string nodeId, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        if (node.Spec?.Availability?.Equals("active", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            throw new BadRequestException($"Le noeud '{nodeId}' est deja actif");
+        }
+
+        try
+        {
+            var updateParams = new NodeUpdateParameters
+            {
+                Role = node.Spec?.Role ?? "worker",
+                Availability = "active"
+            };
+
+            await _client.Swarm.UpdateNodeAsync(nodeId, node.Version.Index, updateParams, cancellationToken);
+            _logger.LogInformation("Node {NodeId} activated", nodeId);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to activate node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de l'activation du noeud '{nodeId}'");
+        }
+    }
+
+    public async Task RemoveNodeAsync(string nodeId, bool force = false, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        // Check if node is active (must be drained first unless force)
+        if (!force && node.Spec?.Availability?.Equals("active", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            throw new BadRequestException("Le noeud doit etre en mode drain avant suppression. Utilisez force=true pour forcer.");
+        }
+
+        // Check if node is a manager
+        if (node.Spec?.Role?.Equals("manager", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            // Check if this is the last manager
+            var allNodes = await GetNodesAsync(cancellationToken);
+            var managerCount = allNodes.Count(n => n.Spec?.Role?.Equals("manager", StringComparison.OrdinalIgnoreCase) == true);
+            if (managerCount <= 1)
+            {
+                throw new BadRequestException("Impossible de supprimer le dernier manager du cluster");
+            }
+        }
+
+        try
+        {
+            await _client.Swarm.RemoveNodeAsync(nodeId, force, cancellationToken);
+            _logger.LogInformation("Node {NodeId} removed from cluster (force={Force})", nodeId, force);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de la suppression du noeud '{nodeId}'");
+        }
+    }
+
+    public async Task<Dictionary<string, string>> GetNodeLabelsAsync(string nodeId, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        return node.Spec?.Labels != null
+            ? new Dictionary<string, string>(node.Spec.Labels)
+            : new Dictionary<string, string>();
+    }
+
+    public async Task UpdateNodeLabelsAsync(string nodeId, Dictionary<string, string> labels, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        try
+        {
+            var updateParams = new NodeUpdateParameters
+            {
+                Role = node.Spec?.Role ?? "worker",
+                Availability = node.Spec?.Availability ?? "active",
+                Labels = labels
+            };
+
+            await _client.Swarm.UpdateNodeAsync(nodeId, node.Version.Index, updateParams, cancellationToken);
+            _logger.LogInformation("Node {NodeId} labels updated", nodeId);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update labels for node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de la mise a jour des labels du noeud '{nodeId}'");
+        }
+    }
+
     public async Task<IList<TaskResponse>> GetServiceTasksAsync(string serviceName, CancellationToken cancellationToken = default)
     {
         var service = await GetServiceByNameAsync(serviceName, cancellationToken);
@@ -866,7 +1138,10 @@ public class DockerSwarmService : IDockerSwarmService
                 HostConfig = new HostConfig
                 {
                     Binds = new[] { $"{volumeName}:/data:ro" },
-                    AutoRemove = true
+                    // AutoRemove = false pour éviter une condition de course (race condition)
+                    // entre la suppression automatique du conteneur et la récupération des logs
+                    // Le nettoyage manuel est effectué dans le bloc finally
+                    AutoRemove = false
                 }
             };
 
@@ -971,6 +1246,78 @@ public class DockerSwarmService : IDockerSwarmService
         }
     }
 
+    /// <summary>
+    /// Gets volume information (containers using and size) for all volumes in a single batch operation.
+    /// Returns a dictionary where keys are volume names and values are tuples of (containerIds, sizeBytes).
+    /// Note: Size calculation is skipped for performance (requires creating temporary containers).
+    /// </summary>
+    public async Task<Dictionary<string, (IList<string> ContainerIds, long SizeBytes)>> GetAllVolumesInfoAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Get all containers once to determine which volumes are in use
+            var containers = await _client.Containers.ListContainersAsync(
+                new ContainersListParameters { All = true },
+                cancellationToken);
+
+            // Build a dictionary of volume name -> container IDs using that volume
+            var volumeContainers = new Dictionary<string, List<string>>();
+
+            foreach (var container in containers)
+            {
+                if (container.Mounts != null)
+                {
+                    foreach (var mount in container.Mounts)
+                    {
+                        var volumeName = mount.Name;
+                        if (string.IsNullOrEmpty(volumeName))
+                        {
+                            // Try to extract volume name from source path
+                            volumeName = mount.Source?.Split('/').LastOrDefault();
+                        }
+
+                        if (!string.IsNullOrEmpty(volumeName))
+                        {
+                            if (!volumeContainers.ContainsKey(volumeName))
+                            {
+                                volumeContainers[volumeName] = new List<string>();
+                            }
+
+                            var containerName = container.Names?.FirstOrDefault()?.TrimStart('/') ?? container.ID;
+                            if (!volumeContainers[volumeName].Contains(containerName))
+                            {
+                                volumeContainers[volumeName].Add(containerName);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Get all volumes
+            var volumeListResponse = await _client.Volumes.ListAsync(cancellationToken);
+            var volumes = volumeListResponse.Volumes ?? new List<VolumeResponse>();
+
+            // Build result dictionary
+            var result = new Dictionary<string, (IList<string> ContainerIds, long SizeBytes)>();
+
+            foreach (var volume in volumes)
+            {
+                var containerIds = volumeContainers.GetValueOrDefault(volume.Name, new List<string>()) as IList<string>;
+                // Use UsageData.Size if available, otherwise 0 (calculating size for each volume is expensive)
+                var sizeBytes = volume.UsageData?.Size ?? 0;
+
+                result[volume.Name] = (containerIds, sizeBytes);
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get volumes info");
+            return new Dictionary<string, (IList<string> ContainerIds, long SizeBytes)>();
+        }
+    }
+
     // Container management methods
 
     public async Task<IList<ContainerListResponse>> GetContainersAsync(bool all = true, CancellationToken cancellationToken = default)
@@ -1034,16 +1381,16 @@ public class DockerSwarmService : IDockerSwarmService
                 throw new InternalServerException($"Impossible de parser les stats du conteneur '{containerId}'");
             }
 
-            // Calculate CPU percentage
+            // Calculate CPU percentage (capped to 0-100)
             var cpuDelta = (double)(stats.CPUStats?.CPUUsage?.TotalUsage ?? 0) - (double)(stats.PreCPUStats?.CPUUsage?.TotalUsage ?? 0);
             var systemDelta = (double)(stats.CPUStats?.SystemUsage ?? 0) - (double)(stats.PreCPUStats?.SystemUsage ?? 0);
             var onlineCpus = stats.CPUStats?.OnlineCPUs ?? 1;
-            var cpuPercent = systemDelta > 0 ? (cpuDelta / systemDelta) * onlineCpus * 100.0 : 0;
+            var cpuPercent = systemDelta > 0 ? Math.Min(100.0, Math.Max(0.0, (cpuDelta / systemDelta) * onlineCpus * 100.0)) : 0;
 
-            // Calculate memory percentage
+            // Calculate memory percentage (capped to 0-100)
             var memoryUsage = stats.MemoryStats?.Usage ?? 0;
             var memoryLimit = stats.MemoryStats?.Limit ?? 1;
-            var memoryPercent = (double)memoryUsage / memoryLimit * 100.0;
+            var memoryPercent = Math.Min(100.0, Math.Max(0.0, (double)memoryUsage / memoryLimit * 100.0));
 
             // Calculate network stats
             ulong rxBytes = 0, txBytes = 0, rxPackets = 0, txPackets = 0;
@@ -1073,6 +1420,35 @@ public class DockerSwarmService : IDockerSwarmService
 
             var containerName = container.Name?.TrimStart('/') ?? containerId;
 
+            // Get restart count from container state
+            var restartCount = container.RestartCount;
+
+            // Get health status from container state
+            var healthStatus = "Unknown";
+            if (container.State?.Health != null)
+            {
+                healthStatus = container.State.Health.Status ?? "Unknown";
+            }
+            else if (container.State?.Running == true)
+            {
+                healthStatus = "Healthy"; // No healthcheck configured, assume healthy if running
+            }
+            else if (container.State?.Status != null)
+            {
+                healthStatus = container.State.Status;
+            }
+
+            // Calculate uptime from StartedAt
+            DateTime startedAt = DateTime.UtcNow;
+            if (!string.IsNullOrEmpty(container.State?.StartedAt))
+            {
+                if (DateTime.TryParse(container.State.StartedAt, out var parsedDate))
+                {
+                    startedAt = parsedDate;
+                }
+            }
+            var uptime = DateTime.UtcNow - startedAt;
+
             return new ContainerStatsDTO(
                 ContainerId: containerId,
                 ContainerName: containerName,
@@ -1098,7 +1474,11 @@ public class DockerSwarmService : IDockerSwarmService
                 BlockIO: new ContainerBlockIOStatsDTO(
                     ReadBytes: readBytes,
                     WriteBytes: writeBytes
-                )
+                ),
+                RestartCount: (int)restartCount,
+                HealthStatus: healthStatus,
+                Uptime: uptime,
+                StartedAt: startedAt
             );
         }
         catch (NotFoundException)
@@ -1376,6 +1756,134 @@ public class DockerSwarmService : IDockerSwarmService
         }
     }
 
+
+    // Metrics and monitoring methods
+
+    public async Task<IList<ContainerMetricsSummaryDTO>> GetAllContainersMetricsSummaryAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containers = await GetContainersAsync(all: false, cancellationToken); // Only running containers
+
+            // Parallelize stats fetching using Task.WhenAll for better performance
+            var tasks = containers.Select(async container =>
+            {
+                try
+                {
+                    var stats = await GetContainerStatsAsync(container.ID, cancellationToken);
+                    var containerName = container.Names?.FirstOrDefault()?.TrimStart('/') ?? container.ID[..12];
+
+                    return new ContainerMetricsSummaryDTO(
+                        ContainerId: container.ID,
+                        ContainerName: containerName,
+                        Image: container.Image ?? "unknown",
+                        State: container.State ?? "unknown",
+                        CpuPercent: stats.Cpu.UsagePercent,
+                        MemoryPercent: stats.Memory.UsagePercent,
+                        MemoryUsage: stats.Memory.Usage,
+                        MemoryLimit: stats.Memory.Limit,
+                        RestartCount: stats.RestartCount,
+                        HealthStatus: stats.HealthStatus,
+                        Uptime: stats.Uptime
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to get stats for container {ContainerId}", container.ID);
+                    return null; // Return null for failed containers
+                }
+            }).ToList();
+
+            var results = await Task.WhenAll(tasks);
+
+            // Filter out null results (failed containers) and return as list
+            return results.Where(r => r != null).Cast<ContainerMetricsSummaryDTO>().ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get containers metrics summary");
+            throw new InternalServerException("Erreur lors de la recuperation du resume des metriques des conteneurs");
+        }
+    }
+
+    public async Task<IList<DockerEventDTO>> GetDockerEventsAsync(DateTime? since = null, DateTime? until = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var events = new List<DockerEventDTO>();
+
+            var parameters = new ContainerEventsParameters();
+
+            // Set default time range: last 15 minutes
+            var sinceTime = since ?? DateTime.UtcNow.AddMinutes(-15);
+            var untilTime = until ?? DateTime.UtcNow;
+
+            parameters.Since = ((DateTimeOffset)sinceTime).ToUnixTimeSeconds().ToString();
+            parameters.Until = ((DateTimeOffset)untilTime).ToUnixTimeSeconds().ToString();
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(5)); // Timeout for safety
+
+            try
+            {
+                using var stream = await _client.System.MonitorEventsAsync(parameters, cts.Token);
+                using var reader = new StreamReader(stream);
+
+                while (!reader.EndOfStream && !cts.Token.IsCancellationRequested)
+                {
+                    var line = await reader.ReadLineAsync(cts.Token);
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+
+                    try
+                    {
+                        var dockerEvent = System.Text.Json.JsonSerializer.Deserialize<Docker.DotNet.Models.Message>(line);
+                        if (dockerEvent != null)
+                        {
+                            var actorName = "unknown";
+                            if (dockerEvent.Actor?.Attributes != null && dockerEvent.Actor.Attributes.TryGetValue("name", out var name))
+                            {
+                                actorName = name;
+                            }
+                            else if (dockerEvent.Actor?.ID != null && dockerEvent.Actor.ID.Length >= 12)
+                            {
+                                actorName = dockerEvent.Actor.ID[..12];
+                            }
+
+                            var attributes = dockerEvent.Actor?.Attributes != null
+                                ? new Dictionary<string, string>(dockerEvent.Actor.Attributes)
+                                : new Dictionary<string, string>();
+
+                            events.Add(new DockerEventDTO(
+                                Type: dockerEvent.Type ?? "unknown",
+                                Action: dockerEvent.Action ?? "unknown",
+                                ActorId: dockerEvent.Actor?.ID ?? "unknown",
+                                ActorName: actorName,
+                                Timestamp: DateTimeOffset.FromUnixTimeSeconds(dockerEvent.Time).DateTime,
+                                Attributes: attributes
+                            ));
+                        }
+                    }
+                    catch (System.Text.Json.JsonException)
+                    {
+                        // Skip malformed events
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when timeout or cancellation occurs
+            }
+
+            return events.OrderByDescending(e => e.Timestamp).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker events");
+            throw new InternalServerException("Erreur lors de la recuperation des evenements Docker");
+        }
+    }
+
+
     // Network management methods
 
     public async Task<IList<NetworkResponse>> GetNetworksAsync(CancellationToken cancellationToken = default)
@@ -1596,4 +2104,942 @@ public class DockerSwarmService : IDockerSwarmService
             throw new InternalServerException($"Erreur lors de la deconnexion du conteneur du reseau '{networkName}'");
         }
     }
+
+
+    // Image management methods
+
+    public async Task<IList<ImagesListResponse>> GetImagesAsync(bool all = false, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var images = await _client.Images.ListImagesAsync(
+                new ImagesListParameters { All = all },
+                cancellationToken);
+            return images.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker images");
+            throw new InternalServerException("Docker socket non accessible");
+        }
+    }
+
+    public async Task<ImageInspectResponse?> GetImageByIdAsync(string imageId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var image = await _client.Images.InspectImageAsync(imageId, cancellationToken);
+            return image;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get image {ImageId}", imageId);
+            throw new InternalServerException($"Erreur lors de la recuperation de l'image '{imageId}'");
+        }
+    }
+
+    public async Task<IList<ImageHistoryResponse>> GetImageHistoryAsync(string imageId, CancellationToken cancellationToken = default)
+    {
+        var image = await GetImageByIdAsync(imageId, cancellationToken);
+        if (image == null)
+        {
+            throw new NotFoundException($"Image '{imageId}' non trouvee");
+        }
+
+        try
+        {
+            var history = await _client.Images.GetImageHistoryAsync(imageId, cancellationToken);
+            return history.ToList();
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get history for image {ImageId}", imageId);
+            throw new InternalServerException($"Erreur lors de la recuperation de l'historique de l'image '{imageId}'");
+        }
+    }
+
+    public async Task<IList<ImagesListResponse>> GetDanglingImagesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var images = await _client.Images.ListImagesAsync(
+                new ImagesListParameters
+                {
+                    Filters = new Dictionary<string, IDictionary<string, bool>>
+                    {
+                        ["dangling"] = new Dictionary<string, bool> { ["true"] = true }
+                    }
+                },
+                cancellationToken);
+            return images.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get dangling images");
+            throw new InternalServerException("Erreur lors de la recuperation des images dangling");
+        }
+    }
+
+    public async Task<PullImageResponse> PullImageAsync(PullImageRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var imageName = request.Image;
+            var tag = request.Tag ?? "latest";
+
+            // Add registry prefix if specified
+            if (!string.IsNullOrEmpty(request.Registry))
+            {
+                imageName = $"{request.Registry}/{imageName}";
+            }
+
+            var createParams = new ImagesCreateParameters
+            {
+                FromImage = imageName,
+                Tag = tag
+            };
+
+            // Use progress handler to track pull progress
+            var lastStatus = "";
+            await _client.Images.CreateImageAsync(
+                createParams,
+                null, // authConfig - could be extended to support private registries
+                new Progress<JSONMessage>(message =>
+                {
+                    if (!string.IsNullOrEmpty(message.Status))
+                    {
+                        lastStatus = message.Status;
+                    }
+                }),
+                cancellationToken);
+
+            _logger.LogInformation("Image {ImageName}:{Tag} pulled successfully", imageName, tag);
+
+            return new PullImageResponse(
+                ImageName: imageName,
+                Tag: tag,
+                Status: lastStatus ?? "Pull completed",
+                PulledAt: DateTime.UtcNow
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to pull image {ImageName}", request.Image);
+            throw new InternalServerException($"Erreur lors du pull de l'image '{request.Image}:{request.Tag ?? "latest"}'");
+        }
+    }
+
+    public async Task DeleteImageAsync(string imageId, bool force = false, bool pruneChildren = false, CancellationToken cancellationToken = default)
+    {
+        var image = await GetImageByIdAsync(imageId, cancellationToken);
+        if (image == null)
+        {
+            throw new NotFoundException($"Image '{imageId}' non trouvee");
+        }
+
+        try
+        {
+            var deleteParams = new ImageDeleteParameters
+            {
+                Force = force,
+                NoPrune = !pruneChildren
+            };
+
+            await _client.Images.DeleteImageAsync(imageId, deleteParams, cancellationToken);
+            _logger.LogInformation("Image {ImageId} deleted successfully", imageId);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            throw new BadRequestException($"L'image '{imageId}' est utilisee par un ou plusieurs conteneurs. Utilisez force=true pour forcer la suppression.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete image {ImageId}", imageId);
+            throw new InternalServerException($"Erreur lors de la suppression de l'image '{imageId}'");
+        }
+    }
+
+    public async Task<TagImageResponse> TagImageAsync(string imageId, TagImageRequest request, CancellationToken cancellationToken = default)
+    {
+        var image = await GetImageByIdAsync(imageId, cancellationToken);
+        if (image == null)
+        {
+            throw new NotFoundException($"Image '{imageId}' non trouvee");
+        }
+
+        try
+        {
+            var tagParams = new ImageTagParameters
+            {
+                RepositoryName = request.NewRepository,
+                Tag = request.NewTag
+            };
+
+            await _client.Images.TagImageAsync(imageId, tagParams, cancellationToken);
+            _logger.LogInformation("Image {ImageId} tagged as {Repository}:{Tag}", imageId, request.NewRepository, request.NewTag);
+
+            return new TagImageResponse(
+                SourceImage: imageId,
+                NewRepository: request.NewRepository,
+                NewTag: request.NewTag
+            );
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to tag image {ImageId}", imageId);
+            throw new InternalServerException($"Erreur lors du tagging de l'image '{imageId}'");
+        }
+    }
+
+    public async Task<PushImageResponse> PushImageAsync(string imageId, PushImageRequest request, CancellationToken cancellationToken = default)
+    {
+        var image = await GetImageByIdAsync(imageId, cancellationToken);
+        if (image == null)
+        {
+            throw new NotFoundException($"Image '{imageId}' non trouvee");
+        }
+
+        try
+        {
+            // Get the first repo tag to push
+            var repoTag = image.RepoTags?.FirstOrDefault();
+            if (string.IsNullOrEmpty(repoTag))
+            {
+                throw new BadRequestException($"L'image '{imageId}' n'a pas de tag. Veuillez d'abord la taguer.");
+            }
+
+            var parts = repoTag.Split(':');
+            var repository = parts[0];
+            var tag = request.Tag ?? (parts.Length > 1 ? parts[1] : "latest");
+
+            // Add registry prefix if specified
+            if (!string.IsNullOrEmpty(request.Registry))
+            {
+                repository = $"{request.Registry}/{repository}";
+            }
+
+            var lastStatus = "";
+            await _client.Images.PushImageAsync(
+                $"{repository}:{tag}",
+                new ImagePushParameters(),
+                null, // authConfig - could be extended to support private registries
+                new Progress<JSONMessage>(message =>
+                {
+                    if (!string.IsNullOrEmpty(message.Status))
+                    {
+                        lastStatus = message.Status;
+                    }
+                }),
+                cancellationToken);
+
+            _logger.LogInformation("Image {Repository}:{Tag} pushed successfully", repository, tag);
+
+            return new PushImageResponse(
+                ImageName: repository,
+                Tag: tag,
+                Status: lastStatus ?? "Push completed",
+                PushedAt: DateTime.UtcNow
+            );
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to push image {ImageId}", imageId);
+            throw new InternalServerException($"Erreur lors du push de l'image '{imageId}'");
+        }
+    }
+
+    public async Task<(int count, long spaceReclaimed, List<string> deletedImages)> PruneImagesAsync(bool dangling = true, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var filters = new Dictionary<string, IDictionary<string, bool>>();
+            if (dangling)
+            {
+                filters["dangling"] = new Dictionary<string, bool> { ["true"] = true };
+            }
+
+            var response = await _client.Images.PruneImagesAsync(
+                new ImagesPruneParameters { Filters = filters },
+                cancellationToken);
+
+            var deletedImages = response.ImagesDeleted?
+                .Where(i => !string.IsNullOrEmpty(i.Deleted))
+                .Select(i => i.Deleted!)
+                .ToList() ?? new List<string>();
+
+            var spaceReclaimed = (long)response.SpaceReclaimed;
+
+            _logger.LogInformation("Pruned {Count} images, reclaimed {SpaceReclaimed} bytes", deletedImages.Count, spaceReclaimed);
+
+            return (deletedImages.Count, spaceReclaimed, deletedImages);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to prune images");
+            throw new InternalServerException("Erreur lors du nettoyage des images");
+        }
+    }
+
+    public async Task<int> GetImageContainerCountAsync(string imageId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containers = await _client.Containers.ListContainersAsync(
+                new ContainersListParameters { All = true },
+                cancellationToken);
+
+            // Count containers using this image (by ID or name)
+            var count = containers.Count(c =>
+                c.ImageID == imageId ||
+                c.ImageID == $"sha256:{imageId}" ||
+                c.Image == imageId);
+
+            return count;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get container count for image {ImageId}", imageId);
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Gets container counts for all images in a single batch operation (performance optimization).
+    /// Returns a dictionary where keys are image IDs and values are container counts.
+    /// </summary>
+    public async Task<Dictionary<string, int>> GetAllImageContainerCountsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Get all containers once
+            var containers = await _client.Containers.ListContainersAsync(
+                new ContainersListParameters { All = true },
+                cancellationToken);
+
+            // Build a dictionary of image ID -> container count
+            var imageCounts = new Dictionary<string, int>();
+
+            foreach (var container in containers)
+            {
+                // Normalize image ID (remove sha256: prefix for consistency)
+                var imageId = container.ImageID?.Replace("sha256:", "") ?? "";
+                var imageName = container.Image ?? "";
+
+                // Count by normalized image ID
+                if (!string.IsNullOrEmpty(imageId))
+                {
+                    imageCounts[imageId] = imageCounts.GetValueOrDefault(imageId, 0) + 1;
+                }
+
+                // Also count by image name (for lookups by name)
+                if (!string.IsNullOrEmpty(imageName) && imageName != imageId)
+                {
+                    imageCounts[imageName] = imageCounts.GetValueOrDefault(imageName, 0) + 1;
+                }
+            }
+
+            return imageCounts;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get container counts for all images");
+            return new Dictionary<string, int>();
+        }
+    }
+
+    // Stack management methods
+    // Docker Swarm stacks are identified by the "com.docker.stack.namespace" label on services
+
+    public async Task<IList<StackDTO>> GetStacksAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var services = await GetServicesAsync(cancellationToken);
+
+            // Group services by stack name (from label com.docker.stack.namespace)
+            var stacks = services
+                .Where(s => s.Spec?.Labels?.ContainsKey("com.docker.stack.namespace") == true)
+                .GroupBy(s => s.Spec.Labels["com.docker.stack.namespace"])
+                .Select(g => new StackDTO(
+                    Name: g.Key,
+                    ServiceCount: g.Count(),
+                    Orchestrator: "swarm",
+                    CreatedAt: g.Min(s => s.CreatedAt)
+                ))
+                .OrderBy(s => s.Name)
+                .ToList();
+
+            return stacks;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker stacks");
+            throw new InternalServerException("Erreur lors de la recuperation des stacks Docker");
+        }
+    }
+
+    public async Task<StackDetailsDTO?> GetStackByNameAsync(string stackName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var services = await GetServicesAsync(cancellationToken);
+
+            // Filter services belonging to the stack
+            var stackServices = services
+                .Where(s => s.Spec?.Labels?.ContainsKey("com.docker.stack.namespace") == true
+                         && s.Spec.Labels["com.docker.stack.namespace"] == stackName)
+                .ToList();
+
+            if (stackServices.Count == 0)
+            {
+                return null;
+            }
+
+            var serviceDtos = stackServices.Select(s =>
+            {
+                var ports = s.Endpoint?.Ports?
+                    .Select(p => new StackServicePortDTO(
+                        TargetPort: (int)p.TargetPort,
+                        PublishedPort: (int)p.PublishedPort,
+                        Protocol: p.Protocol ?? "tcp"
+                    ))
+                    .ToList() ?? new List<StackServicePortDTO>();
+
+                var runningReplicas = 0;
+                var desiredReplicas = (int)(s.Spec?.Mode?.Replicated?.Replicas ?? 1);
+
+                // For mode global, count nodes
+                if (s.Spec?.Mode?.Global != null)
+                {
+                    desiredReplicas = 1; // Global services have 1 per node
+                }
+
+                // Check running replicas from ServiceStatus if available
+                if (s.ServiceStatus != null)
+                {
+                    runningReplicas = (int)s.ServiceStatus.RunningTasks;
+                    desiredReplicas = (int)s.ServiceStatus.DesiredTasks;
+                }
+
+                var status = runningReplicas >= desiredReplicas ? "running" : "updating";
+
+                return new StackServiceDTO(
+                    Id: s.ID,
+                    Name: s.Spec?.Name ?? "",
+                    Image: s.Spec?.TaskTemplate?.ContainerSpec?.Image?.Split('@')[0] ?? "",
+                    Replicas: runningReplicas,
+                    DesiredReplicas: desiredReplicas,
+                    Status: status,
+                    Ports: ports
+                );
+            }).ToList();
+
+            return new StackDetailsDTO(
+                Name: stackName,
+                ServiceCount: stackServices.Count,
+                Orchestrator: "swarm",
+                CreatedAt: stackServices.Min(s => s.CreatedAt),
+                Services: serviceDtos
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get stack {StackName}", stackName);
+            throw new InternalServerException($"Erreur lors de la recuperation de la stack '{stackName}'");
+        }
+    }
+
+    public async Task<IList<StackServiceDTO>> GetStackServicesAsync(string stackName, CancellationToken cancellationToken = default)
+    {
+        var stackDetails = await GetStackByNameAsync(stackName, cancellationToken);
+        if (stackDetails == null)
+        {
+            throw new NotFoundException($"Stack '{stackName}' non trouvee");
+        }
+        return stackDetails.Services;
+    }
+
+    public async Task<DeployStackResponse> DeployStackAsync(DeployStackRequest request, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new BadRequestException("Le nom de la stack est requis");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ComposeFileContent))
+        {
+            throw new BadRequestException("Le contenu du fichier compose est requis");
+        }
+
+        try
+        {
+            // Parse the compose file to extract services
+            var composeContent = request.ComposeFileContent;
+
+            // Create a temporary file for the compose content
+            var tempDir = Path.Combine(Path.GetTempPath(), "docker-stacks", request.Name);
+            Directory.CreateDirectory(tempDir);
+            var composeFilePath = Path.Combine(tempDir, "docker-compose.yml");
+
+            await File.WriteAllTextAsync(composeFilePath, composeContent, cancellationToken);
+
+            try
+            {
+                // Use docker stack deploy command via process
+                var args = $"stack deploy -c \"{composeFilePath}\" {request.Name}";
+                if (request.Prune)
+                {
+                    args += " --prune";
+                }
+
+                var processStartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "docker",
+                    Arguments = args,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var process = System.Diagnostics.Process.Start(processStartInfo);
+                if (process == null)
+                {
+                    throw new InternalServerException("Impossible de demarrer le processus docker");
+                }
+
+                var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+                var error = await process.StandardError.ReadToEndAsync(cancellationToken);
+
+                await process.WaitForExitAsync(cancellationToken);
+
+                if (process.ExitCode != 0)
+                {
+                    _logger.LogError("Docker stack deploy failed: {Error}", error);
+                    throw new BadRequestException($"Echec du deploiement de la stack: {error}");
+                }
+
+                _logger.LogInformation("Stack {StackName} deployed successfully", request.Name);
+
+                // Get the deployed stack to count services
+                var deployedStack = await GetStackByNameAsync(request.Name, cancellationToken);
+
+                return new DeployStackResponse(
+                    StackName: request.Name,
+                    ServicesDeployed: deployedStack?.ServiceCount ?? 0,
+                    DeployedAt: DateTime.UtcNow
+                );
+            }
+            finally
+            {
+                // Cleanup temp file
+                try
+                {
+                    if (File.Exists(composeFilePath))
+                    {
+                        File.Delete(composeFilePath);
+                    }
+                    if (Directory.Exists(tempDir))
+                    {
+                        Directory.Delete(tempDir, true);
+                    }
+                }
+                catch
+                {
+                    // Ignore cleanup errors
+                }
+            }
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to deploy stack {StackName}", request.Name);
+            throw new InternalServerException($"Erreur lors du deploiement de la stack '{request.Name}'");
+        }
+    }
+
+    public async Task DeleteStackAsync(string stackName, CancellationToken cancellationToken = default)
+    {
+        // Verify stack exists
+        var stack = await GetStackByNameAsync(stackName, cancellationToken);
+        if (stack == null)
+        {
+            throw new NotFoundException($"Stack '{stackName}' non trouvee");
+        }
+
+        try
+        {
+            // Use docker stack rm command via process
+            var processStartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "docker",
+                Arguments = $"stack rm {stackName}",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = System.Diagnostics.Process.Start(processStartInfo);
+            if (process == null)
+            {
+                throw new InternalServerException("Impossible de demarrer le processus docker");
+            }
+
+            var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var error = await process.StandardError.ReadToEndAsync(cancellationToken);
+
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (process.ExitCode != 0)
+            {
+                _logger.LogError("Docker stack rm failed: {Error}", error);
+                throw new BadRequestException($"Echec de la suppression de la stack: {error}");
+            }
+
+            _logger.LogInformation("Stack {StackName} deleted successfully", stackName);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete stack {StackName}", stackName);
+            throw new InternalServerException($"Erreur lors de la suppression de la stack '{stackName}'");
+        }
+    }
+
+    // System management methods
+
+    public async Task<SystemInfoDTO> GetSystemInfoAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var systemInfo = await _client.System.GetSystemInfoAsync(cancellationToken);
+
+            return new SystemInfoDTO(
+                Id: systemInfo.ID ?? "",
+                Name: systemInfo.Name ?? "",
+                OperatingSystem: systemInfo.OperatingSystem ?? "",
+                OSType: systemInfo.OSType ?? "",
+                Architecture: systemInfo.Architecture ?? "",
+                NCPU: systemInfo.NCPU,
+                MemTotal: systemInfo.MemTotal,
+                DockerRootDir: systemInfo.DockerRootDir ?? "",
+                KernelVersion: systemInfo.KernelVersion ?? "",
+                Containers: systemInfo.Containers,
+                ContainersRunning: systemInfo.ContainersRunning,
+                ContainersPaused: systemInfo.ContainersPaused,
+                ContainersStopped: systemInfo.ContainersStopped,
+                Images: systemInfo.Images,
+                Driver: systemInfo.Driver ?? "",
+                MemoryLimit: systemInfo.MemoryLimit,
+                SwapLimit: systemInfo.SwapLimit,
+                CpuCfsPeriod: systemInfo.CPUCfsPeriod,
+                CpuCfsQuota: systemInfo.CPUCfsQuota,
+                CPUShares: systemInfo.CPUShares,
+                IPv4Forwarding: systemInfo.IPv4Forwarding,
+                Debug: systemInfo.Debug,
+                ExperimentalBuild: systemInfo.ExperimentalBuild,
+                HttpProxy: systemInfo.HTTPProxy ?? "",
+                HttpsProxy: systemInfo.HTTPSProxy ?? "",
+                NoProxy: systemInfo.NoProxy ?? "",
+                ServerVersion: systemInfo.ServerVersion ?? "",
+                ClusterStore: systemInfo.ClusterStore ?? "",
+                SystemTime: DateTime.TryParse(systemInfo.SystemTime, out var st) ? st : DateTime.UtcNow,
+                LoggingDriver: systemInfo.LoggingDriver ?? ""
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker system info");
+            throw new InternalServerException("Docker socket non accessible");
+        }
+    }
+
+    public async Task<DockerVersionDTO> GetDockerVersionAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var version = await _client.System.GetVersionAsync(cancellationToken);
+
+            return new DockerVersionDTO(
+                Version: version.Version ?? "",
+                ApiVersion: version.APIVersion ?? "",
+                MinAPIVersion: version.MinAPIVersion ?? "",
+                GitCommit: version.GitCommit ?? "",
+                GoVersion: version.GoVersion ?? "",
+                Os: version.Os ?? "",
+                Arch: version.Arch ?? "",
+                KernelVersion: version.KernelVersion ?? "",
+                Experimental: version.Experimental,
+                BuildTime: DateTime.TryParse(version.BuildTime, out var bt) ? bt : DateTime.UtcNow
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker version");
+            throw new InternalServerException("Docker socket non accessible");
+        }
+    }
+
+    public async Task<DiskUsageDTO> GetDiskUsageAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Docker.DotNet doesn't have a direct GetSystemDataUsageAsync method,
+            // so we build disk usage info from available sources
+
+            // Get all images
+            var allImages = await _client.Images.ListImagesAsync(new ImagesListParameters { All = true }, cancellationToken);
+            var images = allImages.Select(i => new DiskUsageImageDTO(
+                Id: i.ID ?? "",
+                RepoTags: i.RepoTags?.ToList() ?? new List<string>(),
+                Size: i.Size,
+                SharedSize: i.SharedSize,
+                VirtualSize: i.VirtualSize,
+                Containers: i.Containers,
+                Created: i.Created
+            )).ToList();
+
+            // Get all containers (including stopped ones)
+            var allContainers = await _client.Containers.ListContainersAsync(
+                new ContainersListParameters { All = true, Size = true },
+                cancellationToken);
+            var containers = allContainers.Select(c => new DiskUsageContainerDTO(
+                Id: c.ID ?? "",
+                Name: c.Names?.FirstOrDefault()?.TrimStart('/') ?? "",
+                Image: c.Image ?? "",
+                ImageID: c.ImageID ?? "",
+                SizeRw: c.SizeRw,
+                SizeRootFs: c.SizeRootFs,
+                State: c.State ?? "",
+                Created: c.Created
+            )).ToList();
+
+            // Get all volumes
+            var volumeListResponse = await _client.Volumes.ListAsync(cancellationToken);
+            var volumes = volumeListResponse.Volumes?.Select(v => new DiskUsageVolumeDTO(
+                Name: v.Name ?? "",
+                Driver: v.Driver ?? "",
+                Mountpoint: v.Mountpoint ?? "",
+                Size: v.UsageData?.Size ?? 0,
+                UsageCount: (int)(v.UsageData?.RefCount ?? 0),
+                CreatedAt: DateTime.TryParse(v.CreatedAt, out var ca) ? ca : (DateTime?)null
+            )).ToList() ?? new List<DiskUsageVolumeDTO>();
+
+            // Build cache info is not available through Docker.DotNet API
+            List<DiskUsageBuildCacheDTO>? buildCache = null;
+
+            // Calculate summary
+            var imagesSize = images.Sum(i => i.Size);
+            var containersSize = containers.Sum(c => c.SizeRw);
+            var volumesSize = volumes.Sum(v => v.Size);
+            var buildCacheSize = 0L;
+
+            // Estimate layers size from images (shared layers between images)
+            var layersSize = images.Sum(i => i.Size - i.SharedSize);
+
+            var totalSize = layersSize + containersSize + volumesSize + buildCacheSize;
+            var reclaimableSize = CalculateReclaimableSize(images, containers, volumes, buildCache);
+
+            var summary = new DiskUsageSummaryDTO(
+                TotalSize: totalSize,
+                ReclaimableSize: reclaimableSize,
+                TotalImages: images.Count,
+                TotalContainers: containers.Count,
+                TotalVolumes: volumes.Count,
+                TotalBuildCache: 0,
+                ImagesSize: imagesSize,
+                ContainersSize: containersSize,
+                VolumesSize: volumesSize,
+                BuildCacheSize: buildCacheSize
+            );
+
+            return new DiskUsageDTO(
+                LayersSize: layersSize,
+                Images: images,
+                Containers: containers,
+                Volumes: volumes,
+                BuildCache: buildCache,
+                Summary: summary
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker disk usage");
+            throw new InternalServerException("Docker socket non accessible");
+        }
+    }
+
+    private static long CalculateReclaimableSize(
+        List<DiskUsageImageDTO> images,
+        List<DiskUsageContainerDTO> containers,
+        List<DiskUsageVolumeDTO> volumes,
+        List<DiskUsageBuildCacheDTO>? buildCache)
+    {
+        long reclaimable = 0;
+
+        // Dangling images (no containers using them)
+        var usedImageIds = containers.Select(c => c.ImageID).ToHashSet();
+        reclaimable += images.Where(i => i.Containers == 0 || !usedImageIds.Contains(i.Id)).Sum(i => i.Size);
+
+        // Stopped containers
+        reclaimable += containers.Where(c => c.State == "exited" || c.State == "dead").Sum(c => c.SizeRw);
+
+        // Unused volumes
+        reclaimable += volumes.Where(v => v.UsageCount == 0).Sum(v => v.Size);
+
+        // Unused build cache
+        if (buildCache != null)
+        {
+            reclaimable += buildCache.Where(b => !b.InUse).Sum(b => b.Size);
+        }
+
+        return reclaimable;
+    }
+
+    public async Task<PruneAllResponseDTO> PruneAllAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var deletedContainers = new List<string>();
+            var deletedImages = new List<string>();
+            var deletedVolumes = new List<string>();
+            var deletedNetworks = new List<string>();
+            long containersSpaceReclaimed = 0;
+            long imagesSpaceReclaimed = 0;
+            long volumesSpaceReclaimed = 0;
+            int buildCacheDeleted = 0;
+            long buildCacheSpaceReclaimed = 0;
+
+            // 1. Prune containers (stopped containers)
+            try
+            {
+                var containerPrune = await _client.Containers.PruneContainersAsync(null, cancellationToken);
+                deletedContainers = containerPrune.ContainersDeleted?.ToList() ?? new List<string>();
+                containersSpaceReclaimed = (long)containerPrune.SpaceReclaimed;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to prune containers during prune all");
+            }
+
+            // 2. Prune images (dangling and unreferenced)
+            try
+            {
+                var imagePrune = await _client.Images.PruneImagesAsync(
+                    new ImagesPruneParameters
+                    {
+                        Filters = new Dictionary<string, IDictionary<string, bool>>
+                        {
+                            ["dangling"] = new Dictionary<string, bool> { ["false"] = true }
+                        }
+                    },
+                    cancellationToken);
+                deletedImages = imagePrune.ImagesDeleted?
+                    .Where(i => !string.IsNullOrEmpty(i.Deleted))
+                    .Select(i => i.Deleted!)
+                    .ToList() ?? new List<string>();
+                imagesSpaceReclaimed = (long)imagePrune.SpaceReclaimed;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to prune images during prune all");
+            }
+
+            // 3. Prune volumes (unused volumes)
+            try
+            {
+                var volumePrune = await _client.Volumes.PruneAsync(null, cancellationToken);
+                deletedVolumes = volumePrune.VolumesDeleted?.ToList() ?? new List<string>();
+                volumesSpaceReclaimed = (long)volumePrune.SpaceReclaimed;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to prune volumes during prune all");
+            }
+
+            // 4. Prune networks (unused networks)
+            try
+            {
+                var networkPrune = await _client.Networks.PruneNetworksAsync(null, cancellationToken);
+                deletedNetworks = networkPrune.NetworksDeleted?.ToList() ?? new List<string>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to prune networks during prune all");
+            }
+
+            // 5. Prune build cache - Docker.DotNet doesn't expose this API
+            // Build cache pruning would require direct HTTP calls to Docker API
+            // Skipping for now as it's not critical for basic cleanup
+            _logger.LogInformation("Build cache pruning is not available through Docker.DotNet API");
+
+            var totalSpaceReclaimed = containersSpaceReclaimed + imagesSpaceReclaimed + volumesSpaceReclaimed + buildCacheSpaceReclaimed;
+
+            _logger.LogInformation(
+                "Prune all completed: {ContainersDeleted} containers, {ImagesDeleted} images, {VolumesDeleted} volumes, {NetworksDeleted} networks, {BuildCacheDeleted} build cache. Total space reclaimed: {TotalSpace} bytes",
+                deletedContainers.Count, deletedImages.Count, deletedVolumes.Count, deletedNetworks.Count, buildCacheDeleted, totalSpaceReclaimed);
+
+            return new PruneAllResponseDTO(
+                ContainersDeleted: deletedContainers.Count,
+                ContainersSpaceReclaimed: containersSpaceReclaimed,
+                ImagesDeleted: deletedImages.Count,
+                ImagesSpaceReclaimed: imagesSpaceReclaimed,
+                VolumesDeleted: deletedVolumes.Count,
+                VolumesSpaceReclaimed: volumesSpaceReclaimed,
+                NetworksDeleted: deletedNetworks.Count,
+                BuildCacheDeleted: buildCacheDeleted,
+                BuildCacheSpaceReclaimed: buildCacheSpaceReclaimed,
+                TotalSpaceReclaimed: totalSpaceReclaimed,
+                DeletedContainers: deletedContainers,
+                DeletedImages: deletedImages,
+                DeletedVolumes: deletedVolumes,
+                DeletedNetworks: deletedNetworks
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to prune all Docker resources");
+            throw new InternalServerException("Erreur lors du nettoyage global des ressources Docker");
+        }
+    }
+
 }

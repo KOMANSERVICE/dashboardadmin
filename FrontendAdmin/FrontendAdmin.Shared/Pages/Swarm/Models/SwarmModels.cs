@@ -16,6 +16,45 @@ public record NodeDto(
 
 public record GetNodesResponse(List<NodeDto> Nodes);
 
+// Node details models
+public record NodeDetailsDto(
+    string Id,
+    string Hostname,
+    string Role,
+    string State,
+    string Availability,
+    string EngineVersion,
+    long NanoCPUs,
+    long MemoryBytes,
+    DateTime CreatedAt,
+    DateTime UpdatedAt,
+    string? StatusMessage,
+    string? StatusAddr,
+    string? Platform,
+    string? Architecture,
+    Dictionary<string, string> Labels
+);
+
+public record GetNodeDetailsResponse(NodeDetailsDto Node);
+
+// Node labels models
+public record GetNodeLabelsResponse(string NodeId, Dictionary<string, string> Labels);
+
+public record UpdateNodeLabelsRequest(Dictionary<string, string> Labels);
+
+public record UpdateNodeLabelsResponse(string Message);
+
+// Node action responses
+public record PromoteNodeResponse(string Message);
+
+public record DemoteNodeResponse(string Message);
+
+public record DrainNodeResponse(string Message);
+
+public record ActivateNodeResponse(string Message);
+
+public record RemoveNodeResponse(string Message);
+
 // Service models
 public record SwarmServiceDto(
     string Id,
@@ -68,11 +107,13 @@ public record ServiceTaskDto(
 public record GetServiceTasksResponse(List<ServiceTaskDto> Tasks);
 
 // Service logs models
-public record GetServiceLogsResponse(
+public record ServiceLogsDto(
     string ServiceName,
     string Logs,
     DateTime FetchedAt
 );
+
+public record GetServiceLogsResponse(ServiceLogsDto Logs);
 
 // Create service models
 public record CreateServicePortRequest(
@@ -251,7 +292,11 @@ public record ContainerStatsDto(
     ContainerCpuStatsDto Cpu,
     ContainerMemoryStatsDto Memory,
     ContainerNetworkStatsDto Network,
-    ContainerBlockIOStatsDto BlockIO
+    ContainerBlockIOStatsDto BlockIO,
+    int RestartCount,
+    string HealthStatus,
+    TimeSpan Uptime,
+    DateTime StartedAt
 );
 
 public record ContainerCpuStatsDto(
@@ -476,4 +521,338 @@ public record DisconnectContainerResponse(
     bool Success,
     string NetworkName,
     string ContainerId
+);
+
+// Image models
+public record ImageDto(
+    string Id,
+    string? Repository,
+    string? Tag,
+    long Size,
+    DateTime CreatedAt,
+    int ContainerCount,
+    bool IsDangling
+);
+
+public record ImageDetailsDto(
+    string Id,
+    string? Repository,
+    string? Tag,
+    long Size,
+    DateTime CreatedAt,
+    string? Author,
+    string? Architecture,
+    string? Os,
+    string? DockerVersion,
+    Dictionary<string, string> Labels,
+    List<string> RepoTags,
+    List<string> RepoDigests,
+    string? Comment,
+    string? Container,
+    ImageConfigDto Config
+);
+
+public record ImageConfigDto(
+    string? Hostname,
+    string? Domainname,
+    string? User,
+    List<string>? Cmd,
+    List<string>? Entrypoint,
+    List<string>? Env,
+    string? WorkingDir,
+    List<string>? ExposedPorts,
+    List<string>? Volumes
+);
+
+public record ImageHistoryDto(
+    string Id,
+    string CreatedBy,
+    DateTime CreatedAt,
+    long Size,
+    string? Comment,
+    List<string> Tags
+);
+
+public record GetImagesResponse(List<ImageDto> Images);
+
+public record GetImageDetailsResponse(ImageDetailsDto Image);
+
+public record GetImageHistoryResponse(List<ImageHistoryDto> History);
+
+public record GetDanglingImagesResponse(List<ImageDto> Images);
+
+public record PullImageRequest(
+    string Image,
+    string? Tag = "latest",
+    string? Registry = null
+);
+
+public record PullImageResponse(
+    string ImageName,
+    string Tag,
+    string Status,
+    DateTime PulledAt
+);
+
+public record TagImageRequest(
+    string NewRepository,
+    string NewTag
+);
+
+public record TagImageResponse(
+    string SourceImage,
+    string NewRepository,
+    string NewTag
+);
+
+public record PushImageRequest(
+    string? Tag = null,
+    string? Registry = null
+);
+
+public record PushImageResponse(
+    string ImageName,
+    string Tag,
+    string Status,
+    DateTime PushedAt
+);
+
+public record PruneImagesResponse(
+    int DeletedCount,
+    long SpaceReclaimed,
+    List<string> DeletedImages
+);
+
+// Stack models
+public record StackDto(
+    string Name,
+    int ServiceCount,
+    string Orchestrator,
+    DateTime CreatedAt
+);
+
+public record StackDetailsDto(
+    string Name,
+    int ServiceCount,
+    string Orchestrator,
+    DateTime CreatedAt,
+    List<StackServiceDto> Services
+);
+
+public record StackServiceDto(
+    string Id,
+    string Name,
+    string Image,
+    int Replicas,
+    int DesiredReplicas,
+    string Status,
+    List<StackServicePortDto> Ports
+);
+
+public record StackServicePortDto(
+    int TargetPort,
+    int PublishedPort,
+    string Protocol
+);
+
+public record GetStacksResponse(List<StackDto> Stacks);
+
+public record GetStackDetailsResponse(StackDetailsDto Stack);
+
+public record GetStackServicesResponse(List<StackServiceDto> Services);
+
+public record DeployStackRequest(
+    string Name,
+    string ComposeFileContent,
+    bool Prune = false
+);
+
+public record DeployStackResponse(
+    string StackName,
+    int ServicesDeployed,
+    DateTime DeployedAt
+);
+
+// Metrics history models for charts
+public record MetricsHistoryPointDto(
+    DateTime Timestamp,
+    double CpuPercent,
+    double MemoryPercent,
+    ulong NetworkRxBytes,
+    ulong NetworkTxBytes,
+    ulong DiskReadBytes,
+    ulong DiskWriteBytes
+);
+
+public record ContainerMetricsHistoryDto(
+    string ContainerId,
+    string ContainerName,
+    List<MetricsHistoryPointDto> History
+);
+
+public record GetContainerMetricsHistoryResponse(ContainerMetricsHistoryDto Metrics);
+
+// Docker events models
+public record DockerEventDto(
+    string Type,
+    string Action,
+    string ActorId,
+    string ActorName,
+    DateTime Timestamp,
+    Dictionary<string, string> Attributes
+);
+
+public record GetDockerEventsResponse(List<DockerEventDto> Events);
+
+// Metrics summary for dashboard
+public record ContainerMetricsSummaryDto(
+    string ContainerId,
+    string ContainerName,
+    string Image,
+    string State,
+    double CpuPercent,
+    double MemoryPercent,
+    ulong MemoryUsage,
+    ulong MemoryLimit,
+    int RestartCount,
+    string HealthStatus,
+    TimeSpan Uptime
+);
+
+public record GetContainersMetricsSummaryResponse(List<ContainerMetricsSummaryDto> Containers);
+
+// System Info models
+public record SystemInfoDto(
+    string Id,
+    string Name,
+    string OperatingSystem,
+    string OSType,
+    string Architecture,
+    long NCPU,
+    long MemTotal,
+    string DockerRootDir,
+    string KernelVersion,
+    long Containers,
+    long ContainersRunning,
+    long ContainersPaused,
+    long ContainersStopped,
+    long Images,
+    string Driver,
+    bool MemoryLimit,
+    bool SwapLimit,
+    bool CpuCfsPeriod,
+    bool CpuCfsQuota,
+    bool CPUShares,
+    bool IPv4Forwarding,
+    bool Debug,
+    bool ExperimentalBuild,
+    string HttpProxy,
+    string HttpsProxy,
+    string NoProxy,
+    string ServerVersion,
+    string ClusterStore,
+    DateTime SystemTime,
+    string LoggingDriver
+);
+
+public record GetSystemInfoResponse(SystemInfoDto SystemInfo);
+
+// Docker Version models
+public record DockerVersionDto(
+    string Version,
+    string ApiVersion,
+    string MinAPIVersion,
+    string GitCommit,
+    string GoVersion,
+    string Os,
+    string Arch,
+    string KernelVersion,
+    bool Experimental,
+    DateTime BuildTime
+);
+
+public record GetDockerVersionResponse(DockerVersionDto Version);
+
+// Disk Usage models
+public record DiskUsageDto(
+    long LayersSize,
+    List<DiskUsageImageDto> Images,
+    List<DiskUsageContainerDto> Containers,
+    List<DiskUsageVolumeDto> Volumes,
+    List<DiskUsageBuildCacheDto>? BuildCache,
+    DiskUsageSummaryDto Summary
+);
+
+public record DiskUsageImageDto(
+    string Id,
+    List<string> RepoTags,
+    long Size,
+    long SharedSize,
+    long VirtualSize,
+    long Containers,
+    DateTime Created
+);
+
+public record DiskUsageContainerDto(
+    string Id,
+    string Name,
+    string Image,
+    string ImageID,
+    long SizeRw,
+    long SizeRootFs,
+    string State,
+    DateTime Created
+);
+
+public record DiskUsageVolumeDto(
+    string Name,
+    string Driver,
+    string Mountpoint,
+    long Size,
+    int UsageCount,
+    DateTime? CreatedAt
+);
+
+public record DiskUsageBuildCacheDto(
+    string Id,
+    string Type,
+    string Description,
+    long Size,
+    bool InUse,
+    bool Shared,
+    DateTime CreatedAt,
+    DateTime? LastUsedAt
+);
+
+public record DiskUsageSummaryDto(
+    long TotalSize,
+    long ReclaimableSize,
+    int TotalImages,
+    int TotalContainers,
+    int TotalVolumes,
+    int TotalBuildCache,
+    long ImagesSize,
+    long ContainersSize,
+    long VolumesSize,
+    long BuildCacheSize
+);
+
+public record GetDiskUsageResponse(DiskUsageDto DiskUsage);
+
+// Prune All models
+public record PruneAllResponse(
+    int ContainersDeleted,
+    long ContainersSpaceReclaimed,
+    int ImagesDeleted,
+    long ImagesSpaceReclaimed,
+    int VolumesDeleted,
+    long VolumesSpaceReclaimed,
+    int NetworksDeleted,
+    int BuildCacheDeleted,
+    long BuildCacheSpaceReclaimed,
+    long TotalSpaceReclaimed,
+    List<string> DeletedContainers,
+    List<string> DeletedImages,
+    List<string> DeletedVolumes,
+    List<string> DeletedNetworks
 );

@@ -97,6 +97,33 @@
                 }
             }
         </tbody>
+        @if (Services.Any())
+        {
+            <tfoot class="bg-gray-100">
+                <tr>
+                    <td colspan="6" class="px-6 py-3">
+                        <div class="flex items-center gap-4 text-sm flex-wrap">
+                            <span class="font-medium text-gray-700">Total:</span>
+                            <span class="bg-primary-100 text-primary-800 px-2 py-1 rounded">
+                                @Services.Count service(s)
+                            </span>
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded">
+                                @Services.Sum(s => s.Replicas) / @Services.Sum(s => s.DesiredReplicas) replicas
+                            </span>
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                @Services.Count(s => s.Status.ToLower() == "running") running
+                            </span>
+                            @if (Services.Any(s => s.Replicas < s.DesiredReplicas))
+                            {
+                                <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                                    @Services.Count(s => s.Replicas < s.DesiredReplicas) en attente
+                                </span>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            </tfoot>
+        }
     </table>
 </div>
 

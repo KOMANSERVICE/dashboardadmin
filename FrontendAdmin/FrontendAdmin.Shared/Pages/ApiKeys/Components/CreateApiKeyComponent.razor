@@ -129,9 +129,11 @@
             };
 
             var response = await ApiKeyService.CreateApiKeyAsync(createRequest);
+
             if (response.Success && response.Data?.ApiKey != null)
             {
                 await OnApiKeyCreated.InvokeAsync(response.Data.ApiKey);
+
             }
         }
         catch (ApiException ex)

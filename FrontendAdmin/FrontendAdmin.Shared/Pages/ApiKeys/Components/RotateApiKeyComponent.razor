@@ -93,9 +93,11 @@
             };
 
             var response = await ApiKeyService.RotateApiKeyAsync(request);
+
             if (response.Success && response.Data?.NewApiKey != null)
             {
                 await OnRotated.InvokeAsync(response.Data.NewApiKey);
+
             }
         }
         catch (Exception)

@@ -10,10 +10,17 @@
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <div>
             <h2 class="text-3xl font-bold text-primary-700 text-gray-900 sm:text-2xl">Docker Swarm</h2>
-            <p class="text-gray-600">Gestion des services, noeuds, volumes, conteneurs et reseaux du cluster Docker Swarm</p>
+
+            <p class="text-gray-600">Gestion des services, noeuds, volumes, conteneurs, reseaux et images du cluster Docker Swarm</p>
+
         </div>
 
         <div class="flex gap-2 mt-4 md:mt-0">
+            <Button type="button" @onclick="NavigateToMetrics" id="metricsBtn"
+                    ButtonColor="ButtonColor.Secondary"
+                    IconCss="fas fa-chart-line" IconPlacement="ButtonIconPlacement.Left">
+                <span>Metriques</span>
+            </Button>
             <Button type="button" @onclick="RefreshData" id="refreshBtn"
                     IconCss="fas fa-sync-alt" IconPlacement="ButtonIconPlacement.Left"
                     Disabled="@isLoading">
@@ -21,12 +28,19 @@
             </Button>
             @if (activeTab == 0)
             {
+                <Button type="button" @onclick="ShowDeployStackModal" id="deployStackBtn"
+                        IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
+                    <span>Deployer une stack</span>
+                </Button>
+            }
+            else if (activeTab == 1)
+            {
                 <Button type="button" @onclick="ShowCreateServiceModal" id="addServiceBtn"
                         IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
                     <span>Nouveau service</span>
                 </Button>
             }
-            else if (activeTab == 2)
+            else if (activeTab == 3)
             {
                 <Button type="button" @onclick="ShowCreateVolumeModal" id="addVolumeBtn"
                         IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
@@ -38,7 +52,9 @@
                     <span>Pruner</span>
                 </Button>
             }
-            else if (activeTab == 4)
+
+            else if (activeTab == 5)
+
             {
                 <Button type="button" @onclick="ShowCreateNetworkModal" id="addNetworkBtn"
                         IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
@@ -50,38 +66,69 @@
                     <span>Pruner</span>
                 </Button>
             }
+
+            else if (activeTab == 6)
+            {
+                <Button type="button" @onclick="ShowPullImageModal" id="pullImageBtn"
+                        IconCss="fas fa-download" IconPlacement="ButtonIconPlacement.Left">
+                    <span>Telecharger</span>
+                </Button>
+                <Button type="button" @onclick="ShowImagePruneConfirmation" id="pruneImagesBtn"
+                        ButtonColor="ButtonColor.Warning"
+                        IconCss="fas fa-broom" IconPlacement="ButtonIconPlacement.Left">
+                    <span>Pruner</span>
+                </Button>
+            }
+
         </div>
     </div>
 
     <!-- Tabs -->
     <div class="mb-6">
         <div class="border-b border-gray-200">
-            <nav class="-mb-px flex space-x-8">
+            <nav class="-mb-px flex space-x-8 overflow-x-auto">
                 <button @onclick="() => SetActiveTab(0)"
                         class="@GetTabClass(0) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                    <i class="fas fa-cubes mr-2"></i>
-                    Services (@services.Count)
+                    <i class="fas fa-layer-group mr-2"></i>
+                    Stacks (@stacks.Count)
                 </button>
                 <button @onclick="() => SetActiveTab(1)"
                         class="@GetTabClass(1) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                    <i class="fas fa-server mr-2"></i>
-                    Noeuds (@nodes.Count)
+                    <i class="fas fa-cubes mr-2"></i>
+                    Services (@services.Count)
                 </button>
                 <button @onclick="() => SetActiveTab(2)"
                         class="@GetTabClass(2) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                    <i class="fas fa-database mr-2"></i>
-                    Volumes (@volumes.Count)
+                    <i class="fas fa-server mr-2"></i>
+                    Noeuds (@nodes.Count)
                 </button>
                 <button @onclick="() => SetActiveTab(3)"
                         class="@GetTabClass(3) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                    <i class="fas fa-cube mr-2"></i>
-                    Conteneurs (@containers.Count)
+                    <i class="fas fa-database mr-2"></i>
+                    Volumes (@volumes.Count)
                 </button>
                 <button @onclick="() => SetActiveTab(4)"
                         class="@GetTabClass(4) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-cube mr-2"></i>
+                    Conteneurs (@containers.Count)
+                </button>
+
+                <button @onclick="() => SetActiveTab(5)"
+                        class="@GetTabClass(5) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                     <i class="fas fa-network-wired mr-2"></i>
                     Reseaux (@networks.Count)
                 </button>
+                <button @onclick="() => SetActiveTab(6)"
+                        class="@GetTabClass(6) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-layer-group mr-2"></i>
+                    Images (@images.Count)
+                </button>
+                <button @onclick="() => SetActiveTab(7)"
+                        class="@GetTabClass(7) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-cogs mr-2"></i>
+                    Systeme
+                </button>
+
             </nav>
         </div>
     </div>
@@ -91,6 +138,15 @@
         <LoadingData />
     }
     else if (activeTab == 0)
+    {
+        <!-- Stacks Tab -->
+        <StackListComponent Stacks="@stacks"
+                            OnRefresh="RefreshData"
+                            OnViewDetails="ViewStackDetails"
+                            OnViewServices="ViewStackServices"
+                            OnDelete="ShowStackDeleteConfirmation" />
+    }
+    else if (activeTab == 1)
     {
         <!-- Services Tab -->
         <ServiceListComponent Services="@services"
@@ -103,12 +159,15 @@
                               OnDelete="ShowDeleteConfirmation"
                               OnResources="ShowResourcesModal" />
     }
-    else if (activeTab == 1)
+    else if (activeTab == 2)
     {
         <!-- Nodes Tab -->
-        <NodeListComponent Nodes="@nodes" />
+        <NodeListComponent Nodes="@nodes"
+                           OnViewDetails="ShowNodeDetails"
+                           OnEditLabels="ShowNodeLabels"
+                           OnManageNode="ShowNodeActions" />
     }
-    else if (activeTab == 2)
+    else if (activeTab == 3)
     {
         <!-- Volumes Tab -->
         <VolumeListComponent Volumes="@volumes"
@@ -117,7 +176,9 @@
                              OnBackup="ShowBackupModal"
                              OnDelete="ShowVolumeDeleteConfirmation" />
     }
-    else if (activeTab == 3)
+
+    else if (activeTab == 4)
+
     {
         <!-- Containers Tab -->
         <ContainerListComponent Containers="@containers"
@@ -127,7 +188,9 @@
                                 OnViewLogs="ViewContainerLogs"
                                 OnExec="ShowExecModal" />
     }
-    else if (activeTab == 4)
+
+    else if (activeTab == 5)
+
     {
         <!-- Networks Tab -->
         <NetworkListComponent Networks="@networks"
@@ -136,7 +199,55 @@
                               OnConnect="ShowConnectContainerModal"
                               OnDelete="ShowNetworkDeleteConfirmation" />
     }
+
+    else if (activeTab == 6)
+    {
+        <!-- Images Tab -->
+        <ImageListComponent Images="@images"
+                            OnRefresh="RefreshData"
+                            OnViewDetails="ViewImageDetails"
+                            OnViewHistory="ViewImageHistory"
+                            OnTag="ShowTagImageModal"
+                            OnPush="ShowPushImageModal"
+                            OnDelete="ShowImageDeleteConfirmation" />
+    }
+    else if (activeTab == 7)
+    {
+        <!-- System Tab -->
+        <SystemTabComponent SystemInfo="@systemInfo"
+                            DockerVersion="@dockerVersion"
+                            DiskUsage="@diskUsage"
+                            LastPruneResult="@pruneAllResult"
+                            IsPruning="@isSystemPruning"
+                            OnPruneRequested="ExecuteSystemPrune"
+                            DockerEvents="@dockerEvents"
+                            OnEventsRefresh="RefreshDockerEvents" />
+    }
+
 </div>
+
+<!-- Node Modals -->
+<NodeDetailsComponent ShowModal="@showNodeDetailsModal"
+                      OnCloseModal="() => showNodeDetailsModal = false"
+                      Node="@selectedNodeDetails"
+                      IsLoading="@isNodeDetailsLoading"
+                      ErrorMessage="@nodeDetailsError" />
+
+<NodeActionsComponent ShowModal="@showNodeActionsModal"
+                      OnCloseModal="CloseNodeActionsModal"
+                      Node="@selectedNode"
+                      OnPromoteNode="PromoteNode"
+                      OnDemoteNode="DemoteNode"
+                      OnDrainNode="DrainNode"
+                      OnActivateNode="ActivateNode"
+                      OnRemoveNode="RemoveNode" />
+
+<NodeLabelsComponent ShowModal="@showNodeLabelsModal"
+                     OnCloseModal="() => showNodeLabelsModal = false"
+                     NodeId="@selectedNode?.Id"
+                     NodeHostname="@selectedNode?.Hostname"
+                     InitialLabels="@selectedNodeLabels"
+                     OnSaveLabels="SaveNodeLabels" />
 
 <!-- Service Modals -->
 <Modal OnCloseModal="() => showCreateModal = false"
@@ -215,7 +326,8 @@
 
 <Modal OnCloseModal="() => showVolumeDetailsModal = false"
        ShowModal="showVolumeDetailsModal"
-       ModalTitle="@($"Details du volume: {selectedVolumeName}")">
+       ModalTitle="@($"Details du volume: {selectedVolumeName}")"
+       Size="ModalSize.Large">
     <VolumeDetailsComponent VolumeName="@selectedVolumeName"
                             OnClose="() => showVolumeDetailsModal = false" />
 </Modal>
@@ -265,7 +377,8 @@
 
 <Modal OnCloseModal="() => showBackupModal = false"
        ShowModal="showBackupModal"
-       ModalTitle="@($"Backup/Restore: {selectedVolumeName}")">
+       ModalTitle="@($"Backup/Restore: {selectedVolumeName}")"
+       Size="ModalSize.Large">
     <BackupRestoreComponent VolumeName="@selectedVolumeName"
                             OnClose="() => showBackupModal = false"
                             OnOperationComplete="RefreshData" />
@@ -452,14 +565,210 @@
     </div>
 </Modal>
 
+
+<!-- Image Modals -->
+<Modal OnCloseModal="() => showPullImageModal = false"
+       ShowModal="showPullImageModal"
+       ModalTitle="Telecharger une image Docker">
+    <PullImageComponent OnImagePulled="OnImagePulled"
+                        OnCancel="() => showPullImageModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showImageDetailsModal = false"
+       ShowModal="showImageDetailsModal"
+       ModalTitle="@($"Details de l'image: {selectedImageName}")"
+       Size="ModalSize.Large">
+    <ImageDetailsComponent ImageId="@selectedImageId"
+                           OnClose="() => showImageDetailsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showImageHistoryModal = false"
+       ShowModal="showImageHistoryModal"
+       ModalTitle="@($"Historique de l'image: {selectedImageName}")"
+       Size="ModalSize.Large">
+    <ImageHistoryComponent ImageId="@selectedImageId"
+                           OnClose="() => showImageHistoryModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showTagImageModal = false"
+       ShowModal="showTagImageModal"
+       ModalTitle="Taguer une image">
+    <TagImageComponent ImageId="@selectedImageId"
+                       SourceImage="@selectedImageName"
+                       OnImageTagged="OnImageTagged"
+                       OnCancel="() => showTagImageModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showPushImageModal = false"
+       ShowModal="showPushImageModal"
+       ModalTitle="Pousser une image">
+    <PushImageComponent ImageId="@selectedImageId"
+                        SourceImage="@selectedImageName"
+                        OnImagePushed="OnImagePushed"
+                        OnCancel="() => showPushImageModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showImageDeleteModal = false"
+       ShowModal="showImageDeleteModal"
+       ModalTitle="Confirmer la suppression">
+    <div class="p-4">
+        <p class="text-gray-700 mb-4">
+            Etes-vous sur de vouloir supprimer l'image <strong>@selectedImageName</strong> ?
+            @if (selectedImageContainerCount > 0)
+            {
+                <span class="text-red-600 font-medium">
+                    <br />Cette image est utilisee par @selectedImageContainerCount conteneur(s).
+                </span>
+            }
+        </p>
+        @if (selectedImageContainerCount > 0)
+        {
+            <div class="flex items-center mb-4">
+                <input type="checkbox" @bind="forceDeleteImage" id="forceDeleteImage"
+                       class="mr-2 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded" />
+                <label for="forceDeleteImage" class="text-sm text-gray-700">
+                    Forcer la suppression (peut causer des problemes avec les containers)
+                </label>
+            </div>
+        }
+        <div class="flex justify-end gap-2">
+            <Button type="button" @onclick="() => showImageDeleteModal = false"
+                    ButtonColor="ButtonColor.Light">
+                <span>Annuler</span>
+            </Button>
+            <Button type="button" @onclick="ConfirmImageDelete"
+                    ButtonColor="ButtonColor.Danger"
+                    Disabled="@(isDeleting || (selectedImageContainerCount > 0 && !forceDeleteImage))">
+                @if (isDeleting)
+                {
+                    <span class="animate-spin mr-2">
+                        <i class="fas fa-spinner"></i>
+                    </span>
+                }
+                <span>Supprimer</span>
+            </Button>
+        </div>
+    </div>
+</Modal>
+
+<Modal OnCloseModal="() => showImagePruneModal = false"
+       ShowModal="showImagePruneModal"
+       ModalTitle="Pruner les images inutilisees">
+    <div class="p-4">
+        <p class="text-gray-700 mb-4">
+            <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
+            Cette action va supprimer toutes les images dangling (non taguees).
+            Cette operation est irreversible.
+        </p>
+        @if (imagePruneResult != null)
+        {
+            <div class="p-3 bg-green-100 text-green-700 rounded-md text-sm mb-4">
+                <i class="fas fa-check-circle mr-2"></i>
+                @imagePruneResult.DeletedCount image(s) supprimee(s), @FormatBytes(imagePruneResult.SpaceReclaimed) recupere(s)
+            </div>
+        }
+        <div class="flex justify-end gap-2">
+            <Button type="button" @onclick="() => { showImagePruneModal = false; imagePruneResult = null; }"
+                    ButtonColor="ButtonColor.Light">
+                <span>@(imagePruneResult != null ? "Fermer" : "Annuler")</span>
+            </Button>
+            @if (imagePruneResult == null)
+            {
+                <Button type="button" @onclick="ConfirmImagePrune"
+                        ButtonColor="ButtonColor.Warning"
+                        Disabled="@isImagePruning">
+                    @if (isImagePruning)
+                    {
+                        <span class="animate-spin mr-2">
+                            <i class="fas fa-spinner"></i>
+                        </span>
+                    }
+                    <span>Pruner</span>
+                </Button>
+            }
+        </div>
+    </div>
+</Modal>
+
+<!-- Stack Modals -->
+<Modal OnCloseModal="() => showDeployStackModal = false"
+       ShowModal="showDeployStackModal"
+       ModalTitle="Deployer une stack Docker"
+       Size="ModalSize.Large">
+    <DeployStackComponent OnStackDeployed="OnStackDeployed"
+                          OnCancel="() => showDeployStackModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showStackDetailsModal = false"
+       ShowModal="showStackDetailsModal"
+       ModalTitle="@($"Details de la stack: {selectedStackName}")"
+       Size="ModalSize.Large">
+    <StackDetailsComponent StackName="@selectedStackName"
+                           OnClose="() => showStackDetailsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showStackServicesModal = false"
+       ShowModal="showStackServicesModal"
+       ModalTitle="@($"Services de la stack: {selectedStackName}")"
+       Size="ModalSize.Large">
+    <StackServicesComponent StackName="@selectedStackName"
+                            OnClose="() => showStackServicesModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showStackDeleteModal = false"
+       ShowModal="showStackDeleteModal"
+       ModalTitle="Confirmer la suppression">
+    <div class="p-4">
+        <p class="text-gray-700 mb-4">
+            Etes-vous sur de vouloir supprimer la stack <strong>@selectedStackName</strong> ?
+            Tous les services de cette stack seront supprimes.
+        </p>
+        <div class="flex justify-end gap-2">
+            <Button type="button" @onclick="() => showStackDeleteModal = false"
+                    ButtonColor="ButtonColor.Light">
+                <span>Annuler</span>
+            </Button>
+            <Button type="button" @onclick="ConfirmStackDelete"
+                    ButtonColor="ButtonColor.Danger"
+                    Disabled="@isDeleting">
+                @if (isDeleting)
+                {
+                    <span class="animate-spin mr-2">
+                        <i class="fas fa-spinner"></i>
+                    </span>
+                }
+                <span>Supprimer</span>
+            </Button>
+        </div>
+    </div>
+</Modal>
+
 @code {
+    private List<StackDto> stacks = new();
     private List<SwarmServiceDto> services = new();
     private List<NodeDto> nodes = new();
     private List<VolumeDto> volumes = new();
     private List<ContainerDto> containers = new();
     private List<NetworkDto> networks = new();
+
+    private List<ImageDto> images = new();
     private bool isLoading = true;
     private int activeTab = 0;
+
+    // System state
+    private SystemInfoDto? systemInfo;
+    private DockerVersionDto? dockerVersion;
+    private DiskUsageDto? diskUsage;
+    private PruneAllResponse? pruneAllResult;
+    private bool isSystemPruning;
+    private List<DockerEventDto>? dockerEvents;
+
+    // Stack state
+    private bool showDeployStackModal;
+    private bool showStackDetailsModal;
+    private bool showStackServicesModal;
+    private bool showStackDeleteModal;
+    private string selectedStackName = "";
 
     // Service state
     private bool showCreateModal;
@@ -505,6 +814,32 @@
     private int selectedNetworkContainerCount;
     private PruneNetworksResponse? networkPruneResult;
 
+
+    // Image state
+    private bool showPullImageModal;
+    private bool showImageDetailsModal;
+    private bool showImageHistoryModal;
+    private bool showTagImageModal;
+    private bool showPushImageModal;
+    private bool showImageDeleteModal;
+    private bool showImagePruneModal;
+    private bool isImagePruning;
+    private string selectedImageId = "";
+    private string selectedImageName = "";
+    private int selectedImageContainerCount;
+    private bool forceDeleteImage;
+    private PruneImagesResponse? imagePruneResult;
+
+    // Node state
+    private bool showNodeDetailsModal;
+    private bool showNodeActionsModal;
+    private bool showNodeLabelsModal;
+    private bool isNodeDetailsLoading;
+    private string? nodeDetailsError;
+    private NodeDto? selectedNode;
+    private NodeDetailsDto? selectedNodeDetails;
+    private Dictionary<string, string> selectedNodeLabels = new();
+
     protected override async Task OnInitializedAsync()
     {
         await RefreshData();
@@ -517,19 +852,30 @@
 
         try
         {
+            var stacksTask = SwarmService.GetStacksAsync();
             var servicesTask = SwarmService.GetServicesAsync();
             var nodesTask = SwarmService.GetNodesAsync();
             var volumesTask = SwarmService.GetVolumesAsync();
             var containersTask = SwarmService.GetContainersAsync();
             var networksTask = SwarmService.GetNetworksAsync();
 
-            await Task.WhenAll(servicesTask, nodesTask, volumesTask, containersTask, networksTask);
+            var imagesTask = SwarmService.GetImagesAsync();
 
+            await Task.WhenAll(stacksTask, servicesTask, nodesTask, volumesTask, containersTask, networksTask, imagesTask);
+
+
+            var stacksResponse = await stacksTask;
             var servicesResponse = await servicesTask;
             var nodesResponse = await nodesTask;
             var volumesResponse = await volumesTask;
             var containersResponse = await containersTask;
             var networksResponse = await networksTask;
+
+            var imagesResponse = await imagesTask;
+
+            if (stacksResponse.Success)
+                stacks = stacksResponse.Data.Stacks;
+
 
             if (servicesResponse.Success)
                 services = servicesResponse.Data.Services;
@@ -545,6 +891,11 @@
 
             if (networksResponse.Success)
                 networks = networksResponse.Data.Networks;
+
+
+            if (imagesResponse.Success)
+                images = imagesResponse.Data.Images;
+
         }
         catch (Exception ex)
         {
@@ -557,9 +908,97 @@
         }
     }
 
-    private void SetActiveTab(int tab)
+    private async Task SetActiveTab(int tab)
     {
         activeTab = tab;
+        if (tab == 7)
+        {
+            await LoadSystemData();
+        }
+    }
+
+    private async Task LoadSystemData()
+    {
+        try
+        {
+            var systemInfoTask = SwarmService.GetSystemInfoAsync();
+            var versionTask = SwarmService.GetDockerVersionAsync();
+            var diskUsageTask = SwarmService.GetDiskUsageAsync();
+            var eventsTask = SwarmService.GetDockerEventsAsync(DateTime.UtcNow.AddMinutes(-15), null);
+
+            await Task.WhenAll(systemInfoTask, versionTask, diskUsageTask, eventsTask);
+
+            var systemInfoResponse = await systemInfoTask;
+            var versionResponse = await versionTask;
+            var diskUsageResponse = await diskUsageTask;
+            var eventsResponse = await eventsTask;
+
+            if (systemInfoResponse.Success)
+                systemInfo = systemInfoResponse.Data.SystemInfo;
+
+            if (versionResponse.Success)
+                dockerVersion = versionResponse.Data.Version;
+
+            if (diskUsageResponse.Success)
+                diskUsage = diskUsageResponse.Data.DiskUsage;
+
+            if (eventsResponse.Success)
+                dockerEvents = eventsResponse.Data.Events;
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading system data: {ex.Message}");
+        }
+    }
+
+    private async Task RefreshDockerEvents()
+    {
+        try
+        {
+            var eventsResponse = await SwarmService.GetDockerEventsAsync(DateTime.UtcNow.AddMinutes(-15), null);
+            if (eventsResponse.Success)
+            {
+                dockerEvents = eventsResponse.Data.Events;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error refreshing docker events: {ex.Message}");
+        }
+    }
+
+    private async Task ExecuteSystemPrune()
+    {
+        isSystemPruning = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SwarmService.PruneAllAsync();
+            if (response.Success)
+            {
+                pruneAllResult = response.Data;
+                // Reload disk usage to show updated values
+                var diskUsageResponse = await SwarmService.GetDiskUsageAsync();
+                if (diskUsageResponse.Success)
+                    diskUsage = diskUsageResponse.Data.DiskUsage;
+
+                // Refresh all data since prune affects containers, images, volumes, networks
+                await RefreshData();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error pruning system: {ex.Message}");
+        }
+        finally
+        {
+            isSystemPruning = false;
+            StateHasChanged();
+        }
     }
 
     private string GetTabClass(int tab)
@@ -567,6 +1006,58 @@
         return activeTab == tab
             ? "border-primary-700 text-primary-700"
             : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300";
+    }
+
+    // Stack methods
+    private void ShowDeployStackModal()
+    {
+        showDeployStackModal = true;
+    }
+
+    private async Task OnStackDeployed()
+    {
+        showDeployStackModal = false;
+        await RefreshData();
+    }
+
+    private void ViewStackDetails(string stackName)
+    {
+        selectedStackName = stackName;
+        showStackDetailsModal = true;
+    }
+
+    private void ViewStackServices(string stackName)
+    {
+        selectedStackName = stackName;
+        showStackServicesModal = true;
+    }
+
+    private void ShowStackDeleteConfirmation(string stackName)
+    {
+        selectedStackName = stackName;
+        showStackDeleteModal = true;
+    }
+
+    private async Task ConfirmStackDelete()
+    {
+        isDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            await SwarmService.DeleteStackAsync(selectedStackName);
+            showStackDeleteModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting stack: {ex.Message}");
+        }
+        finally
+        {
+            isDeleting = false;
+            StateHasChanged();
+        }
     }
 
     // Service methods
@@ -888,4 +1379,280 @@
             StateHasChanged();
         }
     }
+
+
+    // Image methods
+    private void ShowPullImageModal()
+    {
+        showPullImageModal = true;
+    }
+
+    private async Task OnImagePulled()
+    {
+        showPullImageModal = false;
+        await RefreshData();
+    }
+
+    private void ViewImageDetails(string imageId)
+    {
+        var image = images.FirstOrDefault(i => i.Id == imageId);
+        selectedImageId = imageId;
+        selectedImageName = image != null ? $"{image.Repository ?? "<none>"}:{image.Tag ?? "<none>"}" : imageId;
+        showImageDetailsModal = true;
+    }
+
+    private void ViewImageHistory(string imageId)
+    {
+        var image = images.FirstOrDefault(i => i.Id == imageId);
+        selectedImageId = imageId;
+        selectedImageName = image != null ? $"{image.Repository ?? "<none>"}:{image.Tag ?? "<none>"}" : imageId;
+        showImageHistoryModal = true;
+    }
+
+    private void ShowTagImageModal(ImageDto image)
+    {
+        selectedImageId = image.Id;
+        selectedImageName = $"{image.Repository ?? "<none>"}:{image.Tag ?? "<none>"}";
+        showTagImageModal = true;
+    }
+
+    private async Task OnImageTagged()
+    {
+        showTagImageModal = false;
+        await RefreshData();
+    }
+
+    private void ShowPushImageModal(ImageDto image)
+    {
+        selectedImageId = image.Id;
+        selectedImageName = $"{image.Repository ?? "<none>"}:{image.Tag ?? "<none>"}";
+        showPushImageModal = true;
+    }
+
+    private async Task OnImagePushed()
+    {
+        showPushImageModal = false;
+        await RefreshData();
+    }
+
+    private void ShowImageDeleteConfirmation(ImageDto image)
+    {
+        selectedImageId = image.Id;
+        selectedImageName = $"{image.Repository ?? "<none>"}:{image.Tag ?? "<none>"}";
+        selectedImageContainerCount = image.ContainerCount;
+        forceDeleteImage = false;
+        showImageDeleteModal = true;
+    }
+
+    private async Task ConfirmImageDelete()
+    {
+        isDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            await SwarmService.DeleteImageAsync(selectedImageId, forceDeleteImage);
+            showImageDeleteModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting image: {ex.Message}");
+        }
+        finally
+        {
+            isDeleting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ShowImagePruneConfirmation()
+    {
+        imagePruneResult = null;
+        showImagePruneModal = true;
+    }
+
+    private async Task ConfirmImagePrune()
+    {
+        isImagePruning = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SwarmService.PruneImagesAsync();
+            if (response.Success)
+            {
+                imagePruneResult = response.Data;
+                await RefreshData();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error pruning images: {ex.Message}");
+        }
+        finally
+        {
+            isImagePruning = false;
+            StateHasChanged();
+        }
+    }
+
+    private void NavigateToMetrics()
+    {
+        NavigationManager.NavigateTo("/swarm/metrics");
+    }
+
+    // Node methods
+    private async Task ShowNodeDetails(NodeDto node)
+    {
+        selectedNode = node;
+        showNodeDetailsModal = true;
+        isNodeDetailsLoading = true;
+        nodeDetailsError = null;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SwarmService.GetNodeDetailsAsync(node.Id);
+            if (response.Success)
+            {
+                selectedNodeDetails = response.Data.Node;
+            }
+            else
+            {
+                nodeDetailsError = response.Message ?? "Erreur lors de la recuperation des details du noeud";
+            }
+        }
+        catch (Exception ex)
+        {
+            nodeDetailsError = ex.Message;
+        }
+        finally
+        {
+            isNodeDetailsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ShowNodeLabels(NodeDto node)
+    {
+        selectedNode = node;
+        selectedNodeLabels = new Dictionary<string, string>();
+
+        try
+        {
+            var response = await SwarmService.GetNodeLabelsAsync(node.Id);
+            if (response.Success)
+            {
+                selectedNodeLabels = response.Data.Labels ?? new Dictionary<string, string>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading node labels: {ex.Message}");
+        }
+
+        showNodeLabelsModal = true;
+        StateHasChanged();
+    }
+
+    private void ShowNodeActions(NodeDto node)
+    {
+        selectedNode = node;
+        showNodeActionsModal = true;
+    }
+
+    private void CloseNodeActionsModal()
+    {
+        showNodeActionsModal = false;
+    }
+
+    private async Task PromoteNode(string nodeId)
+    {
+        try
+        {
+            await SwarmService.PromoteNodeAsync(nodeId);
+            showNodeActionsModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error promoting node: {ex.Message}");
+        }
+    }
+
+    private async Task DemoteNode(string nodeId)
+    {
+        try
+        {
+            await SwarmService.DemoteNodeAsync(nodeId);
+            showNodeActionsModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error demoting node: {ex.Message}");
+        }
+    }
+
+    private async Task DrainNode(string nodeId)
+    {
+        try
+        {
+            await SwarmService.DrainNodeAsync(nodeId);
+            showNodeActionsModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error draining node: {ex.Message}");
+        }
+    }
+
+    private async Task ActivateNode(string nodeId)
+    {
+        try
+        {
+            await SwarmService.ActivateNodeAsync(nodeId);
+            showNodeActionsModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error activating node: {ex.Message}");
+        }
+    }
+
+    private async Task RemoveNode((string nodeId, bool force) args)
+    {
+        try
+        {
+            await SwarmService.RemoveNodeAsync(args.nodeId, args.force);
+            showNodeActionsModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error removing node: {ex.Message}");
+        }
+    }
+
+    private async Task SaveNodeLabels(Dictionary<string, string> labels)
+    {
+        if (selectedNode == null) return;
+
+        try
+        {
+            var request = new UpdateNodeLabelsRequest(labels);
+            await SwarmService.UpdateNodeLabelsAsync(selectedNode.Id, request);
+            showNodeLabelsModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving node labels: {ex.Message}");
+            throw; // Re-throw to let the component handle the error
+        }
+    }
+
 }

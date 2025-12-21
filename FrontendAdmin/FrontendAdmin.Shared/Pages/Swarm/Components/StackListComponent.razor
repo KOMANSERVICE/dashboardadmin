@@ -1,0 +1,96 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+
+<div class="bg-white shadow-md rounded-lg overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stack</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Services</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Orchestrateur</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creee le</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            @if (!Stacks.Any())
+            {
+                <tr>
+                    <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                        <i class="fas fa-layer-group text-4xl mb-2"></i>
+                        <p>Aucune stack Docker</p>
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var stack in Stacks)
+                {
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <i class="fas fa-layer-group text-primary-700 mr-3"></i>
+                                <div class="text-sm font-medium text-gray-900">@stack.Name</div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                @stack.ServiceCount service(s)
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-sm text-gray-900">@stack.Orchestrator</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            @stack.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div class="flex justify-end gap-2">
+                                <button @onclick="() => OnViewDetails.InvokeAsync(stack.Name)"
+                                        class="text-gray-400 hover:text-primary-700 transition"
+                                        title="Details">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                                <button @onclick="() => OnViewServices.InvokeAsync(stack.Name)"
+                                        class="text-gray-400 hover:text-blue-600 transition"
+                                        title="Services">
+                                    <i class="fas fa-cubes"></i>
+                                </button>
+                                <button @onclick="() => OnDelete.InvokeAsync(stack.Name)"
+                                        class="text-gray-400 hover:text-red-600 transition"
+                                        title="Supprimer">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+        @if (Stacks.Any())
+        {
+            <tfoot class="bg-gray-100">
+                <tr>
+                    <td colspan="5" class="px-6 py-3">
+                        <div class="flex items-center gap-4 text-sm flex-wrap">
+                            <span class="font-medium text-gray-700">Total:</span>
+                            <span class="bg-primary-100 text-primary-800 px-2 py-1 rounded">
+                                @Stacks.Count stack(s)
+                            </span>
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                @Stacks.Sum(s => s.ServiceCount) service(s)
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+            </tfoot>
+        }
+    </table>
+</div>
+
+@code {
+    [Parameter] public List<StackDto> Stacks { get; set; } = new();
+    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public EventCallback<string> OnViewDetails { get; set; }
+    [Parameter] public EventCallback<string> OnViewServices { get; set; }
+    [Parameter] public EventCallback<string> OnDelete { get; set; }
+}

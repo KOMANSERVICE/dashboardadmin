@@ -4,9 +4,41 @@ namespace FrontendAdmin.Shared.Services.Https;
 
 public interface ISwarmHttpService
 {
-    // Nodes
+    // Nodes - List
     [Get("/api/swarm/nodes")]
     Task<BaseResponse<GetNodesResponse>> GetNodesAsync();
+
+    // Nodes - Details
+    [Get("/api/swarm/nodes/{id}")]
+    Task<BaseResponse<GetNodeDetailsResponse>> GetNodeDetailsAsync(string id);
+
+    // Nodes - Labels
+    [Get("/api/swarm/nodes/{id}/labels")]
+    Task<BaseResponse<GetNodeLabelsResponse>> GetNodeLabelsAsync(string id);
+
+    // Nodes - Update Labels
+    [Put("/api/swarm/nodes/{id}/labels")]
+    Task<BaseResponse<UpdateNodeLabelsResponse>> UpdateNodeLabelsAsync(string id, [Body] UpdateNodeLabelsRequest request);
+
+    // Nodes - Promote to Manager
+    [Post("/api/swarm/nodes/{id}/promote")]
+    Task<BaseResponse<PromoteNodeResponse>> PromoteNodeAsync(string id);
+
+    // Nodes - Demote to Worker
+    [Post("/api/swarm/nodes/{id}/demote")]
+    Task<BaseResponse<DemoteNodeResponse>> DemoteNodeAsync(string id);
+
+    // Nodes - Drain
+    [Post("/api/swarm/nodes/{id}/drain")]
+    Task<BaseResponse<DrainNodeResponse>> DrainNodeAsync(string id);
+
+    // Nodes - Activate
+    [Post("/api/swarm/nodes/{id}/activate")]
+    Task<BaseResponse<ActivateNodeResponse>> ActivateNodeAsync(string id);
+
+    // Nodes - Remove
+    [Delete("/api/swarm/nodes/{id}")]
+    Task<BaseResponse<RemoveNodeResponse>> RemoveNodeAsync(string id, [Query] bool? force = false);
 
     // Services - List
     [Get("/api/swarm/services")]
@@ -112,6 +144,14 @@ public interface ISwarmHttpService
     [Get("/api/swarm/containers/{id}/changes")]
     Task<BaseResponse<GetContainerChangesResponse>> GetContainerChangesAsync(string id);
 
+    // Containers - Metrics Summary (all containers)
+    [Get("/api/swarm/containers/metrics")]
+    Task<BaseResponse<GetContainersMetricsSummaryResponse>> GetContainersMetricsSummaryAsync();
+
+    // Docker Events
+    [Get("/api/swarm/events")]
+    Task<BaseResponse<GetDockerEventsResponse>> GetDockerEventsAsync([Query] DateTime? since = null, [Query] DateTime? until = null);
+
     // Services - Resources
     [Get("/api/swarm/services/{name}/resources")]
     Task<BaseResponse<GetServiceResourcesResponse>> GetServiceResourcesAsync(string name);
@@ -147,4 +187,78 @@ public interface ISwarmHttpService
     // Networks - Disconnect Container
     [Post("/api/swarm/networks/{name}/disconnect")]
     Task<BaseResponse<DisconnectContainerResponse>> DisconnectContainerAsync(string name, [Body] DisconnectContainerRequest request);
+
+
+    // Images - List
+    [Get("/api/swarm/images")]
+    Task<BaseResponse<GetImagesResponse>> GetImagesAsync([Query] bool? all = false);
+
+    // Images - Details
+    [Get("/api/swarm/images/{id}")]
+    Task<BaseResponse<GetImageDetailsResponse>> GetImageDetailsAsync(string id);
+
+    // Images - History
+    [Get("/api/swarm/images/{id}/history")]
+    Task<BaseResponse<GetImageHistoryResponse>> GetImageHistoryAsync(string id);
+
+    // Images - Dangling
+    [Get("/api/swarm/images/dangling")]
+    Task<BaseResponse<GetDanglingImagesResponse>> GetDanglingImagesAsync();
+
+    // Images - Pull
+    [Post("/api/swarm/images/pull")]
+    Task<BaseResponse<PullImageResponse>> PullImageAsync([Body] PullImageRequest request);
+
+    // Images - Delete
+    [Delete("/api/swarm/images/{id}")]
+    Task DeleteImageAsync(string id, [Query] bool force = false, [Query] bool pruneChildren = false);
+
+    // Images - Tag
+    [Post("/api/swarm/images/{id}/tag")]
+    Task<BaseResponse<TagImageResponse>> TagImageAsync(string id, [Body] TagImageRequest request);
+
+    // Images - Push
+    [Post("/api/swarm/images/{id}/push")]
+    Task<BaseResponse<PushImageResponse>> PushImageAsync(string id, [Body] PushImageRequest request);
+
+    // Images - Prune
+    [Post("/api/swarm/images/prune")]
+    Task<BaseResponse<PruneImagesResponse>> PruneImagesAsync([Query] bool? dangling = true);
+
+    // Stacks - List
+    [Get("/api/swarm/stacks")]
+    Task<BaseResponse<GetStacksResponse>> GetStacksAsync();
+
+    // Stacks - Details
+    [Get("/api/swarm/stacks/{name}")]
+    Task<BaseResponse<GetStackDetailsResponse>> GetStackDetailsAsync(string name);
+
+    // Stacks - Services
+    [Get("/api/swarm/stacks/{name}/services")]
+    Task<BaseResponse<GetStackServicesResponse>> GetStackServicesAsync(string name);
+
+    // Stacks - Deploy
+    [Post("/api/swarm/stacks")]
+    Task<BaseResponse<DeployStackResponse>> DeployStackAsync([Body] DeployStackRequest request);
+
+    // Stacks - Delete
+    [Delete("/api/swarm/stacks/{name}")]
+    Task DeleteStackAsync(string name);
+
+    // System - Info
+    [Get("/api/swarm/system/info")]
+    Task<BaseResponse<GetSystemInfoResponse>> GetSystemInfoAsync();
+
+    // System - Version
+    [Get("/api/swarm/system/version")]
+    Task<BaseResponse<GetDockerVersionResponse>> GetDockerVersionAsync();
+
+    // System - Disk Usage
+    [Get("/api/swarm/system/disk")]
+    Task<BaseResponse<GetDiskUsageResponse>> GetDiskUsageAsync();
+
+    // System - Prune All
+    [Post("/api/swarm/system/prune")]
+    Task<BaseResponse<PruneAllResponse>> PruneAllAsync();
+
 }

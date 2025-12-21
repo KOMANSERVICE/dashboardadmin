@@ -88,6 +88,38 @@
                 }
             }
         </tbody>
+
+        @if (Networks.Any())
+        {
+            <tfoot class="bg-gray-100">
+                <tr>
+                    <td colspan="6" class="px-6 py-3">
+                        <div class="flex items-center gap-4 text-sm flex-wrap">
+                            <span class="font-medium text-gray-700">Total:</span>
+                            <span class="bg-primary-100 text-primary-800 px-2 py-1 rounded">
+                                @Networks.Count reseau(x)
+                            </span>
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded">
+                                @Networks.Sum(n => n.ContainerCount) conteneur(s) connecte(s)
+                            </span>
+                            <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                                @Networks.Count(n => n.Driver.ToLowerInvariant() == "overlay") overlay
+                            </span>
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                @Networks.Count(n => n.Driver.ToLowerInvariant() == "bridge") bridge
+                            </span>
+                            @if (Networks.Any(n => n.IsInternal))
+                            {
+                                <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded">
+                                    @Networks.Count(n => n.IsInternal) interne(s)
+                                </span>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            </tfoot>
+        }
+
     </table>
 </div>
 

@@ -1,0 +1,72 @@
+@using ApexCharts
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+
+@if (Stats != null && Stats.Any())
+{
+    <ApexChart TItem="HealthStatusData"
+               Title="Statut de sante des conteneurs"
+               Height="300"
+               Options="chartOptions">
+
+        <ApexPointSeries TItem="HealthStatusData"
+                         Items="healthData"
+                         Name="Conteneurs"
+                         XValue="@(e => e.Status)"
+                         YValue="@(e => (decimal)e.Count)"
+                         SeriesType="SeriesType.Donut" />
+    </ApexChart>
+}
+else
+{
+    <div class="flex items-center justify-center h-[300px] text-gray-500">
+        Aucune donnee disponible
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IEnumerable<ContainerMetricsSummaryDto> Stats { get; set; } = new List<ContainerMetricsSummaryDto>();
+
+    private List<HealthStatusData> healthData = new();
+    private ApexChartOptions<HealthStatusData> chartOptions = new();
+
+    protected override void OnParametersSet()
+    {
+        if (Stats != null && Stats.Any())
+        {
+            healthData = Stats
+                .GroupBy(s => NormalizeHealthStatus(s.HealthStatus))
+                .Select(g => new HealthStatusData(g.Key, g.Count()))
+                .ToList();
+
+            chartOptions = new ApexChartOptions<HealthStatusData>
+            {
+                Colors = healthData.Select(d => GetHealthColor(d.Status)).ToList()
+            };
+        }
+    }
+
+    private string NormalizeHealthStatus(string status)
+    {
+        return status?.ToLower() switch
+        {
+            "healthy" or "running" => "Healthy",
+            "unhealthy" => "Unhealthy",
+            "starting" => "Starting",
+            _ => "Unknown"
+        };
+    }
+
+    private string GetHealthColor(string status)
+    {
+        return status switch
+        {
+            "Healthy" => "#10B981",
+            "Unhealthy" => "#EF4444",
+            "Starting" => "#F59E0B",
+            _ => "#6B7280"
+        };
+    }
+
+    private record HealthStatusData(string Status, int Count);
+}

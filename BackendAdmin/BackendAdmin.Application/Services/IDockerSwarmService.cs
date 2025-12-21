@@ -12,8 +12,16 @@ public interface IDockerSwarmService
     Task RestartServiceAsync(string serviceName, CancellationToken cancellationToken = default);
     Task<(int previousReplicas, int newReplicas)> ScaleServiceAsync(string serviceName, int replicas, CancellationToken cancellationToken = default);
 
-    // New methods for nodes
+    // Node management methods
     Task<IList<NodeListResponse>> GetNodesAsync(CancellationToken cancellationToken = default);
+    Task<NodeListResponse?> GetNodeByIdAsync(string nodeId, CancellationToken cancellationToken = default);
+    Task PromoteNodeAsync(string nodeId, CancellationToken cancellationToken = default);
+    Task DemoteNodeAsync(string nodeId, CancellationToken cancellationToken = default);
+    Task DrainNodeAsync(string nodeId, CancellationToken cancellationToken = default);
+    Task ActivateNodeAsync(string nodeId, CancellationToken cancellationToken = default);
+    Task RemoveNodeAsync(string nodeId, bool force = false, CancellationToken cancellationToken = default);
+    Task<Dictionary<string, string>> GetNodeLabelsAsync(string nodeId, CancellationToken cancellationToken = default);
+    Task UpdateNodeLabelsAsync(string nodeId, Dictionary<string, string> labels, CancellationToken cancellationToken = default);
 
     // New methods for service tasks
     Task<IList<TaskResponse>> GetServiceTasksAsync(string serviceName, CancellationToken cancellationToken = default);
@@ -47,6 +55,12 @@ public interface IDockerSwarmService
     Task<long> GetVolumeSizeAsync(string volumeName, CancellationToken cancellationToken = default);
     Task<IList<string>> GetContainersUsingVolumeAsync(string volumeName, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Gets volume information (containers using and size) for all volumes in a single batch operation.
+    /// Returns a dictionary where keys are volume names and values are tuples of (containerIds, sizeBytes).
+    /// </summary>
+    Task<Dictionary<string, (IList<string> ContainerIds, long SizeBytes)>> GetAllVolumesInfoAsync(CancellationToken cancellationToken = default);
+
     // Container management methods
     Task<IList<ContainerListResponse>> GetContainersAsync(bool all = true, CancellationToken cancellationToken = default);
     Task<ContainerInspectResponse?> GetContainerByIdAsync(string containerId, CancellationToken cancellationToken = default);
@@ -57,6 +71,11 @@ public interface IDockerSwarmService
     Task<ContainerTopDTO> GetContainerTopAsync(string containerId, CancellationToken cancellationToken = default);
     Task<IList<ContainerFileSystemChangeResponse>> GetContainerChangesAsync(string containerId, CancellationToken cancellationToken = default);
 
+
+    // Metrics and monitoring methods
+    Task<IList<ContainerMetricsSummaryDTO>> GetAllContainersMetricsSummaryAsync(CancellationToken cancellationToken = default);
+    Task<IList<DockerEventDTO>> GetDockerEventsAsync(DateTime? since = null, DateTime? until = null, CancellationToken cancellationToken = default);
+
     // Network management methods
     Task<IList<NetworkResponse>> GetNetworksAsync(CancellationToken cancellationToken = default);
     Task<NetworkResponse?> GetNetworkByNameAsync(string name, CancellationToken cancellationToken = default);
@@ -65,4 +84,37 @@ public interface IDockerSwarmService
     Task<(int count, List<string> deletedNetworks)> PruneNetworksAsync(CancellationToken cancellationToken = default);
     Task ConnectContainerToNetworkAsync(string networkName, ConnectContainerRequest request, CancellationToken cancellationToken = default);
     Task DisconnectContainerFromNetworkAsync(string networkName, DisconnectContainerRequest request, CancellationToken cancellationToken = default);
+
+
+    // Image management methods
+    Task<IList<ImagesListResponse>> GetImagesAsync(bool all = false, CancellationToken cancellationToken = default);
+    Task<ImageInspectResponse?> GetImageByIdAsync(string imageId, CancellationToken cancellationToken = default);
+    Task<IList<ImageHistoryResponse>> GetImageHistoryAsync(string imageId, CancellationToken cancellationToken = default);
+    Task<IList<ImagesListResponse>> GetDanglingImagesAsync(CancellationToken cancellationToken = default);
+    Task<PullImageResponse> PullImageAsync(PullImageRequest request, CancellationToken cancellationToken = default);
+    Task DeleteImageAsync(string imageId, bool force = false, bool pruneChildren = false, CancellationToken cancellationToken = default);
+    Task<TagImageResponse> TagImageAsync(string imageId, TagImageRequest request, CancellationToken cancellationToken = default);
+    Task<PushImageResponse> PushImageAsync(string imageId, PushImageRequest request, CancellationToken cancellationToken = default);
+    Task<(int count, long spaceReclaimed, List<string> deletedImages)> PruneImagesAsync(bool dangling = true, CancellationToken cancellationToken = default);
+    Task<int> GetImageContainerCountAsync(string imageId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets container counts for all images in a single batch operation (performance optimization).
+    /// Returns a dictionary where keys are image IDs and values are container counts.
+    /// </summary>
+    Task<Dictionary<string, int>> GetAllImageContainerCountsAsync(CancellationToken cancellationToken = default);
+
+    // Stack management methods
+    Task<IList<StackDTO>> GetStacksAsync(CancellationToken cancellationToken = default);
+    Task<StackDetailsDTO?> GetStackByNameAsync(string stackName, CancellationToken cancellationToken = default);
+    Task<DeployStackResponse> DeployStackAsync(DeployStackRequest request, CancellationToken cancellationToken = default);
+    Task DeleteStackAsync(string stackName, CancellationToken cancellationToken = default);
+    Task<IList<StackServiceDTO>> GetStackServicesAsync(string stackName, CancellationToken cancellationToken = default);
+
+    // System management methods
+    Task<SystemInfoDTO> GetSystemInfoAsync(CancellationToken cancellationToken = default);
+    Task<DockerVersionDTO> GetDockerVersionAsync(CancellationToken cancellationToken = default);
+    Task<DiskUsageDTO> GetDiskUsageAsync(CancellationToken cancellationToken = default);
+    Task<PruneAllResponseDTO> PruneAllAsync(CancellationToken cancellationToken = default);
+
 }

@@ -10,7 +10,9 @@ public class RevokeApiKey : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
+
         app.MapDelete("/apikeys", async ([FromBody] RevokeApiKeyDTO request, ISender sender) =>
+
         {
             var command = new RevokeApiKeyCommand(request);
             var result = await sender.Send(command);

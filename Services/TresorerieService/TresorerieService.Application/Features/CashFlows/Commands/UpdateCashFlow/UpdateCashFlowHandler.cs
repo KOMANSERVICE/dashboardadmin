@@ -154,7 +154,7 @@ public class UpdateCashFlowHandler(
 
         if (data.Date.HasValue)
         {
-            cashFlow.Date = data.Date.Value;
+            cashFlow.Date = data.Date.Value.ToUtc();
         }
 
         if (data.ThirdPartyType.HasValue)

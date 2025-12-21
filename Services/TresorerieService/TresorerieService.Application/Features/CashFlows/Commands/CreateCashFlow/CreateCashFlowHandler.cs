@@ -89,7 +89,7 @@ public class CreateCashFlowHandler(
             AccountId = command.AccountId,
             DestinationAccountId = null,
             PaymentMethod = command.PaymentMethod,
-            Date = command.Date,
+            Date = command.Date.ToUtc(),
             ThirdPartyType = thirdPartyType,
             ThirdPartyName = command.ThirdPartyName,
             ThirdPartyId = null,

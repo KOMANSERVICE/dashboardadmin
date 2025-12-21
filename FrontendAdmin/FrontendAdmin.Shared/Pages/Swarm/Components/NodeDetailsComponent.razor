@@ -1,0 +1,195 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@using IDR.Library.Blazor.Modals
+@using IDR.Library.Blazor.Enums
+@using IDR.Library.Blazor.Loadings
+
+<Modal ModalTitle="@($"Details du noeud: {Node?.Hostname ?? "..."}")" ShowModal="@ShowModal" Size="ModalSize.Large" OnCloseModal="OnClose">
+    @if (IsLoading)
+    {
+        <LoadingData />
+    }
+    else if (Node != null)
+    {
+        <div class="space-y-6">
+            <!-- Informations generales -->
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h4 class="text-lg font-semibold text-gray-700 mb-3">
+                    <i class="fas fa-info-circle mr-2"></i>Informations generales
+                </h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <span class="text-gray-500 text-sm">ID:</span>
+                        <span class="font-mono text-sm block">@Node.Id</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">Hostname:</span>
+                        <span class="font-medium block">@Node.Hostname</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">Role:</span>
+                        <span class="@GetRoleBadgeClass(Node.Role) px-2 py-1 text-xs font-semibold rounded-full">
+                            @Node.Role
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">Etat:</span>
+                        <span class="@GetStateBadgeClass(Node.State) px-2 py-1 text-xs font-semibold rounded-full">
+                            @Node.State
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">Disponibilite:</span>
+                        <span class="@GetAvailabilityBadgeClass(Node.Availability) px-2 py-1 text-xs font-semibold rounded-full">
+                            @Node.Availability
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">Version Docker:</span>
+                        <span class="font-medium block">@Node.EngineVersion</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ressources -->
+            <div class="bg-blue-50 rounded-lg p-4">
+                <h4 class="text-lg font-semibold text-blue-700 mb-3">
+                    <i class="fas fa-microchip mr-2"></i>Ressources
+                </h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <span class="text-gray-500 text-sm">CPU:</span>
+                        <span class="font-medium block text-lg">@FormatCpu(Node.NanoCPUs)</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">Memoire:</span>
+                        <span class="font-medium block text-lg">@FormatMemory(Node.MemoryBytes)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plateforme -->
+            <div class="bg-green-50 rounded-lg p-4">
+                <h4 class="text-lg font-semibold text-green-700 mb-3">
+                    <i class="fas fa-laptop mr-2"></i>Plateforme
+                </h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <span class="text-gray-500 text-sm">Systeme:</span>
+                        <span class="font-medium block">@(Node.Platform ?? "N/A")</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">Architecture:</span>
+                        <span class="font-medium block">@(Node.Architecture ?? "N/A")</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">Adresse:</span>
+                        <span class="font-mono block">@(Node.StatusAddr ?? "N/A")</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">Message:</span>
+                        <span class="font-medium block">@(Node.StatusMessage ?? "N/A")</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dates -->
+            <div class="bg-purple-50 rounded-lg p-4">
+                <h4 class="text-lg font-semibold text-purple-700 mb-3">
+                    <i class="fas fa-clock mr-2"></i>Dates
+                </h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <span class="text-gray-500 text-sm">Cree le:</span>
+                        <span class="font-medium block">@Node.CreatedAt.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-sm">Mis a jour le:</span>
+                        <span class="font-medium block">@Node.UpdatedAt.ToString("dd/MM/yyyy HH:mm:ss")</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Labels -->
+            @if (Node.Labels.Any())
+            {
+                <div class="bg-yellow-50 rounded-lg p-4">
+                    <h4 class="text-lg font-semibold text-yellow-700 mb-3">
+                        <i class="fas fa-tags mr-2"></i>Labels (@Node.Labels.Count)
+                    </h4>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var label in Node.Labels)
+                        {
+                            <span class="bg-yellow-200 text-yellow-800 px-2 py-1 rounded text-sm">
+                                <span class="font-medium">@label.Key:</span> @label.Value
+                            </span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="p-4 bg-red-100 text-red-700 rounded-md">
+            <h4 class="font-semibold">Erreur</h4>
+            <p>@ErrorMessage</p>
+        </div>
+    }
+</Modal>
+
+@code {
+    [Parameter] public bool ShowModal { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnCloseModal { get; set; }
+    [Parameter] public NodeDetailsDto? Node { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public string? ErrorMessage { get; set; }
+
+    private async Task OnClose(MouseEventArgs e)
+    {
+        await OnCloseModal.InvokeAsync(e);
+    }
+
+    private string GetRoleBadgeClass(string role)
+    {
+        return role.ToLower() switch
+        {
+            "manager" => "bg-purple-100 text-purple-800",
+            "worker" => "bg-blue-100 text-blue-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+
+    private string GetStateBadgeClass(string state)
+    {
+        return state.ToLower() switch
+        {
+            "ready" => "bg-green-100 text-green-800",
+            "down" => "bg-red-100 text-red-800",
+            "disconnected" => "bg-yellow-100 text-yellow-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+
+    private string GetAvailabilityBadgeClass(string availability)
+    {
+        return availability.ToLower() switch
+        {
+            "active" => "bg-green-100 text-green-800",
+            "pause" => "bg-yellow-100 text-yellow-800",
+            "drain" => "bg-red-100 text-red-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+
+    private string FormatCpu(long nanoCpus)
+    {
+        var cpus = nanoCpus / 1_000_000_000.0;
+        return $"{cpus:F1} cores";
+    }
+
+    private string FormatMemory(long memoryBytes)
+    {
+        var gb = memoryBytes / (1024.0 * 1024 * 1024);
+        return $"{gb:F2} GB";
+    }
+}

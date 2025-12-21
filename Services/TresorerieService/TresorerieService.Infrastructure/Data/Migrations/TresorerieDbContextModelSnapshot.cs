@@ -158,9 +158,6 @@ namespace TresorerieService.Infrastructure.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("fld5");
 
-                    b.Property<Guid>("CategoryId1")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("ch2");
@@ -294,8 +291,6 @@ namespace TresorerieService.Infrastructure.Data.Migrations
 
                     b.HasIndex("AccountId");
 
-                    b.HasIndex("CategoryId1");
-
                     b.HasIndex("DestinationAccountId");
 
                     b.ToTable("TC00001");
@@ -316,9 +311,6 @@ namespace TresorerieService.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("fld1");
-
-                    b.Property<Guid>("CashFlowId1")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("Comment")
                         .HasColumnType("text")
@@ -351,8 +343,6 @@ namespace TresorerieService.Infrastructure.Data.Migrations
                         .HasColumnName("ch5");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CashFlowId1");
 
                     b.ToTable("TC00002");
                 });
@@ -598,12 +588,6 @@ namespace TresorerieService.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("TresorerieService.Domain.Entities.Category", "Category")
-                        .WithMany("CashFlows")
-                        .HasForeignKey("CategoryId1")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("TresorerieService.Domain.Entities.Account", "DestinationAccount")
                         .WithMany("DestinationCashFlows")
                         .HasForeignKey("DestinationAccountId")
@@ -611,20 +595,7 @@ namespace TresorerieService.Infrastructure.Data.Migrations
 
                     b.Navigation("Account");
 
-                    b.Navigation("Category");
-
                     b.Navigation("DestinationAccount");
-                });
-
-            modelBuilder.Entity("TresorerieService.Domain.Entities.CashFlowHistory", b =>
-                {
-                    b.HasOne("TresorerieService.Domain.Entities.CashFlow", "CashFlow")
-                        .WithMany("History")
-                        .HasForeignKey("CashFlowId1")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CashFlow");
                 });
 
             modelBuilder.Entity("TresorerieService.Domain.Entities.RecurringCashFlow", b =>
@@ -643,16 +614,6 @@ namespace TresorerieService.Infrastructure.Data.Migrations
                     b.Navigation("CashFlows");
 
                     b.Navigation("DestinationCashFlows");
-                });
-
-            modelBuilder.Entity("TresorerieService.Domain.Entities.CashFlow", b =>
-                {
-                    b.Navigation("History");
-                });
-
-            modelBuilder.Entity("TresorerieService.Domain.Entities.Category", b =>
-                {
-                    b.Navigation("CashFlows");
                 });
 #pragma warning restore 612, 618
         }
