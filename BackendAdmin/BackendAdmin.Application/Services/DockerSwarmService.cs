@@ -974,6 +974,78 @@ public class DockerSwarmService : IDockerSwarmService
         }
     }
 
+    /// <summary>
+    /// Gets volume information (containers using and size) for all volumes in a single batch operation.
+    /// Returns a dictionary where keys are volume names and values are tuples of (containerIds, sizeBytes).
+    /// Note: Size calculation is skipped for performance (requires creating temporary containers).
+    /// </summary>
+    public async Task<Dictionary<string, (IList<string> ContainerIds, long SizeBytes)>> GetAllVolumesInfoAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Get all containers once to determine which volumes are in use
+            var containers = await _client.Containers.ListContainersAsync(
+                new ContainersListParameters { All = true },
+                cancellationToken);
+
+            // Build a dictionary of volume name -> container IDs using that volume
+            var volumeContainers = new Dictionary<string, List<string>>();
+
+            foreach (var container in containers)
+            {
+                if (container.Mounts != null)
+                {
+                    foreach (var mount in container.Mounts)
+                    {
+                        var volumeName = mount.Name;
+                        if (string.IsNullOrEmpty(volumeName))
+                        {
+                            // Try to extract volume name from source path
+                            volumeName = mount.Source?.Split('/').LastOrDefault();
+                        }
+
+                        if (!string.IsNullOrEmpty(volumeName))
+                        {
+                            if (!volumeContainers.ContainsKey(volumeName))
+                            {
+                                volumeContainers[volumeName] = new List<string>();
+                            }
+
+                            var containerName = container.Names?.FirstOrDefault()?.TrimStart('/') ?? container.ID;
+                            if (!volumeContainers[volumeName].Contains(containerName))
+                            {
+                                volumeContainers[volumeName].Add(containerName);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Get all volumes
+            var volumeListResponse = await _client.Volumes.ListAsync(cancellationToken);
+            var volumes = volumeListResponse.Volumes ?? new List<VolumeResponse>();
+
+            // Build result dictionary
+            var result = new Dictionary<string, (IList<string> ContainerIds, long SizeBytes)>();
+
+            foreach (var volume in volumes)
+            {
+                var containerIds = volumeContainers.GetValueOrDefault(volume.Name, new List<string>()) as IList<string>;
+                // Use UsageData.Size if available, otherwise 0 (calculating size for each volume is expensive)
+                var sizeBytes = volume.UsageData?.Size ?? 0;
+
+                result[volume.Name] = (containerIds, sizeBytes);
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get volumes info");
+            return new Dictionary<string, (IList<string> ContainerIds, long SizeBytes)>();
+        }
+    }
+
     // Container management methods
 
     public async Task<IList<ContainerListResponse>> GetContainersAsync(bool all = true, CancellationToken cancellationToken = default)
@@ -1419,16 +1491,16 @@ public class DockerSwarmService : IDockerSwarmService
         try
         {
             var containers = await GetContainersAsync(all: false, cancellationToken); // Only running containers
-            var summaries = new List<ContainerMetricsSummaryDTO>();
 
-            foreach (var container in containers)
+            // Parallelize stats fetching using Task.WhenAll for better performance
+            var tasks = containers.Select(async container =>
             {
                 try
                 {
                     var stats = await GetContainerStatsAsync(container.ID, cancellationToken);
                     var containerName = container.Names?.FirstOrDefault()?.TrimStart('/') ?? container.ID[..12];
 
-                    summaries.Add(new ContainerMetricsSummaryDTO(
+                    return new ContainerMetricsSummaryDTO(
                         ContainerId: container.ID,
                         ContainerName: containerName,
                         Image: container.Image ?? "unknown",
@@ -1440,16 +1512,19 @@ public class DockerSwarmService : IDockerSwarmService
                         RestartCount: stats.RestartCount,
                         HealthStatus: stats.HealthStatus,
                         Uptime: stats.Uptime
-                    ));
+                    );
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Failed to get stats for container {ContainerId}", container.ID);
-                    // Continue with other containers
+                    return null; // Return null for failed containers
                 }
-            }
+            }).ToList();
 
-            return summaries;
+            var results = await Task.WhenAll(tasks);
+
+            // Filter out null results (failed containers) and return as list
+            return results.Where(r => r != null).Cast<ContainerMetricsSummaryDTO>().ToList();
         }
         catch (Exception ex)
         {
@@ -2074,6 +2149,50 @@ public class DockerSwarmService : IDockerSwarmService
         {
             _logger.LogError(ex, "Failed to get container count for image {ImageId}", imageId);
             return 0;
+        }
+    }
+
+    /// <summary>
+    /// Gets container counts for all images in a single batch operation (performance optimization).
+    /// Returns a dictionary where keys are image IDs and values are container counts.
+    /// </summary>
+    public async Task<Dictionary<string, int>> GetAllImageContainerCountsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Get all containers once
+            var containers = await _client.Containers.ListContainersAsync(
+                new ContainersListParameters { All = true },
+                cancellationToken);
+
+            // Build a dictionary of image ID -> container count
+            var imageCounts = new Dictionary<string, int>();
+
+            foreach (var container in containers)
+            {
+                // Normalize image ID (remove sha256: prefix for consistency)
+                var imageId = container.ImageID?.Replace("sha256:", "") ?? "";
+                var imageName = container.Image ?? "";
+
+                // Count by normalized image ID
+                if (!string.IsNullOrEmpty(imageId))
+                {
+                    imageCounts[imageId] = imageCounts.GetValueOrDefault(imageId, 0) + 1;
+                }
+
+                // Also count by image name (for lookups by name)
+                if (!string.IsNullOrEmpty(imageName) && imageName != imageId)
+                {
+                    imageCounts[imageName] = imageCounts.GetValueOrDefault(imageName, 0) + 1;
+                }
+            }
+
+            return imageCounts;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get container counts for all images");
+            return new Dictionary<string, int>();
         }
     }
 
