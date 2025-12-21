@@ -1,4 +1,4 @@
-﻿@page "/menu/{AppAdminReference}"
+@page "/menu/{AppAdminReference}"
 @using FrontendAdmin.Shared.Pages.Menus.Models
 @using FrontendAdmin.Shared.Pages.Menus.Components
 @inject IMenuHttpService _menuHttpService
@@ -7,15 +7,11 @@
 
 <PageTitleComponent Title="Gestion des menus" />
 
-<HeaderPage 
-    Title="Gestion des menu"
-    SubTitle="Créer, modifier vos menu"/>
+<HeaderPage
+    Title="Gestion des menus"
+    SubTitle="Creez, modifiez et reordonnez vos menus par glisser-deposer"/>
 
-@inject NavigationManager Nav
-
-<ResponsiveDataTable Items="menus"
-                     DesktopColumnCount="8"
-                     EmptyStateText="Aucun produit disponible.">
+<ResponsiveDataTable TItem="Menu" Items="@FilteredMenus" DesktopColumnCount="8">
     <Toolbar>
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
             <div class="flex items-center">
@@ -26,32 +22,30 @@
                     <option value="25">25</option>
                     <option value="50">50</option>
                 </select>
-                <span class="ml-2 text-sm text-gray-600">éléments</span>
+                <span class="ml-2 text-sm text-gray-600">elements</span>
             </div>
 
             <div class="relative w-full md:w-64">
                 <input type="text"
-                       placeholder="Rechercher un produit..."
+                       placeholder="Rechercher un menu..."
                        class="w-full border border-gray-300 rounded-md pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-700 focus:border-transparent"
-                       @bind="searchTerm" />
+                       @bind="searchTerm"
+                       @bind:event="oninput" />
                 <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
             </div>
 
             <div class="flex gap-3">
-                
-                <Button type="button" @onclick="Create" id="addBusinessBtn"
+                <Button type="button" @onclick="Create" id="addMenuBtn"
                         IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left" ButtonText="">
-                    
                 </Button>
-                <Button type="button" @onclick="OpenPrintModal" id="addBusinessBtn"
+                <Button type="button" @onclick="OpenPrintModal" id="printBtn"
                         IconPlacement="ButtonIconPlacement.Left" ButtonText="">
-                    
                     <Icon>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd"
                                   d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z"
                                   clip-rule="evenodd" />
-                        </svg>                        
+                        </svg>
                     </Icon>
                 </Button>
             </div>
@@ -60,21 +54,38 @@
 
     <DesktopHeader>
         <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                 <input type="checkbox" id="selectAll" class="rounded text-primary-700 focus:ring-primary-700">
+            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider w-12">
+                <svg class="w-5 h-5 text-white opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
             </th>
-            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Name</th>
-            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Rféerence</th>
-            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Url de front end</th>
-            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Icône</th>
+            <th class="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider w-12">#</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Nom</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Reference</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Url Frontend</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Icone</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Groupe</th>
             <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">Actions</th>
         </tr>
     </DesktopHeader>
 
     <RowTemplate Context="menu">
-        <tr>
-            <td class="px-6 py-4 whitespace-nowrap">
-                <input type="checkbox" class="product-checkbox rounded text-primary-700 focus:ring-primary-700" data-id=@($"checkbox-{menu.Reference}")>
+        <tr class="@GetRowClass(menu)"
+            draggable="true"
+            @ondragstart="() => HandleDragStart(menu)"
+            @ondragover="HandleDragOver"
+            @ondragover:preventDefault
+            @ondrop="() => HandleDrop(menu)"
+            @ondragend="HandleDragEnd">
+            <td class="px-3 py-4 whitespace-nowrap cursor-grab active:cursor-grabbing">
+                <svg class="w-5 h-5 text-gray-400 hover:text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/>
+                </svg>
+            </td>
+            <td class="px-3 py-4 whitespace-nowrap">
+                <span class="inline-flex items-center justify-center w-6 h-6 text-xs font-semibold text-gray-600 bg-gray-100 rounded-full">
+                    @(menu.SortOrder + 1)
+                </span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm font-medium text-gray-900">@menu.Name</div>
@@ -85,68 +96,83 @@
                     @menu.UrlFront
                 </span>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"> <i class="@menu.Icon"></i> </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <i class="@menu.Icon"></i>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@(menu.Group ?? "-")</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-
                 <button class="text-primary-700 hover:text-amber-800 mr-3"
-                        @onclick="() => ChangeStatusAsync(menu.Reference, menu.IsActif)">
+                        @onclick="() => ChangeStatusAsync(menu.Reference, menu.IsActif)"
+                        @onclick:stopPropagation="true">
                     @if (menu.IsActif)
                     {
-                        <svg class="w-6 h-6 text-primary-700 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                          <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.933 13.909A4.357 4.357 0 0 1 3 12c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 21 12c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M5 19 19 5m-4 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                        <svg class="w-6 h-6 text-primary-700 dark:text-white inline-block" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.933 13.909A4.357 4.357 0 0 1 3 12c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 21 12c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M5 19 19 5m-4 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
                         </svg>
-
                     }
                     else
                     {
-                        <svg class="w-6 h-6 text-primary-700 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                          <path stroke="currentColor" stroke-width="2" d="M21 12c0 1.2-4.03 6-9 6s-9-4.8-9-6c0-1.2 4.03-6 9-6s9 4.8 9 6Z"/>
-                          <path stroke="currentColor" stroke-width="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                        <svg class="w-6 h-6 text-primary-700 dark:text-white inline-block" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                            <path stroke="currentColor" stroke-width="2" d="M21 12c0 1.2-4.03 6-9 6s-9-4.8-9-6c0-1.2 4.03-6 9-6s9 4.8 9 6Z"/>
+                            <path stroke="currentColor" stroke-width="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
                         </svg>
-
                     }
                 </button>
-
                 <button class="text-primary-700 hover:text-amber-800 mr-3"
-                        @onclick="() => Edit(menu)">
-                    <svg class="w-6 h-6 text-primary-700  dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                      <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m14.304 4.844 2.852 2.852M7 7H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-4.5m2.409-9.91a2.017 2.017 0 0 1 0 2.853l-6.844 6.844L8 14l.713-3.565 6.844-6.844a2.015 2.015 0 0 1 2.852 0Z"/>
+                        @onclick="() => Edit(menu)"
+                        @onclick:stopPropagation="true">
+                    <svg class="w-6 h-6 text-primary-700 dark:text-white inline-block" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m14.304 4.844 2.852 2.852M7 7H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-4.5m2.409-9.91a2.017 2.017 0 0 1 0 2.853l-6.844 6.844L8 14l.713-3.565 6.844-6.844a2.015 2.015 0 0 1 2.852 0Z"/>
                     </svg>
-
                 </button>
             </td>
         </tr>
     </RowTemplate>
 
     <MobileCardTemplate Context="menu">
-        <div class="bg-white rounded-lg shadow-md p-4">
+        <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200"
+             draggable="true"
+             @ondragstart="() => HandleDragStart(menu)"
+             @ondragover="HandleDragOver"
+             @ondragover:preventDefault
+             @ondrop="() => HandleDrop(menu)"
+             @ondragend="HandleDragEnd">
             <div class="flex justify-between items-start mb-2">
-                <div>
-                    <h3 class="font-medium text-gray-900">@menu.Name</h3>
-                    <span class="text-xs px-2 py-1 rounded-full bg-primary-700 bg-opacity-10 text-primary-700">
-                        @menu.UrlFront
-                    </span>
+                <div class="flex items-center gap-2">
+                    <div class="p-2 -ml-2 cursor-grab touch-none">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center justify-center w-6 h-6 text-xs font-semibold text-gray-600 bg-gray-100 rounded-full">
+                                @(menu.SortOrder + 1)
+                            </span>
+                            <h3 class="font-medium text-gray-900">@menu.Name</h3>
+                        </div>
+                        <span class="text-xs px-2 py-1 rounded-full bg-primary-700 bg-opacity-10 text-primary-700">
+                            @menu.UrlFront
+                        </span>
+                    </div>
                 </div>
-                <input type="checkbox" class="product-checkbox rounded text-primary-700 focus:ring-primary-700" data-id="@menu.Reference">
             </div>
             <p class="text-sm text-gray-500 mb-3">@menu.Reference</p>
             <div class="flex justify-between items-center">
-               <button class="text-primary-700 hover:text-amber-800 mr-3"
+                <button class="text-primary-700 hover:text-amber-800 mr-3"
                         @onclick="() => ChangeStatusAsync(menu.Reference, menu.IsActif)">
                     @if (menu.IsActif)
                     {
                         <svg class="w-6 h-6 text-primary-700 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                          <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.933 13.909A4.357 4.357 0 0 1 3 12c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 21 12c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M5 19 19 5m-4 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.933 13.909A4.357 4.357 0 0 1 3 12c0-1 4-6 9-6m7.6 3.8A5.068 5.068 0 0 1 21 12c0 1-3 6-9 6-.314 0-.62-.014-.918-.04M5 19 19 5m-4 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
                         </svg>
-
                     }
                     else
                     {
                         <svg class="w-6 h-6 text-primary-700 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                          <path stroke="currentColor" stroke-width="2" d="M21 12c0 1.2-4.03 6-9 6s-9-4.8-9-6c0-1.2 4.03-6 9-6s9 4.8 9 6Z"/>
-                          <path stroke="currentColor" stroke-width="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                            <path stroke="currentColor" stroke-width="2" d="M21 12c0 1.2-4.03 6-9 6s-9-4.8-9-6c0-1.2 4.03-6 9-6s9 4.8 9 6Z"/>
+                            <path stroke="currentColor" stroke-width="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
                         </svg>
-
                     }
                 </button>
                 <button class="text-primary-700 hover:text-amber-800"
@@ -159,18 +185,28 @@
 
     <Footer>
         <div class="flex flex-col md:flex-row justify-between items-center gap-3 w-full">
-            <button class="text-red-600 hover:text-red-800 disabled:text-gray-400"
-                    disabled="@(!menus.Any(p => p.IsSelected))"
-                    @onclick="DeleteSelected">
-                <i class="fas fa-trash-alt"></i> Supprimer sélection
-            </button>
-            <div class="text-sm text-gray-600">
-                Affichage de @PageStart à @PageEnd sur @TotalCount éléments
+            <div class="text-sm text-gray-500">
+                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Glissez-deposez les lignes pour reordonner les menus
             </div>
-            @* <PaginationComponent /> *@
+            <div class="text-sm text-gray-600">
+                Affichage de @PageStart a @PageEnd sur @TotalCount elements
+            </div>
         </div>
     </Footer>
 </ResponsiveDataTable>
+
+@if (isSaving)
+{
+    <div class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-4 flex items-center gap-3">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-700"></div>
+            <span>Sauvegarde en cours...</span>
+        </div>
+    </div>
+}
 
 <Modal
     ShowModal="@showModal"
@@ -179,7 +215,7 @@
     }"
     ModalTitle="@ModalCreateTitle"
 >
-    <CreateMenuComponent 
+    <CreateMenuComponent
         AppAdminReference="@AppAdminReference"
         Reference="@Reference"
         menu="@menu"
@@ -189,18 +225,20 @@
         }" />
 </Modal>
 
-
-
 @code {
 
     [Parameter]
-    public string AppAdminReference { get; set; }
+    public string AppAdminReference { get; set; } = default!;
 
     private bool showModal = false;
-    private Menu menu { get; set; }  = new();
+    private bool isSaving = false;
+    private Menu menu { get; set; } = new();
     private List<Menu> menus = new();
     private string Reference { get; set; } = default!;
-    public string ModalCreateTitle { get; set; }= "Nouveau menu";
+    public string ModalCreateTitle { get; set; } = "Nouveau menu";
+
+    // Drag and drop state
+    private Menu? draggedMenu = null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -210,23 +248,40 @@
     private async Task GetMenusAsync()
     {
         var response = await _menuHttpService.GetMenuByApplicationAsync(AppAdminReference);
-        menus = response.Data.Menus.ToList();
+        menus = response.Data.Menus.OrderBy(m => m.SortOrder).ToList();
     }
 
     private string searchTerm = string.Empty;
     private int pageSize = 10;
-    private bool selectAll;
 
-    private int PageStart => 1;
+    private IEnumerable<Menu> FilteredMenus => string.IsNullOrWhiteSpace(searchTerm)
+        ? menus
+        : menus.Where(m =>
+            m.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+            m.Reference.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+            (m.Group?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    private int PageStart => menus.Count > 0 ? 1 : 0;
     private int PageEnd => menus.Count;
     private int TotalCount => menus.Count;
+
+    private string GetRowClass(Menu menu)
+    {
+        var baseClass = "hover:bg-gray-50 transition-colors";
+        if (draggedMenu != null && draggedMenu.Reference == menu.Reference)
+        {
+            return baseClass + " opacity-50 bg-gray-100";
+        }
+        return baseClass;
+    }
 
     private void OnShowCreateModal()
     {
         showModal = !showModal;
-
     }
-    private void OpenPrintModal() { /* ... */ }
+
+    private void OpenPrintModal() { }
+
     private void Edit(Menu _menu)
     {
         ModalCreateTitle = "Modifier le menu";
@@ -234,33 +289,120 @@
         menu = _menu;
         OnShowCreateModal();
     }
+
     private void Create()
     {
         ModalCreateTitle = "Nouveau menu";
         Reference = string.Empty;
+        menu = new Menu();
         OnShowCreateModal();
     }
-    private void DeleteSelected() { /* ... */ } 
 
-    private async Task ChangeStatusAsync(string reference,bool status)
+    private async Task ChangeStatusAsync(string reference, bool status)
     {
-        try{
-           
+        try
+        {
             if (status)
             {
-                await _menuHttpService.InactiveMenuAsync(new ActiveMenuRequest(reference,AppAdminReference));
+                await _menuHttpService.InactiveMenuAsync(new ActiveMenuRequest(reference, AppAdminReference));
             }
             else
             {
-                await _menuHttpService.ActiveMenuAsync(new ActiveMenuRequest(reference,AppAdminReference));
+                await _menuHttpService.ActiveMenuAsync(new ActiveMenuRequest(reference, AppAdminReference));
             }
-            ToastService.ShowToast("Succès", "Status modifié avec succès", "success");
+            ToastService.ShowToast("Succes", "Statut modifie avec succes", "success");
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             ToastService.ShowToast("Erreur", "Une erreur est survenue", "error");
         }
 
         await GetMenusAsync();
+    }
+
+    // Drag and Drop handlers
+    private void HandleDragStart(Menu menu)
+    {
+        draggedMenu = menu;
+        StateHasChanged();
+    }
+
+    private void HandleDragOver(DragEventArgs e)
+    {
+        // Allow drop - preventDefault is handled in the markup
+    }
+
+    private async Task HandleDrop(Menu targetMenu)
+    {
+        if (draggedMenu == null || draggedMenu.Reference == targetMenu.Reference)
+        {
+            draggedMenu = null;
+            return;
+        }
+
+        var draggedIndex = menus.FindIndex(m => m.Reference == draggedMenu.Reference);
+        var targetIndex = menus.FindIndex(m => m.Reference == targetMenu.Reference);
+
+        if (draggedIndex < 0 || targetIndex < 0)
+        {
+            draggedMenu = null;
+            return;
+        }
+
+        // Remove dragged item and insert at target position
+        var itemToMove = menus[draggedIndex];
+        menus.RemoveAt(draggedIndex);
+        menus.Insert(targetIndex, itemToMove);
+
+        // Update sort orders
+        for (int i = 0; i < menus.Count; i++)
+        {
+            menus[i].SortOrder = i;
+        }
+
+        draggedMenu = null;
+        StateHasChanged();
+
+        // Save to server
+        await SaveOrderAsync();
+    }
+
+    private void HandleDragEnd()
+    {
+        draggedMenu = null;
+        StateHasChanged();
+    }
+
+    private async Task SaveOrderAsync()
+    {
+        isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            var items = menus.Select(m => new MenuSortOrderItem(m.Reference, m.SortOrder)).ToList();
+            var request = new ReorderMenusRequest(items);
+            var result = await _menuHttpService.ReorderMenusAsync(AppAdminReference, request);
+
+            if (result.Success)
+            {
+                ToastService.ShowToast("Succes", "Ordre des menus mis a jour", "success");
+            }
+            else
+            {
+                ToastService.ShowToast("Erreur", result.Message ?? "Erreur lors de la sauvegarde", "error");
+                await GetMenusAsync(); // Reload to revert
+            }
+        }
+        catch (Exception)
+        {
+            ToastService.ShowToast("Erreur", "Erreur lors de la sauvegarde de l'ordre", "error");
+            await GetMenusAsync(); // Reload to revert
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
     }
 }

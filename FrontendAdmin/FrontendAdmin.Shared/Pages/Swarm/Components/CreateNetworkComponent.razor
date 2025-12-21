@@ -1,0 +1,216 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@using System.ComponentModel.DataAnnotations
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    <EditForm Model="@model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <div class="space-y-4">
+            <!-- Network Name -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nom du reseau *</label>
+                <InputText @bind-Value="model.Name"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-700 focus:border-transparent"
+                           placeholder="mon-reseau" />
+                <ValidationMessage For="() => model.Name" class="text-red-500 text-sm mt-1" />
+            </div>
+
+            <!-- Driver -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Driver</label>
+                <select @bind="model.Driver"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-700 focus:border-transparent">
+                    <option value="overlay">overlay (Swarm)</option>
+                    <option value="bridge">bridge</option>
+                    <option value="host">host</option>
+                    <option value="macvlan">macvlan</option>
+                    <option value="none">none</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Le driver overlay est recommande pour Docker Swarm</p>
+            </div>
+
+            <!-- Is Attachable -->
+            <div class="flex items-center">
+                <input type="checkbox" @bind="model.IsAttachable" id="isAttachable"
+                       class="mr-2 h-4 w-4 text-primary-700 focus:ring-primary-700 border-gray-300 rounded" />
+                <label for="isAttachable" class="text-sm text-gray-700">
+                    Attachable (permet aux conteneurs de se connecter manuellement)
+                </label>
+            </div>
+
+            <!-- IPAM Configuration (Collapsible) -->
+            <div class="border border-gray-200 rounded-md">
+                <button type="button"
+                        @onclick="() => showIpamConfig = !showIpamConfig"
+                        class="w-full px-4 py-3 flex justify-between items-center text-left hover:bg-gray-50">
+                    <span class="text-sm font-medium text-gray-700">Configuration IPAM (optionnel)</span>
+                    <i class="fas @(showIpamConfig ? "fa-chevron-up" : "fa-chevron-down") text-gray-400"></i>
+                </button>
+
+                @if (showIpamConfig)
+                {
+                    <div class="px-4 pb-4 space-y-3 border-t border-gray-200 pt-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Subnet</label>
+                            <InputText @bind-Value="model.Subnet"
+                                       class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-700 focus:border-transparent"
+                                       placeholder="172.20.0.0/16" />
+                            <ValidationMessage For="() => model.Subnet" class="text-red-500 text-sm mt-1" />
+                            <p class="text-xs text-gray-500 mt-1">Format CIDR (ex: 172.20.0.0/16)</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Gateway</label>
+                            <InputText @bind-Value="model.Gateway"
+                                       class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-700 focus:border-transparent"
+                                       placeholder="172.20.0.1" />
+                            <ValidationMessage For="() => model.Gateway" class="text-red-500 text-sm mt-1" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">IP Range</label>
+                            <InputText @bind-Value="model.IpRange"
+                                       class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-700 focus:border-transparent"
+                                       placeholder="172.20.10.0/24" />
+                            <ValidationMessage For="() => model.IpRange" class="text-red-500 text-sm mt-1" />
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Labels -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Labels (optionnel)</label>
+                <div class="space-y-2">
+                    @foreach (var label in labels)
+                    {
+                        <div class="flex gap-2">
+                            <input type="text" @bind="label.Key"
+                                   class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+                                   placeholder="Cle" />
+                            <input type="text" @bind="label.Value"
+                                   class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+                                   placeholder="Valeur" />
+                            <button type="button" @onclick="() => RemoveLabel(label)"
+                                    class="text-red-500 hover:text-red-700 px-2">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    }
+                    <button type="button" @onclick="AddLabel"
+                            class="text-primary-700 hover:text-primary-800 text-sm">
+                        <i class="fas fa-plus mr-1"></i> Ajouter un label
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="mt-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
+                <i class="fas fa-exclamation-triangle mr-2"></i>@errorMessage
+            </div>
+        }
+
+        <div class="flex justify-end gap-2 mt-6">
+            <Button type="button" @onclick="OnCancel" ButtonColor="ButtonColor.Light">
+                <span>Annuler</span>
+            </Button>
+            <Button type="submit" ButtonColor="ButtonColor.Primary" Disabled="@isSubmitting">
+                @if (isSubmitting)
+                {
+                    <span class="animate-spin mr-2"><i class="fas fa-spinner"></i></span>
+                }
+                <span>Creer</span>
+            </Button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnNetworkCreated { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private CreateNetworkModel model = new();
+    private List<LabelEntry> labels = new();
+    private bool isSubmitting;
+    private string? errorMessage;
+    private bool showIpamConfig;
+
+    private class CreateNetworkModel
+    {
+        [Required(ErrorMessage = "Le nom du reseau est requis")]
+        [RegularExpression(@"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$", ErrorMessage = "Nom invalide (lettres, chiffres, _, -, . autorises)")]
+        public string Name { get; set; } = "";
+        public string Driver { get; set; } = "overlay";
+        public bool IsAttachable { get; set; } = true;
+
+        [RegularExpression(@"^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$", ErrorMessage = "Format CIDR invalide (ex: 172.20.0.0/16)")]
+        public string? Subnet { get; set; }
+
+        [RegularExpression(@"^(\d{1,3}\.){3}\d{1,3}$", ErrorMessage = "Format IP invalide")]
+        public string? Gateway { get; set; }
+
+        [RegularExpression(@"^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$", ErrorMessage = "Format CIDR invalide")]
+        public string? IpRange { get; set; }
+    }
+
+    private class LabelEntry
+    {
+        public string Key { get; set; } = "";
+        public string Value { get; set; } = "";
+    }
+
+    private void AddLabel()
+    {
+        labels.Add(new LabelEntry());
+    }
+
+    private void RemoveLabel(LabelEntry label)
+    {
+        labels.Remove(label);
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var labelsDict = labels
+                .Where(l => !string.IsNullOrWhiteSpace(l.Key))
+                .ToDictionary(l => l.Key, l => l.Value);
+
+            var request = new CreateNetworkRequest(
+                Name: model.Name,
+                Driver: model.Driver,
+                IsAttachable: model.IsAttachable,
+                Subnet: string.IsNullOrWhiteSpace(model.Subnet) ? null : model.Subnet,
+                Gateway: string.IsNullOrWhiteSpace(model.Gateway) ? null : model.Gateway,
+                IpRange: string.IsNullOrWhiteSpace(model.IpRange) ? null : model.IpRange,
+                Labels: labelsDict.Any() ? labelsDict : null
+            );
+
+            var response = await SwarmService.CreateNetworkAsync(request);
+
+            if (response.Success)
+            {
+                await OnNetworkCreated.InvokeAsync();
+            }
+            else
+            {
+                errorMessage = response.Message ?? "Erreur lors de la creation du reseau";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+}

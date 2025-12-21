@@ -1,0 +1,173 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@using IDR.Library.Blazor.Modals
+@using IDR.Library.Blazor.Buttons
+
+<div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="bg-gray-50 px-6 py-3 border-b">
+        <h3 class="text-lg font-semibold text-gray-800">
+            <i class="fas fa-broom mr-2"></i>Nettoyage Systeme
+        </h3>
+    </div>
+    <div class="p-6">
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-yellow-700">
+                        <strong>Attention:</strong> Cette action va supprimer toutes les ressources Docker inutilisees:
+                    </p>
+                    <ul class="text-sm text-yellow-700 list-disc ml-4 mt-2">
+                        <li>Conteneurs arretes</li>
+                        <li>Images non utilisees</li>
+                        <li>Volumes orphelins</li>
+                        <li>Reseaux inutilises</li>
+                        <li>Cache de build</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between">
+            <div>
+                @if (ReclaimableSize > 0)
+                {
+                    <p class="text-gray-600">
+                        Espace potentiellement recuperable:
+                        <span class="font-bold text-green-600">@FormatBytes(ReclaimableSize)</span>
+                    </p>
+                }
+            </div>
+            <Button
+                Text="Nettoyer tout"
+                OnClick="ShowConfirmation"
+                Variant="ButtonVariant.Danger"
+                IsLoading="IsPruning"
+                Disabled="IsPruning">
+            </Button>
+        </div>
+
+        @if (LastPruneResult != null)
+        {
+            <div class="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                <h4 class="font-semibold text-green-800 mb-3">
+                    <i class="fas fa-check-circle mr-2"></i>Nettoyage termine
+                </h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                        <p class="text-gray-500">Conteneurs</p>
+                        <p class="font-bold text-gray-800">@LastPruneResult.ContainersDeleted supprimes</p>
+                        <p class="text-xs text-gray-500">@FormatBytes(LastPruneResult.ContainersSpaceReclaimed)</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Images</p>
+                        <p class="font-bold text-gray-800">@LastPruneResult.ImagesDeleted supprimees</p>
+                        <p class="text-xs text-gray-500">@FormatBytes(LastPruneResult.ImagesSpaceReclaimed)</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Volumes</p>
+                        <p class="font-bold text-gray-800">@LastPruneResult.VolumesDeleted supprimes</p>
+                        <p class="text-xs text-gray-500">@FormatBytes(LastPruneResult.VolumesSpaceReclaimed)</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Reseaux</p>
+                        <p class="font-bold text-gray-800">@LastPruneResult.NetworksDeleted supprimes</p>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-green-200">
+                    <p class="text-lg font-bold text-green-700">
+                        <i class="fas fa-hdd mr-2"></i>
+                        Espace total recupere: @FormatBytes(LastPruneResult.TotalSpaceReclaimed)
+                    </p>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<Modal ModalTitle="Confirmer le nettoyage" ShowModal="@showConfirmModal" Size="ModalSize.Medium" OnCloseModal="CloseModal">
+    <div class="p-4">
+        <div class="flex items-start mb-4">
+            <div class="flex-shrink-0 bg-red-100 rounded-full p-3">
+                <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+            </div>
+            <div class="ml-4">
+                <h4 class="text-lg font-semibold text-gray-900">Etes-vous sur ?</h4>
+                <p class="text-gray-600 mt-1">
+                    Cette action est irreversible. Toutes les ressources Docker inutilisees seront definitivement supprimees.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+            <p class="text-sm text-gray-600 mb-2">Elements qui seront supprimes:</p>
+            <ul class="text-sm space-y-1">
+                <li class="flex items-center">
+                    <i class="fas fa-cube text-purple-500 mr-2 w-4"></i>
+                    Conteneurs arretes
+                </li>
+                <li class="flex items-center">
+                    <i class="fas fa-layer-group text-blue-500 mr-2 w-4"></i>
+                    Images non utilisees (dangling)
+                </li>
+                <li class="flex items-center">
+                    <i class="fas fa-database text-green-500 mr-2 w-4"></i>
+                    Volumes orphelins
+                </li>
+                <li class="flex items-center">
+                    <i class="fas fa-network-wired text-orange-500 mr-2 w-4"></i>
+                    Reseaux inutilises
+                </li>
+                <li class="flex items-center">
+                    <i class="fas fa-boxes text-yellow-500 mr-2 w-4"></i>
+                    Cache de build
+                </li>
+            </ul>
+        </div>
+
+        <div class="flex justify-end gap-3">
+            <Button Text="Annuler" OnClick="CloseModal" Variant="ButtonVariant.Secondary" />
+            <Button Text="Confirmer le nettoyage" OnClick="ExecutePrune" Variant="ButtonVariant.Danger" IsLoading="IsPruning" />
+        </div>
+    </div>
+</Modal>
+
+@code {
+    [Parameter] public long ReclaimableSize { get; set; }
+    [Parameter] public EventCallback OnPruneRequested { get; set; }
+    [Parameter] public PruneAllResponse? LastPruneResult { get; set; }
+    [Parameter] public bool IsPruning { get; set; }
+
+    private bool showConfirmModal = false;
+
+    private void ShowConfirmation()
+    {
+        showConfirmModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showConfirmModal = false;
+    }
+
+    private async Task ExecutePrune()
+    {
+        await OnPruneRequested.InvokeAsync();
+        showConfirmModal = false;
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:0.##} {sizes[order]}";
+    }
+}

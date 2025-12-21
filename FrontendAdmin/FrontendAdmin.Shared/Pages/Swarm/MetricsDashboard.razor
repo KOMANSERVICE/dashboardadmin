@@ -1,0 +1,295 @@
+@page "/swarm/metrics"
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@using FrontendAdmin.Shared.Pages.Swarm.Components
+@inject ISwarmHttpService SwarmService
+@inject NavigationManager NavigationManager
+
+<PageTitleComponent Title="Metriques Docker Swarm" />
+
+<div class="container mx-auto px-4 py-8">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+            <h2 class="text-3xl font-bold text-primary-700 text-gray-900 sm:text-2xl">Metriques & Monitoring</h2>
+            <p class="text-gray-600">Vue d'ensemble des performances et de la sante des conteneurs Docker</p>
+        </div>
+
+        <div class="flex gap-2 mt-4 md:mt-0">
+            <Button type="button" @onclick="NavigateToSwarm"
+                    ButtonColor="ButtonColor.Light"
+                    IconCss="fas fa-arrow-left" IconPlacement="ButtonIconPlacement.Left">
+                <span>Retour</span>
+            </Button>
+            <Button type="button" @onclick="RefreshData" id="refreshBtn"
+                    IconCss="fas fa-sync-alt" IconPlacement="ButtonIconPlacement.Left"
+                    Disabled="@isLoading">
+                <span>Actualiser</span>
+            </Button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <LoadingData />
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="p-4 bg-red-50 text-red-700 rounded-md mb-4">
+            @errorMessage
+        </div>
+    }
+    else
+    {
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-blue-50 p-4 rounded-lg">
+                <div class="text-blue-600 text-sm font-medium">Total Conteneurs</div>
+                <div class="text-2xl font-bold text-blue-900">@containers.Count</div>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg">
+                <div class="text-green-600 text-sm font-medium">Healthy</div>
+                <div class="text-2xl font-bold text-green-900">@containers.Count(c => IsHealthy(c.HealthStatus))</div>
+            </div>
+            <div class="bg-red-50 p-4 rounded-lg">
+                <div class="text-red-600 text-sm font-medium">Unhealthy</div>
+                <div class="text-2xl font-bold text-red-900">@containers.Count(c => c.HealthStatus?.ToLower() == "unhealthy")</div>
+            </div>
+            <div class="bg-yellow-50 p-4 rounded-lg">
+                <div class="text-yellow-600 text-sm font-medium">Total Redemarrages</div>
+                <div class="text-2xl font-bold text-yellow-900">@containers.Sum(c => c.RestartCount)</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="mb-6">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-8">
+                    <button @onclick="() => activeTab = 0"
+                            class="@GetTabClass(0) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                        <i class="fas fa-chart-bar mr-2"></i>
+                        Graphiques
+                    </button>
+                    <button @onclick="() => activeTab = 1"
+                            class="@GetTabClass(1) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                        <i class="fas fa-table mr-2"></i>
+                        Tableau des metriques
+                    </button>
+                    <button @onclick="() => activeTab = 2"
+                            class="@GetTabClass(2) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                        <i class="fas fa-stream mr-2"></i>
+                        Evenements Docker (@events.Count)
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        @if (activeTab == 0)
+        {
+            <!-- Graphs Tab -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-4 rounded-lg shadow">
+                    @if (cpuGraphRenderer != null)
+                    {
+                        @cpuGraphRenderer
+                    }
+                    else
+                    {
+                        <div class="text-center text-gray-500 py-8">
+                            Graphique CPU non disponible
+                        </div>
+                    }
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    @if (memoryGraphRenderer != null)
+                    {
+                        @memoryGraphRenderer
+                    }
+                    else
+                    {
+                        <div class="text-center text-gray-500 py-8">
+                            Graphique Memoire non disponible
+                        </div>
+                    }
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    @if (healthGraphRenderer != null)
+                    {
+                        @healthGraphRenderer
+                    }
+                    else
+                    {
+                        <div class="text-center text-gray-500 py-8">
+                            Graphique Sante non disponible
+                        </div>
+                    }
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    @if (uptimeGraphRenderer != null)
+                    {
+                        @uptimeGraphRenderer
+                    }
+                    else
+                    {
+                        <div class="text-center text-gray-500 py-8">
+                            Graphique Uptime non disponible
+                        </div>
+                    }
+                </div>
+                @if (containers.Any(c => c.RestartCount > 0))
+                {
+                    <div class="bg-white p-4 rounded-lg shadow lg:col-span-2">
+                        @if (restartGraphRenderer != null)
+                        {
+                            @restartGraphRenderer
+                        }
+                        else
+                        {
+                            <div class="text-center text-gray-500 py-8">
+                                Graphique Redemarrages non disponible
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        else if (activeTab == 1)
+        {
+            <!-- Metrics Table Tab -->
+            <MetricsTableComponent Containers="@containers" OnViewStats="ViewContainerStats" />
+        }
+        else if (activeTab == 2)
+        {
+            <!-- Docker Events Tab -->
+            <DockerEventsComponent Events="@events" OnRefresh="RefreshEvents" />
+        }
+    }
+</div>
+
+<!-- Container Stats Modal -->
+@if (!string.IsNullOrEmpty(selectedContainerId))
+{
+    <Modal ModalTitle="Statistiques du conteneur" ShowModal="true" Size="ModalSize.Large" OnCloseModal="CloseStatsModal">
+        <ContainerStatsComponent ContainerId="@selectedContainerId" OnClose="CloseStatsModal" />
+    </Modal>
+}
+
+@code {
+    [Parameter]
+    public RenderFragment? cpuGraphRenderer { get; set; }
+
+    [Parameter]
+    public RenderFragment? memoryGraphRenderer { get; set; }
+
+    [Parameter]
+    public RenderFragment? healthGraphRenderer { get; set; }
+
+    [Parameter]
+    public RenderFragment? restartGraphRenderer { get; set; }
+
+    [Parameter]
+    public RenderFragment? uptimeGraphRenderer { get; set; }
+
+    private List<ContainerMetricsSummaryDto> containers = new();
+    private List<DockerEventDto> events = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+    private int activeTab = 0;
+    private string? selectedContainerId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshData();
+    }
+
+    private async Task RefreshData()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var metricsTask = SwarmService.GetContainersMetricsSummaryAsync();
+            var eventsTask = SwarmService.GetDockerEventsAsync();
+
+            await Task.WhenAll(metricsTask, eventsTask);
+
+            var metricsResponse = await metricsTask;
+            var eventsResponse = await eventsTask;
+
+            if (metricsResponse.Success && metricsResponse.Data != null)
+            {
+                containers = metricsResponse.Data.Containers?.ToList() ?? new List<ContainerMetricsSummaryDto>();
+            }
+            else
+            {
+                errorMessage = metricsResponse.Message ?? "Impossible de recuperer les metriques des conteneurs";
+            }
+
+            if (eventsResponse.Success && eventsResponse.Data != null)
+            {
+                events = eventsResponse.Data.Events?.ToList() ?? new List<DockerEventDto>();
+            }
+            else if (string.IsNullOrEmpty(errorMessage))
+            {
+                errorMessage = eventsResponse.Message ?? "Impossible de recuperer les evenements Docker";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshEvents()
+    {
+        try
+        {
+            var response = await SwarmService.GetDockerEventsAsync();
+            if (response.Success && response.Data != null)
+            {
+                events = response.Data.Events?.ToList() ?? new List<DockerEventDto>();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors du rafraichissement des evenements: {ex.Message}";
+        }
+        StateHasChanged();
+    }
+
+    private void ViewContainerStats(string containerId)
+    {
+        selectedContainerId = containerId;
+        StateHasChanged();
+    }
+
+    private void CloseStatsModal()
+    {
+        selectedContainerId = null;
+        StateHasChanged();
+    }
+
+    private bool IsHealthy(string? status)
+    {
+        if (string.IsNullOrEmpty(status)) return false;
+        var lower = status.ToLower();
+        return lower == "healthy" || lower == "running";
+    }
+
+    private string GetTabClass(int tab)
+    {
+        return activeTab == tab
+            ? "border-primary-500 text-primary-600"
+            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300";
+    }
+
+    private void NavigateToSwarm()
+    {
+        NavigationManager.NavigateTo("/swarm");
+    }
+}

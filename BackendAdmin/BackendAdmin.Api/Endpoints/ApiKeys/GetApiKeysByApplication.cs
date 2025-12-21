@@ -27,7 +27,6 @@ public class GetApiKeysByApplication : ICarterModule
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .WithSummary("Recupere les API Keys d'une application")
         .WithDescription("Retourne toutes les API Keys associees a une application (sans les cles en clair)")
-        .RequireAuthorization()
-        .WithOpenApi();
+        .RequireAuthorization();
     }
 }

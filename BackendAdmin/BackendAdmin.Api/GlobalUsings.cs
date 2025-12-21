@@ -7,5 +7,5 @@ global using Microsoft.AspNetCore.Authorization;
 global using Microsoft.Extensions.Configuration;
 global using IDR.Library.BuildingBlocks.Exceptions.Handler;
 global using Microsoft.AspNetCore.Authentication.JwtBearer;
-global using Microsoft.OpenApi.Models;
+global using Microsoft.OpenApi;
 global using IDR.Library.Shared.Responses;

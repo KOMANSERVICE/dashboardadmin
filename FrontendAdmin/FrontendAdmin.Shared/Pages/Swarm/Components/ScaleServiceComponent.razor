@@ -1,0 +1,113 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    <div class="space-y-4">
+        <div class="text-center">
+            <p class="text-gray-600 mb-4">
+                Replicas actuels: <span class="font-bold">@CurrentReplicas</span>
+            </p>
+
+            <div class="flex items-center justify-center gap-4">
+                <button type="button" @onclick="Decrement"
+                        class="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-xl font-bold transition"
+                        disabled="@(newReplicas <= 0)">
+                    -
+                </button>
+
+                <div class="text-center">
+                    <input type="number" @bind="newReplicas" min="0" max="100"
+                           class="w-20 text-center text-3xl font-bold border-b-2 border-primary-700 focus:outline-none" />
+                    <p class="text-sm text-gray-500 mt-1">replicas</p>
+                </div>
+
+                <button type="button" @onclick="Increment"
+                        class="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 text-xl font-bold transition"
+                        disabled="@(newReplicas >= 100)">
+                    +
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="p-3 bg-red-50 text-red-700 rounded-md">
+                @errorMessage
+            </div>
+        }
+
+        <div class="flex justify-end gap-2 mt-6">
+            <Button type="button" @onclick="OnCancel" ButtonColor="ButtonColor.Light">
+                <span>Annuler</span>
+            </Button>
+            <Button type="button" @onclick="HandleScale" Disabled="@(isLoading || newReplicas == CurrentReplicas)">
+                @if (isLoading)
+                {
+                    <span class="animate-spin mr-2">
+                        <i class="fas fa-spinner"></i>
+                    </span>
+                }
+                <span>Appliquer</span>
+            </Button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string ServiceName { get; set; } = "";
+    [Parameter] public int CurrentReplicas { get; set; }
+    [Parameter] public EventCallback OnScaled { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private int newReplicas;
+    private bool isLoading;
+    private string? errorMessage;
+
+    protected override void OnParametersSet()
+    {
+        newReplicas = CurrentReplicas;
+    }
+
+    private void Increment()
+    {
+        if (newReplicas < 100)
+            newReplicas++;
+    }
+
+    private void Decrement()
+    {
+        if (newReplicas > 0)
+            newReplicas--;
+    }
+
+    private async Task HandleScale()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var request = new ScaleServiceRequest(newReplicas);
+            var response = await SwarmService.ScaleServiceAsync(ServiceName, request);
+
+            if (response.Success)
+            {
+                await OnScaled.InvokeAsync();
+            }
+            else
+            {
+                errorMessage = response.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

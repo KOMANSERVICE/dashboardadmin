@@ -1,4 +1,5 @@
 ﻿using BackendAdmin.Application.Features.Menus.Commands.ActiveMenu;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BackendAdmin.Api.Endpoints.Menus;
 
@@ -9,7 +10,7 @@ public class ActiveMenu : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapPatch("/menu/active", async (ActiveMenuRequest request, ISender sender) =>
+        app.MapPatch("/menu/active", async ([FromBody] ActiveMenuRequest request, ISender sender) =>
         {
             var command = request.Adapt<ActiveMenuCommand>();
             var result = await sender.Send(command);
@@ -26,6 +27,6 @@ public class ActiveMenu : ICarterModule
        .WithSummary("ActiveMenu")
        .WithDescription("ActiveMenu")
        //.RequireAuthorization()
-       .WithOpenApi();
+       ;
     }
 }

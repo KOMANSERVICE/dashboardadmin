@@ -1,0 +1,121 @@
+
+services:
+  dashadminDB:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata_dashadmin:/var/lib/postgresql/data  
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    env_file:
+      - ./.env
+    networks:
+      - vault-net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+    
+  ef-migrator-dashadmin:
+    image: komanatse/frontendadminsql:${DOCKER_TAG}
+    environment:
+      DB_HOST: dashadminDB
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+    env_file:
+      - ./.env
+    networks:
+      - vault-net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        max_attempts: 5
+        delay: 10s
+        
+  frontendadmin.web:
+    image: komanatse/frontendadmin:${DOCKER_TAG}
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ApiSettings__Uri=${API_SETTINGS_URL}
+    volumes:
+      - ./FrontendAdmin/FrontendAdmin.Web.Client/wwwroot/appsettings.json:/app/wwwroot/appsettings.json:ro
+      - ./FrontendAdmin/FrontendAdmin.Web/appsettings.json:/app/appsettings.json:ro
+    ports:
+      - "9011:8080"
+    env_file:
+      - ./.env
+    networks:
+      - vault-net
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      restart_policy:
+        condition: on-failure
+      
+  backendadmin.api:
+    image: komanatse/backendadmin:${DOCKER_TAG}
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Poduction
+      - ASPNETCORE_HTTP_PORTS=8080     
+      - JWT__ValidAudience=${JWT_VALID_AUDIENCE_API}
+      - JWT__ValidIssuer=${JWT_VALID_ISSUER_API}
+      - JWT__Secret=${JWT_SECRET_API}
+      - Vault__Uri=${VAULT_URI}
+      - Vault__RoleId=${VAULT_ROLE_ID}
+      - Vault__SecretId=${VAULT_SECRET_ID}
+      - Vault__PathMountPoint=${VAULT_PATH_MOUNT_POINT}
+      - Vault__MountPoint=${VAULT_MOUNT_POINT}
+      - Vault__EmailAdmin=${VAULT_EMAIL_ADMIN}
+      - Vault__PasswordAdmin=${VAULT_PASSWORD_ADMIN}
+      - Allow__Origins=${CORS_ALLOWED_ORIGINS}
+      - ConnectionStrings__DashAdminDatabase=${CONNECTION_STRING_API}
+      - Service__MenuUrl=${MENU_SERVICE_URL}
+    ports:
+      - "9111:8080"
+    env_file:
+      - ./.env
+    networks:
+      - vault-net
+    # Monter le socket Docker pour l'API Swarm
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == manager
+            
+networks:
+  vault-net:
+    external: true 
+      
+volumes:
+  pgdata_dashadmin:

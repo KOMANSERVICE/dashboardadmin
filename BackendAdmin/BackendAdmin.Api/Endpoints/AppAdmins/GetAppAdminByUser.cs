@@ -23,8 +23,7 @@ public class GetAppAdminByUser : ICarterModule
        .ProducesProblem(StatusCodes.Status400BadRequest)
        .WithSummary("GetAppAdminByUser")
        .WithDescription("GetAppAdminByUser")
-       .RequireAuthorization()
-       .WithOpenApi();
+       .RequireAuthorization();
     }
 }
 

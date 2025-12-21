@@ -1,0 +1,36 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+
+<div class="space-y-6">
+    <!-- System Info -->
+    <SystemInfoComponent SystemInfo="SystemInfo" />
+
+    <!-- Two Columns Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Docker Version -->
+        <DockerVersionComponent Version="DockerVersion" />
+
+        <!-- Prune All -->
+        <PruneAllComponent
+            ReclaimableSize="@(DiskUsage?.Summary?.ReclaimableSize ?? 0)"
+            OnPruneRequested="OnPruneRequested"
+            LastPruneResult="LastPruneResult"
+            IsPruning="IsPruning" />
+    </div>
+
+    <!-- Disk Usage (Full Width) -->
+    <DiskUsageComponent DiskUsage="DiskUsage" />
+
+    <!-- Docker Events (Full Width) -->
+    <DockerEventsComponent Events="DockerEvents" OnRefresh="OnEventsRefresh" />
+</div>
+
+@code {
+    [Parameter] public SystemInfoDto? SystemInfo { get; set; }
+    [Parameter] public DockerVersionDto? DockerVersion { get; set; }
+    [Parameter] public DiskUsageDto? DiskUsage { get; set; }
+    [Parameter] public PruneAllResponse? LastPruneResult { get; set; }
+    [Parameter] public bool IsPruning { get; set; }
+    [Parameter] public EventCallback OnPruneRequested { get; set; }
+    [Parameter] public List<DockerEventDto>? DockerEvents { get; set; }
+    [Parameter] public EventCallback OnEventsRefresh { get; set; }
+}

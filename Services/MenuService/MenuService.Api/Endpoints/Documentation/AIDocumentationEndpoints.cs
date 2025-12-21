@@ -714,7 +714,7 @@ POST /api/menu
         return TypedResults.Ok(versions);
     }
 
-    private static Ok<SearchResults> SearchDocumentation(string? q)
+    private static Ok<SearchResults> SearchDocumentation([FromQuery] string? q)
     {
         var results = new SearchResults
         {

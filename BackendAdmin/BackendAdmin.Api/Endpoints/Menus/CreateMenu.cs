@@ -26,7 +26,6 @@ public class CreateMenu : ICarterModule
        .ProducesProblem(StatusCodes.Status400BadRequest)
        .WithSummary("CreateMenu")
        .WithDescription("CreateMenu")
-       .RequireAuthorization()
-       .WithOpenApi();
+       .RequireAuthorization();
     }
 }

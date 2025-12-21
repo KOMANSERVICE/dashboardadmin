@@ -1,0 +1,229 @@
+# .github/workflows/reusable-deploy.yml
+name: Reusable Deploy to VPS (Swarm)
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+        description: "Nom du service (ex: menuservice)"
+      image_name:
+        required: true
+        type: string
+        description: "Nom de l'image Docker Hub"
+      deploy_path:
+        required: true
+        type: string
+        description: "Chemin de déploiement sur le VPS"
+      compose_file:
+        required: true
+        type: string
+        description: "Nom du fichier docker-compose"
+      environment:
+        required: true
+        type: string
+        description: "Environnement (dev ou prod)"
+      ssh_port:
+        required: false
+        type: number
+        default: 22
+      registry:
+        required: false
+        type: string
+        default: 'komanatse'
+      build_workflow_name:
+        required: true
+        type: string
+        description: "Nom du workflow de build associé"
+      stack_name:
+        required: false
+        type: string
+        default: ''
+        description: "Nom de la stack Swarm (si différent du service_name)"
+    secrets:
+      SSH_HOST:
+        required: true
+      SSH_USER:
+        required: true
+      SSH_PRIVATE_KEY:
+        required: true
+      SSH_PASSPHRASE:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
+      ENV_CONTENT:
+        required: true
+        description: "Contenu complet du fichier .env"
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.service_name }} to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Define image tag
+        id: vars
+        run: |
+          set -e
+
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          
+          echo "🔍 Workflow build triggered on branch/tag: $BRANCH"
+
+          # Si c'est un tag versionné (vX.X.X)
+          if [[ "$BRANCH" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "env=prod" >> $GITHUB_OUTPUT
+            echo "tag=$BRANCH" >> $GITHUB_OUTPUT
+            echo "✅ Déploiement PROD : $BRANCH"
+          else
+            echo "env=nonprod" >> $GITHUB_OUTPUT
+            echo "🧪 Recherche de la dernière version dev..."
+
+            IMAGE_NAME="${{ inputs.image_name }}"
+            GH_API="https://hub.docker.com/v2/repositories/${{ inputs.registry }}/${IMAGE_NAME}/tags?page_size=100"
+
+            echo "🔍 Recherche du dernier tag 'dev-' pour ${IMAGE_NAME}..."
+            TAG=$(curl -s $GH_API | jq -r '.results[].name' | grep '^dev-' | sort -r | head -n 1)
+
+            if [ -z "$TAG" ]; then
+              echo "❌ Aucun tag 'dev-' trouvé. Abandon."
+              exit 1
+            fi
+
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "✅ Dernier tag dev trouvé : $TAG"
+          fi
+
+      - name: Copy docker-compose to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          port: ${{ inputs.ssh_port }}
+          source: "${{ inputs.compose_file }}"
+          target: ${{ inputs.deploy_path }}
+
+      - name: SSH to VPS and deploy stack
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          port: ${{ inputs.ssh_port }}
+          script: |
+            set -e
+            TAG="${{ steps.vars.outputs.tag }}"
+            DIR_PATH="${{ inputs.deploy_path }}"
+            COMPOSE_FILE="${{ inputs.compose_file }}"
+            SERVICE_NAME="${{ inputs.service_name }}"
+            STACK_NAME="${{ inputs.stack_name }}"
+            
+            # Si stack_name n'est pas défini, utiliser service_name sans "service"
+            if [ -z "$STACK_NAME" ]; then
+              STACK_NAME=$(echo "$SERVICE_NAME" | sed 's/service$//')
+            fi
+
+            echo "📦 Déploiement $SERVICE_NAME (stack: $STACK_NAME) avec le tag : ${TAG}"
+
+            cd $DIR_PATH
+
+            echo "🚀 Sauvegarde des volumes Docker"
+            if [ -f /home/komanatse/savevolume/backup_docker_volumes.sh ]; then
+              chmod +x /home/komanatse/savevolume/backup_docker_volumes.sh
+              /home/komanatse/savevolume/backup_docker_volumes.sh
+            fi
+
+            ENV_PATH="$DIR_PATH/.env"
+            if [ -f "$ENV_PATH" ]; then
+              TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+              mv "$ENV_PATH" "${ENV_PATH}_${TIMESTAMP}.bak"
+              echo "🌀 Fichier .env sauvegardé"
+            fi
+
+            cat <<'EOF' > $ENV_PATH
+            ${{ secrets.ENV_CONTENT }}
+            DOCKER_TAG=${{ steps.vars.outputs.tag }}
+            EOF
+
+            chmod 644 $ENV_PATH
+            dos2unix $ENV_PATH 2>/dev/null || true
+
+            echo "🔑 Login Docker Hub"
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ inputs.registry }}" --password-stdin
+
+            echo "📦 Pull des images version ${TAG}"
+            docker compose -f $COMPOSE_FILE pull
+
+            # ===== SWARM DEPLOYMENT =====
+            echo "⚙️ Génération du fichier Swarm..."
+            docker compose -f $COMPOSE_FILE config | \
+              sed 's/published: "\([0-9]*\)"/published: \1/g' | \
+              sed '/host_ip:/d' | \
+              sed '/^name:/d' > /tmp/stack-resolved.yml
+
+            echo "🚀 Déploiement de la stack Swarm..."
+            docker stack deploy \
+              -c /tmp/stack-resolved.yml \
+              --with-registry-auth \
+              --resolve-image always \
+              --prune \
+              --detach \
+              "$STACK_NAME"
+            
+            # Forcer la mise à jour des services pour appliquer la nouvelle image
+            echo "🔄 Forçage de la mise à jour des services..."
+            sleep 5
+            for svc in $(docker service ls --filter "name=${STACK_NAME}_" -q); do
+              docker service update --force --detach "$svc"
+            done
+
+            # Nettoyer le fichier temporaire
+            rm -f /tmp/stack-resolved.yml
+
+            # Attendre la stabilisation
+            echo "⏳ Attente de stabilisation..."
+            sleep 10
+
+            # Afficher le statut
+            echo ""
+            echo "📊 Statut des services:"
+            docker service ls --filter "name=${STACK_NAME}_"
+
+            # Vérification de santé
+            echo ""
+            echo "🏥 Vérification de santé..."
+            UNHEALTHY=$(docker service ls --filter "name=${STACK_NAME}_" --format "{{.Name}} {{.Replicas}}" | grep -v "1/1\|2/2\|0/0" || true)
+
+            if [ -n "$UNHEALTHY" ]; then
+              echo "⚠️ Services en attente de démarrage:"
+              echo "$UNHEALTHY"
+            else
+              echo "✅ Tous les services sont en cours d'exécution"
+            fi
+
+            # Nettoyer les anciennes images
+            echo ""
+            echo "🧹 Nettoyage..."
+            docker image prune -f
+            
+            # Nettoyer le build cache
+            docker builder prune -a -f
+
+            # Supprimer les anciennes images du même service (garde seulement les 2 dernières)
+            echo "🧹 Nettoyage des anciennes images..."
+            docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" | \
+              grep "${{ inputs.image_name }}:dev-" | \
+              sort -r | \
+              tail -n +3 | \
+              awk '{print $2}' | \
+              xargs -r docker rmi -f 2>/dev/null || true
+
+            echo ""
+            echo "✅ Déploiement $SERVICE_NAME terminé (stack=$STACK_NAME, tag=${TAG})"

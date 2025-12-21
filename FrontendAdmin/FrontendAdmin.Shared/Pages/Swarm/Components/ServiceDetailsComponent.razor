@@ -1,0 +1,285 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    @if (isLoading)
+    {
+        <LoadingData />
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="p-4 bg-red-50 text-red-700 rounded-md">
+            @errorMessage
+        </div>
+    }
+    else if (service != null)
+    {
+        <div class="space-y-6">
+            <!-- Info generales -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">Informations generales</h3>
+                <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-md">
+                    <div>
+                        <span class="text-sm text-gray-500">ID</span>
+                        <p class="font-mono text-sm">@service.Id</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Nom</span>
+                        <p class="font-semibold">@service.Name</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Image</span>
+                        <p class="font-mono text-sm break-all">@service.Image</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Status</span>
+                        <span class="@GetStatusBadgeClass(service.Status) px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full">
+                            @service.Status
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Replicas</span>
+                        <p>@service.Replicas / @service.DesiredReplicas</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Derniere mise a jour</span>
+                        <p>@service.UpdatedAt.ToString("dd/MM/yyyy HH:mm:ss")</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ports -->
+            @if (service.Ports?.Any() == true)
+            {
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Ports</h3>
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var port in service.Ports)
+                            {
+                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-md text-sm">
+                                    @port.PublishedPort:@port.TargetPort/@port.Protocol
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Reseaux -->
+            @if (service.Networks?.Any() == true)
+            {
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Reseaux</h3>
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var network in service.Networks)
+                            {
+                                <span class="px-3 py-1 bg-green-100 text-green-800 rounded-md text-sm">
+                                    <i class="fas fa-network-wired mr-1"></i>
+                                    @network
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Variables d'environnement -->
+            @if (service.Env?.Any() == true)
+            {
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Variables d'environnement</h3>
+                    <div class="bg-gray-50 p-4 rounded-md overflow-auto max-h-48">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="text-left py-1 text-gray-500">Cle</th>
+                                    <th class="text-left py-1 text-gray-500">Valeur</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var env in service.Env)
+                                {
+                                    <tr class="border-b border-gray-200">
+                                        <td class="py-1 font-mono text-gray-700">@env.Key</td>
+                                        <td class="py-1 font-mono text-gray-600">@env.Value</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            <!-- Labels -->
+            @if (service.Labels?.Any() == true)
+            {
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Labels</h3>
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var label in service.Labels)
+                            {
+                                <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs font-mono">
+                                    @label.Key=@label.Value
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Taches -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">Taches (Conteneurs)</h3>
+                @if (isLoadingTasks)
+                {
+                    <div class="py-4">
+                        <LoadingData />
+                    </div>
+                }
+                else if (tasks?.Any() == true)
+                {
+                    <div class="bg-gray-50 rounded-md overflow-hidden">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-gray-500">ID</th>
+                                    <th class="px-4 py-2 text-left text-gray-500">Noeud</th>
+                                    <th class="px-4 py-2 text-left text-gray-500">Etat</th>
+                                    <th class="px-4 py-2 text-left text-gray-500">Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var task in tasks)
+                                {
+                                    <tr class="border-t border-gray-200">
+                                        <td class="px-4 py-2 font-mono text-xs">@(task.Id.Length > 12 ? task.Id[..12] : task.Id)</td>
+                                        <td class="px-4 py-2">@(task.NodeId.Length > 12 ? task.NodeId[..12] : task.NodeId)</td>
+                                        <td class="px-4 py-2">
+                                            <span class="@GetTaskStateBadgeClass(task.State) px-2 py-0.5 text-xs rounded-full">
+                                                @task.State
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-2 text-gray-600 text-xs">@(task.Message ?? "-")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-gray-500 py-4">Aucune tache</p>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="flex justify-end mt-6">
+        <Button type="button" @onclick="OnClose" ButtonColor="ButtonColor.Light">
+            <span>Fermer</span>
+        </Button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string ServiceName { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ServiceDetailsDto? service;
+    private List<ServiceTaskDto>? tasks;
+    private bool isLoading = true;
+    private bool isLoadingTasks = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadServiceDetails();
+        await LoadTasks();
+    }
+
+    private async Task LoadServiceDetails()
+    {
+        if (string.IsNullOrEmpty(ServiceName)) return;
+
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await SwarmService.GetServiceDetailsAsync(ServiceName);
+
+            if (response.Success)
+            {
+                service = response.Data.Service;
+            }
+            else
+            {
+                errorMessage = response.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadTasks()
+    {
+        if (string.IsNullOrEmpty(ServiceName)) return;
+
+        isLoadingTasks = true;
+
+        try
+        {
+            var response = await SwarmService.GetServiceTasksAsync(ServiceName);
+
+            if (response.Success)
+            {
+                tasks = response.Data.Tasks;
+            }
+        }
+        catch
+        {
+            tasks = new List<ServiceTaskDto>();
+        }
+        finally
+        {
+            isLoadingTasks = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status.ToLower() switch
+        {
+            "running" => "bg-green-100 text-green-800",
+            "stopped" => "bg-gray-100 text-gray-800",
+            "starting" => "bg-yellow-100 text-yellow-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+
+    private string GetTaskStateBadgeClass(string state)
+    {
+        return state.ToLower() switch
+        {
+            "running" => "bg-green-100 text-green-800",
+            "complete" => "bg-blue-100 text-blue-800",
+            "failed" => "bg-red-100 text-red-800",
+            "pending" => "bg-yellow-100 text-yellow-800",
+            "preparing" => "bg-yellow-100 text-yellow-800",
+            "starting" => "bg-yellow-100 text-yellow-800",
+            "shutdown" => "bg-gray-100 text-gray-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+}

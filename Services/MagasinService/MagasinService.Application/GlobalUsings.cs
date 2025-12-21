@@ -10,6 +10,4 @@ global using Mapster;
 global using MagasinService.Domain.ValueObjects;
 global using MagasinService.Domain.Enums;
 global using MagasinService.Application.Commons.Data;
-global using System.ComponentModel;
-global using MediatR;
 global using FluentValidation;

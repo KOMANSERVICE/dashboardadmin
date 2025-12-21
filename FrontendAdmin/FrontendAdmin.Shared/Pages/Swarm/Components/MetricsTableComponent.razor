@@ -1,0 +1,204 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Conteneur
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Image
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        CPU
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Memoire
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Sante
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Redemarrages
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Uptime
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                @if (Containers != null && Containers.Any())
+                {
+                    @foreach (var container in Containers.OrderByDescending(c => c.CpuPercent))
+                    {
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">@container.ContainerName</div>
+                                <div class="text-xs text-gray-500">@container.ContainerId[..12]</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                @TruncateImage(container.Image)
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="w-16">
+                                        <div class="text-sm font-medium @GetCpuColorClass(container.CpuPercent)">
+                                            @container.CpuPercent.ToString("0.1")%
+                                        </div>
+                                    </div>
+                                    <div class="w-20 bg-gray-200 rounded-full h-2 ml-2">
+                                        <div class="@GetCpuBgClass(container.CpuPercent) h-2 rounded-full"
+                                             style="width: @Math.Min(container.CpuPercent, 100)%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="w-16">
+                                        <div class="text-sm font-medium @GetMemoryColorClass(container.MemoryPercent)">
+                                            @container.MemoryPercent.ToString("0.1")%
+                                        </div>
+                                    </div>
+                                    <div class="w-20 bg-gray-200 rounded-full h-2 ml-2">
+                                        <div class="@GetMemoryBgClass(container.MemoryPercent) h-2 rounded-full"
+                                             style="width: @Math.Min(container.MemoryPercent, 100)%"></div>
+                                    </div>
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    @FormatBytes((long)container.MemoryUsage) / @FormatBytes((long)container.MemoryLimit)
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @GetHealthBadgeClass(container.HealthStatus)">
+                                    @container.HealthStatus
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                @if (container.RestartCount > 0)
+                                {
+                                    <span class="text-yellow-600 font-medium">@container.RestartCount</span>
+                                }
+                                else
+                                {
+                                    <span>0</span>
+                                }
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                @FormatUptime(container.Uptime)
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button @onclick="() => OnViewStats.InvokeAsync(container.ContainerId)"
+                                        class="text-primary-600 hover:text-primary-900">
+                                    <i class="fas fa-chart-line"></i> Details
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                            Aucun conteneur en cours d'execution
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public List<ContainerMetricsSummaryDto>? Containers { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnViewStats { get; set; }
+
+    private string TruncateImage(string image)
+    {
+        if (string.IsNullOrEmpty(image)) return "unknown";
+        if (image.Length > 30) return image[..27] + "...";
+        return image;
+    }
+
+    private string GetCpuColorClass(double percent)
+    {
+        return percent switch
+        {
+            > 80 => "text-red-600",
+            > 60 => "text-yellow-600",
+            _ => "text-green-600"
+        };
+    }
+
+    private string GetCpuBgClass(double percent)
+    {
+        return percent switch
+        {
+            > 80 => "bg-red-500",
+            > 60 => "bg-yellow-500",
+            _ => "bg-green-500"
+        };
+    }
+
+    private string GetMemoryColorClass(double percent)
+    {
+        return percent switch
+        {
+            > 90 => "text-red-600",
+            > 70 => "text-yellow-600",
+            _ => "text-blue-600"
+        };
+    }
+
+    private string GetMemoryBgClass(double percent)
+    {
+        return percent switch
+        {
+            > 90 => "bg-red-500",
+            > 70 => "bg-yellow-500",
+            _ => "bg-blue-500"
+        };
+    }
+
+    private string GetHealthBadgeClass(string? status)
+    {
+        if (string.IsNullOrEmpty(status)) return "bg-gray-100 text-gray-800";
+        return status.ToLower() switch
+        {
+            "healthy" or "running" => "bg-green-100 text-green-800",
+            "unhealthy" => "bg-red-100 text-red-800",
+            "starting" => "bg-yellow-100 text-yellow-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+
+    private string FormatUptime(TimeSpan uptime)
+    {
+        if (uptime.TotalDays >= 1)
+            return $"{(int)uptime.TotalDays}j {uptime.Hours}h";
+        if (uptime.TotalHours >= 1)
+            return $"{(int)uptime.TotalHours}h {uptime.Minutes}m";
+        return $"{uptime.Minutes}m {uptime.Seconds}s";
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        if (bytes == 0) return "0 B";
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:0.#} {sizes[order]}";
+    }
+}

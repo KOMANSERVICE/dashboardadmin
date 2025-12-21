@@ -1,0 +1,103 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    <div class="flex justify-between items-center mb-4">
+        <div class="flex items-center gap-4">
+            <label class="text-sm text-gray-600">Lignes:</label>
+            <select @bind="tailLines" @bind:after="RefreshLogs"
+                    class="px-3 py-1 border border-gray-300 rounded-md text-sm">
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="500">500</option>
+            </select>
+        </div>
+
+        <button type="button" @onclick="RefreshLogs"
+                class="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-md text-sm transition"
+                disabled="@isLoading">
+            <i class="fas fa-sync-alt @(isLoading ? "animate-spin" : "")"></i>
+            Actualiser
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="h-96 flex items-center justify-center bg-gray-900 rounded-md">
+            <LoadingData />
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="p-4 bg-red-50 text-red-700 rounded-md">
+            @errorMessage
+        </div>
+    }
+    else
+    {
+        <div class="bg-gray-900 rounded-md p-4 h-96 overflow-auto font-mono text-sm">
+            @if (string.IsNullOrEmpty(logs))
+            {
+                <p class="text-gray-400">Aucun log disponible</p>
+            }
+            else
+            {
+                <pre class="text-green-400 whitespace-pre-wrap">@logs</pre>
+            }
+        </div>
+    }
+
+    <div class="flex justify-end mt-4">
+        <Button type="button" @onclick="OnClose" ButtonColor="ButtonColor.Light">
+            <span>Fermer</span>
+        </Button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string ServiceName { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private string logs = "";
+    private int tailLines = 100;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshLogs();
+    }
+
+    private async Task RefreshLogs()
+    {
+        if (string.IsNullOrEmpty(ServiceName)) return;
+
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SwarmService.GetServiceLogsAsync(ServiceName, tailLines);
+
+            if (response.Success)
+            {
+                logs = response.Data.Logs.Logs;
+            }
+            else
+            {
+                errorMessage = response.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

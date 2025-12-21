@@ -1,0 +1,69 @@
+/* Drag and Drop Styles for Menu Ordering */
+
+/* Drag handle cursor */
+.drag-handle {
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Row being dragged */
+tr.dragging,
+div.dragging {
+    opacity: 0.5;
+    background-color: #e5e7eb !important;
+}
+
+/* Drop placeholder for desktop table */
+tr.drop-placeholder td {
+    height: 4px;
+    background-color: #1d4ed8;
+    padding: 0;
+    border: none;
+}
+
+/* Drop placeholder for mobile cards */
+.drop-placeholder-mobile {
+    background-color: #1d4ed8;
+    border-radius: 0.5rem;
+    margin: 0.25rem 0;
+    opacity: 0.5;
+}
+
+/* Draggable row hover effect */
+tr[draggable="true"]:hover {
+    background-color: #f9fafb;
+}
+
+/* Visual feedback for drag handle */
+.drag-handle:hover {
+    color: #1d4ed8;
+}
+
+/* Animation for smooth transitions */
+.drag-sortable tr {
+    transition: transform 0.15s ease;
+}
+
+/* Disable text selection during drag */
+.is-dragging {
+    user-select: none;
+}
+
+/* Sort order badge */
+.sort-order-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    background-color: #f3f4f6;
+    border-radius: 9999px;
+}
