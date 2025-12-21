@@ -68,11 +68,13 @@ public record ServiceTaskDto(
 public record GetServiceTasksResponse(List<ServiceTaskDto> Tasks);
 
 // Service logs models
-public record GetServiceLogsResponse(
+public record ServiceLogsDto(
     string ServiceName,
     string Logs,
     DateTime FetchedAt
 );
+
+public record GetServiceLogsResponse(ServiceLogsDto Logs);
 
 // Create service models
 public record CreateServicePortRequest(
