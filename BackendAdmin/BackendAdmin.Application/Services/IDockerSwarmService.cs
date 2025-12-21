@@ -47,6 +47,12 @@ public interface IDockerSwarmService
     Task<long> GetVolumeSizeAsync(string volumeName, CancellationToken cancellationToken = default);
     Task<IList<string>> GetContainersUsingVolumeAsync(string volumeName, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Gets volume information (containers using and size) for all volumes in a single batch operation.
+    /// Returns a dictionary where keys are volume names and values are tuples of (containerIds, sizeBytes).
+    /// </summary>
+    Task<Dictionary<string, (IList<string> ContainerIds, long SizeBytes)>> GetAllVolumesInfoAsync(CancellationToken cancellationToken = default);
+
     // Container management methods
     Task<IList<ContainerListResponse>> GetContainersAsync(bool all = true, CancellationToken cancellationToken = default);
     Task<ContainerInspectResponse?> GetContainerByIdAsync(string containerId, CancellationToken cancellationToken = default);
@@ -81,6 +87,12 @@ public interface IDockerSwarmService
     Task<PushImageResponse> PushImageAsync(string imageId, PushImageRequest request, CancellationToken cancellationToken = default);
     Task<(int count, long spaceReclaimed, List<string> deletedImages)> PruneImagesAsync(bool dangling = true, CancellationToken cancellationToken = default);
     Task<int> GetImageContainerCountAsync(string imageId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets container counts for all images in a single batch operation (performance optimization).
+    /// Returns a dictionary where keys are image IDs and values are container counts.
+    /// </summary>
+    Task<Dictionary<string, int>> GetAllImageContainerCountsAsync(CancellationToken cancellationToken = default);
 
     // Stack management methods
     Task<IList<StackDTO>> GetStacksAsync(CancellationToken cancellationToken = default);
