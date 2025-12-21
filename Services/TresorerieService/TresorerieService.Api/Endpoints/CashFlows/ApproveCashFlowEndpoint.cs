@@ -35,6 +35,7 @@ public class ApproveCashFlowEndpoint : ICarterModule
                 return Results.BadRequest(new { error = "X-Boutique-Id est obligatoire" });
             }
 
+            // Debut TODO: pas bon doit etre fait autre part. je vais m'en occuper apres
             // Extraire le userId du token JWT
             var userId = httpContext.User.FindFirst("sub")?.Value
                          ?? httpContext.User.FindFirst("userId")?.Value
@@ -46,10 +47,11 @@ public class ApproveCashFlowEndpoint : ICarterModule
                            ?? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
                            ?? string.Empty;
 
-            if (string.IsNullOrEmpty(userRole))
-            {
-                return Results.Forbid();
-            }
+            //if (string.IsNullOrEmpty(userRole))
+            //{
+            //    return Results.Forbid();
+            //}
+            // Fin TODO: pas bon doit etre fait autre part
 
             var command = new ApproveCashFlowCommand(
                 CashFlowId: id,

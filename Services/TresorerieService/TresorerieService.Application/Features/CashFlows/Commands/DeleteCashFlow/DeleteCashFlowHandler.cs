@@ -1,14 +1,19 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
+
 namespace TresorerieService.Application.Features.CashFlows.Commands.DeleteCashFlow;
 
 public class DeleteCashFlowHandler(
     IGenericRepository<CashFlow> cashFlowRepository,
-    DbContext dbContext
+    DbContext dbContext,
+    IUserContextService userContextService
 ) : ICommandHandler<DeleteCashFlowCommand, DeleteCashFlowResult>
 {
     public async Task<DeleteCashFlowResult> Handle(
         DeleteCashFlowCommand command,
         CancellationToken cancellationToken = default)
     {
+        var email = userContextService.GetEmail();
+
         // Recuperer le flux de tresorerie
         var cashFlows = await cashFlowRepository.GetByConditionAsync(
             c => c.Id == command.Id
@@ -29,7 +34,7 @@ public class DeleteCashFlowHandler(
         }
 
         // Verifier que l'utilisateur est l'auteur du flux
-        if (cashFlow.CreatedBy != command.UserId)
+        if (cashFlow.CreatedBy != email)
         {
             throw new BadRequestException("Vous ne pouvez supprimer que vos propres flux");
         }

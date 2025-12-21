@@ -1,9 +1,12 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
+
 namespace TresorerieService.Application.Features.CashFlows.Commands.CreateTransfer;
 
 public class CreateTransferHandler(
     IGenericRepository<CashFlow> cashFlowRepository,
     IGenericRepository<Account> accountRepository,
-    IUnitOfWork unitOfWork
+    IUnitOfWork unitOfWork,
+    IUserContextService userContextService
 ) : ICommandHandler<CreateTransferCommand, CreateTransferResult>
 {
     public async Task<CreateTransferResult> Handle(
@@ -15,6 +18,8 @@ public class CreateTransferHandler(
         {
             throw new BadRequestException("Le compte source et le compte destination doivent etre differents");
         }
+
+        var email = userContextService.GetEmail();
 
         // Valider que le compte source existe et appartient a la boutique
         var sourceAccounts = await accountRepository.GetByConditionAsync(
@@ -82,21 +87,13 @@ public class CreateTransferHandler(
             IsSystemGenerated = false,
             AutoApproved = true, // Transfert auto-approuve
             ValidatedAt = DateTime.UtcNow,
-            ValidatedBy = command.CreatedBy,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            CreatedBy = command.CreatedBy,
-            UpdatedBy = command.CreatedBy
+            ValidatedBy = email
         };
 
         // Mettre a jour les soldes des comptes
         sourceAccount.CurrentBalance -= command.Amount;
-        sourceAccount.UpdatedAt = DateTime.UtcNow;
-        sourceAccount.UpdatedBy = command.CreatedBy;
 
         destinationAccount.CurrentBalance += command.Amount;
-        destinationAccount.UpdatedAt = DateTime.UtcNow;
-        destinationAccount.UpdatedBy = command.CreatedBy;
 
         // Sauvegarder le flux et les comptes mis a jour
         await cashFlowRepository.AddDataAsync(cashFlow, cancellationToken);

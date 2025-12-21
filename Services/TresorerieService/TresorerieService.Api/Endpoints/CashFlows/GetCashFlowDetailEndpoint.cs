@@ -11,7 +11,7 @@ public class GetCashFlowDetailEndpoint : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/cash-flows/{id:guid}", async (
+        app.MapGet("/api/cash-flows/{id}", async (
             [FromRoute] Guid id,
             [FromHeader(Name = "X-Application-Id")] string applicationId,
             [FromHeader(Name = "X-Boutique-Id")] string boutiqueId,

@@ -1,3 +1,4 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
 using TresorerieService.Application.Features.CashFlows.DTOs;
 
 namespace TresorerieService.Application.Features.CashFlows.Commands.SubmitCashFlow;
@@ -7,13 +8,15 @@ public class SubmitCashFlowHandler(
     IGenericRepository<CashFlowHistory> cashFlowHistoryRepository,
     IGenericRepository<Category> categoryRepository,
     IGenericRepository<Account> accountRepository,
-    IUnitOfWork unitOfWork
+    IUnitOfWork unitOfWork,
+    IUserContextService userContextService
 ) : ICommandHandler<SubmitCashFlowCommand, SubmitCashFlowResult>
 {
     public async Task<SubmitCashFlowResult> Handle(
         SubmitCashFlowCommand command,
         CancellationToken cancellationToken = default)
     {
+        var email = userContextService.GetEmail();
         // Recuperer le flux de tresorerie
         var cashFlows = await cashFlowRepository.GetByConditionAsync(
             cf => cf.Id == command.CashFlowId
@@ -39,9 +42,7 @@ public class SubmitCashFlowHandler(
         // Mettre a jour le statut et la date de soumission
         cashFlow.Status = CashFlowStatus.PENDING;
         cashFlow.SubmittedAt = DateTime.UtcNow;
-        cashFlow.SubmittedBy = command.SubmittedBy;
-        cashFlow.UpdatedAt = DateTime.UtcNow;
-        cashFlow.UpdatedBy = command.SubmittedBy;
+        cashFlow.SubmittedBy = email;
 
         // Creer une entree dans l'historique
         var history = new CashFlowHistory
@@ -51,11 +52,7 @@ public class SubmitCashFlowHandler(
             Action = CashFlowAction.SUBMITTED,
             OldStatus = oldStatus,
             NewStatus = CashFlowStatus.PENDING.ToString(),
-            Comment = "Flux soumis pour validation",
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = command.SubmittedBy,
-            UpdatedAt = DateTime.UtcNow,
-            UpdatedBy = command.SubmittedBy
+            Comment = "Flux soumis pour validation"
         };
 
         await cashFlowHistoryRepository.AddDataAsync(history, cancellationToken);

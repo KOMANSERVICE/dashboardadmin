@@ -1,3 +1,4 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
 using TresorerieService.Application.Features.CashFlows.DTOs;
 
 namespace TresorerieService.Application.Features.CashFlows.Commands.UpdateCashFlow;
@@ -6,7 +7,8 @@ public class UpdateCashFlowHandler(
     IGenericRepository<CashFlow> cashFlowRepository,
     IGenericRepository<Category> categoryRepository,
     IGenericRepository<Account> accountRepository,
-    IUnitOfWork unitOfWork
+    IUnitOfWork unitOfWork,
+    IUserContextService userContextService
 ) : ICommandHandler<UpdateCashFlowCommand, UpdateCashFlowResult>
 {
     public async Task<UpdateCashFlowResult> Handle(
@@ -31,9 +33,9 @@ public class UpdateCashFlowHandler(
         {
             throw new BadRequestException("Seuls les flux en brouillon peuvent etre modifies");
         }
-
+        var email = userContextService.GetEmail();
         // Verifier que l'utilisateur est l'auteur du flux
-        if (cashFlow.CreatedBy != command.UserId)
+        if (cashFlow.CreatedBy != email)
         {
             throw new BadRequestException("Vous ne pouvez modifier que vos propres flux");
         }
@@ -178,8 +180,6 @@ public class UpdateCashFlowHandler(
         }
 
         // Mettre a jour les champs de tracking
-        cashFlow.UpdatedAt = DateTime.UtcNow;
-        cashFlow.UpdatedBy = command.UserId;
 
         cashFlowRepository.UpdateData(cashFlow);
         await unitOfWork.SaveChangesDataAsync(cancellationToken);

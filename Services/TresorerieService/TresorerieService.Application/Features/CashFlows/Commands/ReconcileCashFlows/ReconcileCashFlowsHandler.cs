@@ -11,11 +11,12 @@ public class ReconcileCashFlowsHandler(
         CancellationToken cancellationToken = default)
     {
         // Verifier que l'utilisateur est manager ou admin
-        var userRole = command.UserRole.ToLower();
-        if (userRole != "manager" && userRole != "admin")
-        {
-            throw new BadRequestException("Acces refuse: seul un manager ou admin peut reconcilier des flux");
-        }
+        //TODO: Mal gerer je vais m'en occuper plus tard
+        //var userRole = command.UserRole.ToLower();
+        //if (userRole != "manager" && userRole != "admin")
+        //{
+        //    throw new BadRequestException("Acces refuse: seul un manager ou admin peut reconcilier des flux");
+        //}
 
         // Recuperer tous les flux specifies
         var cashFlows = await cashFlowRepository.GetByConditionAsync(
@@ -74,11 +75,7 @@ public class ReconcileCashFlowsHandler(
                 NewStatus = cashFlow.Status.ToString(),
                 Comment = string.IsNullOrEmpty(command.BankStatementReference)
                     ? $"Flux reconcilie en masse par {command.ReconciledBy}"
-                    : $"Flux reconcilie en masse par {command.ReconciledBy} - Ref: {command.BankStatementReference}",
-                CreatedAt = reconciledAt,
-                CreatedBy = command.ReconciledBy,
-                UpdatedAt = reconciledAt,
-                UpdatedBy = command.ReconciledBy
+                    : $"Flux reconcilie en masse par {command.ReconciledBy} - Ref: {command.BankStatementReference}"
             };
 
             await cashFlowHistoryRepository.AddDataAsync(history, cancellationToken);

@@ -27,10 +27,11 @@ public class GetCashFlowDetailHandler(
         }
 
         // Verifier les droits d'acces : un employe ne peut voir que ses propres flux
-        if (!query.IsManager && cashFlow.CreatedBy != query.UserId)
-        {
-            throw new NotFoundException("CashFlow", query.CashFlowId);
-        }
+        //TODO: la gestion des acces sera gerer autre autre maniere a terme
+        //if (!query.IsManager && cashFlow.CreatedBy != query.UserId)
+        //{
+        //    throw new NotFoundException("CashFlow", query.CashFlowId);
+        //}
 
         // Recuperer le nom de la categorie
         string categoryName = "Inconnue";

@@ -15,11 +15,12 @@ public class RejectCashFlowHandler(
         CancellationToken cancellationToken = default)
     {
         // Verifier que l'utilisateur est manager ou admin
-        var userRole = command.UserRole.ToLower();
-        if (userRole != "manager" && userRole != "admin")
-        {
-            throw new BadRequestException("Acces refuse: seul un manager ou admin peut rejeter un flux");
-        }
+        // TODO: mal gerer je vais m'en occuper plus tard
+        //var userRole = command.UserRole.ToLower();
+        //if (userRole != "manager" && userRole != "admin")
+        //{
+        //    throw new BadRequestException("Acces refuse: seul un manager ou admin peut rejeter un flux");
+        //}
 
         // Recuperer le flux de tresorerie
         var cashFlows = await cashFlowRepository.GetByConditionAsync(
@@ -46,8 +47,6 @@ public class RejectCashFlowHandler(
         // Mettre a jour le statut et le motif de rejet
         cashFlow.Status = CashFlowStatus.REJECTED;
         cashFlow.RejectionReason = command.RejectionReason;
-        cashFlow.UpdatedAt = DateTime.UtcNow;
-        cashFlow.UpdatedBy = command.RejectedBy;
 
         // NE PAS modifier le solde du compte (contrairement a l'approbation)
         // NE PAS modifier le budget (contrairement a l'approbation)
@@ -60,11 +59,7 @@ public class RejectCashFlowHandler(
             Action = CashFlowAction.REJECTED,
             OldStatus = oldStatus,
             NewStatus = CashFlowStatus.REJECTED.ToString(),
-            Comment = command.RejectionReason,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = command.RejectedBy,
-            UpdatedAt = DateTime.UtcNow,
-            UpdatedBy = command.RejectedBy
+            Comment = command.RejectionReason
         };
 
         // Sauvegarder les modifications

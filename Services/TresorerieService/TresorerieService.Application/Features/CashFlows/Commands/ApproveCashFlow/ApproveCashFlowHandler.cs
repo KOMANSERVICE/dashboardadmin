@@ -1,3 +1,4 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
 using TresorerieService.Application.Features.CashFlows.DTOs;
 
 namespace TresorerieService.Application.Features.CashFlows.Commands.ApproveCashFlow;
@@ -7,7 +8,8 @@ public class ApproveCashFlowHandler(
     IGenericRepository<CashFlowHistory> cashFlowHistoryRepository,
     IGenericRepository<Category> categoryRepository,
     IGenericRepository<Account> accountRepository,
-    IUnitOfWork unitOfWork
+    IUnitOfWork unitOfWork,
+    IUserContextService userContextService
 ) : ICommandHandler<ApproveCashFlowCommand, ApproveCashFlowResult>
 {
     public async Task<ApproveCashFlowResult> Handle(
@@ -15,11 +17,14 @@ public class ApproveCashFlowHandler(
         CancellationToken cancellationToken = default)
     {
         // Verifier que l'utilisateur est manager ou admin
-        var userRole = command.UserRole.ToLower();
-        if (userRole != "manager" && userRole != "admin")
-        {
-            throw new BadRequestException("Acces refuse: seul un manager ou admin peut valider un flux");
-        }
+        //TODO: pas bien gerer je vais moi meme m'en occuper plus tard
+        //var userRole = command.UserRole.ToLower();
+        //if (userRole != "manager" && userRole != "admin")
+        //{
+        //    throw new BadRequestException("Acces refuse: seul un manager ou admin peut valider un flux");
+        //}
+
+        var email = userContextService.GetEmail();
 
         // Recuperer le flux de tresorerie
         var cashFlows = await cashFlowRepository.GetByConditionAsync(
@@ -63,9 +68,7 @@ public class ApproveCashFlowHandler(
         // Mettre a jour le statut et les informations de validation
         cashFlow.Status = CashFlowStatus.APPROVED;
         cashFlow.ValidatedAt = DateTime.UtcNow;
-        cashFlow.ValidatedBy = command.ValidatedBy;
-        cashFlow.UpdatedAt = DateTime.UtcNow;
-        cashFlow.UpdatedBy = command.ValidatedBy;
+        cashFlow.ValidatedBy = email;
 
         // Mettre a jour le solde du compte selon le type de flux
         if (cashFlow.Type == CashFlowType.INCOME)
@@ -86,9 +89,6 @@ public class ApproveCashFlowHandler(
             // 3. Verifier les alertes de depassement
         }
 
-        account.UpdatedAt = DateTime.UtcNow;
-        account.UpdatedBy = command.ValidatedBy;
-
         // Creer une entree dans l'historique
         var history = new CashFlowHistory
         {
@@ -97,11 +97,7 @@ public class ApproveCashFlowHandler(
             Action = CashFlowAction.APPROVED,
             OldStatus = oldStatus,
             NewStatus = CashFlowStatus.APPROVED.ToString(),
-            Comment = "Flux valide par " + command.ValidatedBy,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = command.ValidatedBy,
-            UpdatedAt = DateTime.UtcNow,
-            UpdatedBy = command.ValidatedBy
+            Comment = "Flux valide par " + email
         };
 
         // Sauvegarder les modifications
