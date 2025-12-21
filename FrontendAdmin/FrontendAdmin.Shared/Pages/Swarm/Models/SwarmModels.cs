@@ -251,7 +251,11 @@ public record ContainerStatsDto(
     ContainerCpuStatsDto Cpu,
     ContainerMemoryStatsDto Memory,
     ContainerNetworkStatsDto Network,
-    ContainerBlockIOStatsDto BlockIO
+    ContainerBlockIOStatsDto BlockIO,
+    int RestartCount,
+    string HealthStatus,
+    TimeSpan Uptime,
+    DateTime StartedAt
 );
 
 public record ContainerCpuStatsDto(
@@ -627,3 +631,51 @@ public record DeployStackResponse(
     int ServicesDeployed,
     DateTime DeployedAt
 );
+
+// Metrics history models for charts
+public record MetricsHistoryPointDto(
+    DateTime Timestamp,
+    double CpuPercent,
+    double MemoryPercent,
+    ulong NetworkRxBytes,
+    ulong NetworkTxBytes,
+    ulong DiskReadBytes,
+    ulong DiskWriteBytes
+);
+
+public record ContainerMetricsHistoryDto(
+    string ContainerId,
+    string ContainerName,
+    List<MetricsHistoryPointDto> History
+);
+
+public record GetContainerMetricsHistoryResponse(ContainerMetricsHistoryDto Metrics);
+
+// Docker events models
+public record DockerEventDto(
+    string Type,
+    string Action,
+    string ActorId,
+    string ActorName,
+    DateTime Timestamp,
+    Dictionary<string, string> Attributes
+);
+
+public record GetDockerEventsResponse(List<DockerEventDto> Events);
+
+// Metrics summary for dashboard
+public record ContainerMetricsSummaryDto(
+    string ContainerId,
+    string ContainerName,
+    string Image,
+    string State,
+    double CpuPercent,
+    double MemoryPercent,
+    ulong MemoryUsage,
+    ulong MemoryLimit,
+    int RestartCount,
+    string HealthStatus,
+    TimeSpan Uptime
+);
+
+public record GetContainersMetricsSummaryResponse(List<ContainerMetricsSummaryDto> Containers);

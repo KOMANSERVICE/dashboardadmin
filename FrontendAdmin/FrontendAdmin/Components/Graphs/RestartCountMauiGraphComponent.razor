@@ -1,0 +1,34 @@
+@using ApexCharts
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+
+@if (Stats != null && Stats.Any())
+{
+    <ApexChart TItem="ContainerMetricsSummaryDto"
+               Title="Nombre de redemarrages par conteneur"
+               Height="300">
+
+        <ApexPointSeries TItem="ContainerMetricsSummaryDto"
+                         Items="Stats.Where(s => s.RestartCount > 0)"
+                         Name="Redemarrages"
+                         XValue="@(e => TruncateName(e.ContainerName))"
+                         YValue="@(e => (decimal)e.RestartCount)"
+                         SeriesType="SeriesType.Bar"
+                         Color="#F59E0B" />
+    </ApexChart>
+}
+else
+{
+    <div class="flex items-center justify-center h-[300px] text-gray-500">
+        Aucun redemarrage enregistre
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IEnumerable<ContainerMetricsSummaryDto> Stats { get; set; } = new List<ContainerMetricsSummaryDto>();
+
+    private string TruncateName(string name)
+    {
+        return name.Length > 15 ? name[..15] + "..." : name;
+    }
+}

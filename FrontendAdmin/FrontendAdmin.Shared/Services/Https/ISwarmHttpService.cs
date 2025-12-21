@@ -112,6 +112,14 @@ public interface ISwarmHttpService
     [Get("/api/swarm/containers/{id}/changes")]
     Task<BaseResponse<GetContainerChangesResponse>> GetContainerChangesAsync(string id);
 
+    // Containers - Metrics Summary (all containers)
+    [Get("/api/swarm/containers/metrics")]
+    Task<BaseResponse<GetContainersMetricsSummaryResponse>> GetContainersMetricsSummaryAsync();
+
+    // Docker Events
+    [Get("/api/swarm/events")]
+    Task<BaseResponse<GetDockerEventsResponse>> GetDockerEventsAsync([Query] DateTime? since = null, [Query] DateTime? until = null);
+
     // Services - Resources
     [Get("/api/swarm/services/{name}/resources")]
     Task<BaseResponse<GetServiceResourcesResponse>> GetServiceResourcesAsync(string name);

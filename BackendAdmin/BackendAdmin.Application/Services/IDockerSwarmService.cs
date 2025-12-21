@@ -57,6 +57,10 @@ public interface IDockerSwarmService
     Task<ContainerTopDTO> GetContainerTopAsync(string containerId, CancellationToken cancellationToken = default);
     Task<IList<ContainerFileSystemChangeResponse>> GetContainerChangesAsync(string containerId, CancellationToken cancellationToken = default);
 
+    // Metrics and monitoring methods
+    Task<IList<ContainerMetricsSummaryDTO>> GetAllContainersMetricsSummaryAsync(CancellationToken cancellationToken = default);
+    Task<IList<DockerEventDTO>> GetDockerEventsAsync(DateTime? since = null, DateTime? until = null, CancellationToken cancellationToken = default);
+
     // Network management methods
     Task<IList<NetworkResponse>> GetNetworksAsync(CancellationToken cancellationToken = default);
     Task<NetworkResponse?> GetNetworkByNameAsync(string name, CancellationToken cancellationToken = default);

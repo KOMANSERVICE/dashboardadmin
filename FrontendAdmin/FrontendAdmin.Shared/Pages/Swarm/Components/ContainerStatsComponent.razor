@@ -107,6 +107,50 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Additional Metrics Row -->
+            <div class="grid grid-cols-3 gap-4 mt-4">
+                <!-- Health Status -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <span class="text-sm font-medium text-gray-800">
+                            <i class="fas fa-heartbeat mr-2"></i>Statut de sante
+                        </span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="px-3 py-1 rounded-full text-sm font-semibold @GetHealthBadgeClass(stats.HealthStatus)">
+                            @stats.HealthStatus
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Restart Count -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <span class="text-sm font-medium text-gray-800">
+                            <i class="fas fa-redo mr-2"></i>Redemarrages
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold @(stats.RestartCount > 0 ? "text-yellow-600" : "text-gray-900")">
+                        @stats.RestartCount
+                    </div>
+                </div>
+
+                <!-- Uptime -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <span class="text-sm font-medium text-gray-800">
+                            <i class="fas fa-clock mr-2"></i>Uptime
+                        </span>
+                    </div>
+                    <div class="text-lg font-bold text-gray-900">
+                        @FormatUptime(stats.Uptime)
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        Demarre: @stats.StartedAt.ToString("dd/MM/yyyy HH:mm")
+                    </div>
+                </div>
+            </div>
         </div>
     }
 
@@ -178,5 +222,26 @@
             size /= 1024;
         }
         return $"{size:0.##} {sizes[order]}";
+    }
+
+    private string FormatUptime(TimeSpan uptime)
+    {
+        if (uptime.TotalDays >= 1)
+            return $"{(int)uptime.TotalDays}j {uptime.Hours}h {uptime.Minutes}m";
+        if (uptime.TotalHours >= 1)
+            return $"{(int)uptime.TotalHours}h {uptime.Minutes}m";
+        return $"{uptime.Minutes}m {uptime.Seconds}s";
+    }
+
+    private string GetHealthBadgeClass(string? status)
+    {
+        if (string.IsNullOrEmpty(status)) return "bg-gray-100 text-gray-800";
+        return status.ToLower() switch
+        {
+            "healthy" or "running" => "bg-green-100 text-green-800",
+            "unhealthy" => "bg-red-100 text-red-800",
+            "starting" => "bg-yellow-100 text-yellow-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
     }
 }

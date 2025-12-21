@@ -90,7 +90,11 @@ public record ContainerStatsDTO(
     ContainerCpuStatsDTO Cpu,
     ContainerMemoryStatsDTO Memory,
     ContainerNetworkStatsDTO Network,
-    ContainerBlockIOStatsDTO BlockIO
+    ContainerBlockIOStatsDTO BlockIO,
+    int RestartCount,
+    string HealthStatus,
+    TimeSpan Uptime,
+    DateTime StartedAt
 );
 
 /// <summary>
@@ -218,4 +222,55 @@ public record ContainerSizeDTO(
     string ContainerName,
     long SizeRootFs,
     long SizeRw
+);
+
+/// <summary>
+/// DTO for a single metrics history point
+/// </summary>
+public record MetricsHistoryPointDTO(
+    DateTime Timestamp,
+    double CpuPercent,
+    double MemoryPercent,
+    ulong NetworkRxBytes,
+    ulong NetworkTxBytes,
+    ulong DiskReadBytes,
+    ulong DiskWriteBytes
+);
+
+/// <summary>
+/// DTO for container metrics history
+/// </summary>
+public record ContainerMetricsHistoryDTO(
+    string ContainerId,
+    string ContainerName,
+    List<MetricsHistoryPointDTO> History
+);
+
+/// <summary>
+/// DTO for Docker events
+/// </summary>
+public record DockerEventDTO(
+    string Type,
+    string Action,
+    string ActorId,
+    string ActorName,
+    DateTime Timestamp,
+    Dictionary<string, string> Attributes
+);
+
+/// <summary>
+/// DTO for container metrics summary
+/// </summary>
+public record ContainerMetricsSummaryDTO(
+    string ContainerId,
+    string ContainerName,
+    string Image,
+    string State,
+    double CpuPercent,
+    double MemoryPercent,
+    ulong MemoryUsage,
+    ulong MemoryLimit,
+    int RestartCount,
+    string HealthStatus,
+    TimeSpan Uptime
 );
