@@ -203,7 +203,9 @@
                             DiskUsage="@diskUsage"
                             LastPruneResult="@pruneAllResult"
                             IsPruning="@isSystemPruning"
-                            OnPruneRequested="ExecuteSystemPrune" />
+                            OnPruneRequested="ExecuteSystemPrune"
+                            DockerEvents="@dockerEvents"
+                            OnEventsRefresh="RefreshDockerEvents" />
     }
 </div>
 
@@ -717,6 +719,7 @@
     private DiskUsageDto? diskUsage;
     private PruneAllResponse? pruneAllResult;
     private bool isSystemPruning;
+    private List<DockerEventDto>? dockerEvents;
 
     // Stack state
     private bool showDeployStackModal;
@@ -862,12 +865,14 @@
             var systemInfoTask = SwarmService.GetSystemInfoAsync();
             var versionTask = SwarmService.GetDockerVersionAsync();
             var diskUsageTask = SwarmService.GetDiskUsageAsync();
+            var eventsTask = SwarmService.GetDockerEventsAsync(DateTime.UtcNow.AddMinutes(-15), null);
 
-            await Task.WhenAll(systemInfoTask, versionTask, diskUsageTask);
+            await Task.WhenAll(systemInfoTask, versionTask, diskUsageTask, eventsTask);
 
             var systemInfoResponse = await systemInfoTask;
             var versionResponse = await versionTask;
             var diskUsageResponse = await diskUsageTask;
+            var eventsResponse = await eventsTask;
 
             if (systemInfoResponse.Success)
                 systemInfo = systemInfoResponse.Data.SystemInfo;
@@ -878,11 +883,31 @@
             if (diskUsageResponse.Success)
                 diskUsage = diskUsageResponse.Data.DiskUsage;
 
+            if (eventsResponse.Success)
+                dockerEvents = eventsResponse.Data.Events;
+
             StateHasChanged();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading system data: {ex.Message}");
+        }
+    }
+
+    private async Task RefreshDockerEvents()
+    {
+        try
+        {
+            var eventsResponse = await SwarmService.GetDockerEventsAsync(DateTime.UtcNow.AddMinutes(-15), null);
+            if (eventsResponse.Success)
+            {
+                dockerEvents = eventsResponse.Data.Events;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error refreshing docker events: {ex.Message}");
         }
     }
 

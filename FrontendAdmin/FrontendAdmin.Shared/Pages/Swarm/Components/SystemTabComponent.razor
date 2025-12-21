@@ -19,6 +19,9 @@
 
     <!-- Disk Usage (Full Width) -->
     <DiskUsageComponent DiskUsage="DiskUsage" />
+
+    <!-- Docker Events (Full Width) -->
+    <DockerEventsComponent Events="DockerEvents" OnRefresh="OnEventsRefresh" />
 </div>
 
 @code {
@@ -28,4 +31,6 @@
     [Parameter] public PruneAllResponse? LastPruneResult { get; set; }
     [Parameter] public bool IsPruning { get; set; }
     [Parameter] public EventCallback OnPruneRequested { get; set; }
+    [Parameter] public List<DockerEventDto>? DockerEvents { get; set; }
+    [Parameter] public EventCallback OnEventsRefresh { get; set; }
 }
