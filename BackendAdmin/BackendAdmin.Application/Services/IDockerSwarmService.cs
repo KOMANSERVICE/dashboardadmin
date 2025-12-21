@@ -12,8 +12,16 @@ public interface IDockerSwarmService
     Task RestartServiceAsync(string serviceName, CancellationToken cancellationToken = default);
     Task<(int previousReplicas, int newReplicas)> ScaleServiceAsync(string serviceName, int replicas, CancellationToken cancellationToken = default);
 
-    // New methods for nodes
+    // Node management methods
     Task<IList<NodeListResponse>> GetNodesAsync(CancellationToken cancellationToken = default);
+    Task<NodeListResponse?> GetNodeByIdAsync(string nodeId, CancellationToken cancellationToken = default);
+    Task PromoteNodeAsync(string nodeId, CancellationToken cancellationToken = default);
+    Task DemoteNodeAsync(string nodeId, CancellationToken cancellationToken = default);
+    Task DrainNodeAsync(string nodeId, CancellationToken cancellationToken = default);
+    Task ActivateNodeAsync(string nodeId, CancellationToken cancellationToken = default);
+    Task RemoveNodeAsync(string nodeId, bool force = false, CancellationToken cancellationToken = default);
+    Task<Dictionary<string, string>> GetNodeLabelsAsync(string nodeId, CancellationToken cancellationToken = default);
+    Task UpdateNodeLabelsAsync(string nodeId, Dictionary<string, string> labels, CancellationToken cancellationToken = default);
 
     // New methods for service tasks
     Task<IList<TaskResponse>> GetServiceTasksAsync(string serviceName, CancellationToken cancellationToken = default);

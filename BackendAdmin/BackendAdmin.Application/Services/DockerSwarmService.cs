@@ -198,6 +198,278 @@ public class DockerSwarmService : IDockerSwarmService
         }
     }
 
+    public async Task<NodeListResponse?> GetNodeByIdAsync(string nodeId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var node = await _client.Swarm.InspectNodeAsync(nodeId, cancellationToken);
+            return node;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de la recuperation du noeud '{nodeId}'");
+        }
+    }
+
+    public async Task PromoteNodeAsync(string nodeId, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        if (node.Spec?.Role?.Equals("manager", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            throw new BadRequestException($"Le noeud '{nodeId}' est deja manager");
+        }
+
+        try
+        {
+            var updateParams = new NodeUpdateParameters
+            {
+                Role = "manager",
+                Availability = node.Spec?.Availability ?? "active"
+            };
+
+            await _client.Swarm.UpdateNodeAsync(nodeId, node.Version.Index, updateParams, cancellationToken);
+            _logger.LogInformation("Node {NodeId} promoted to manager", nodeId);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to promote node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de la promotion du noeud '{nodeId}'");
+        }
+    }
+
+    public async Task DemoteNodeAsync(string nodeId, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        if (node.Spec?.Role?.Equals("worker", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            throw new BadRequestException($"Le noeud '{nodeId}' est deja worker");
+        }
+
+        // Check if this is the last manager
+        var allNodes = await GetNodesAsync(cancellationToken);
+        var managerCount = allNodes.Count(n => n.Spec?.Role?.Equals("manager", StringComparison.OrdinalIgnoreCase) == true);
+        if (managerCount <= 1)
+        {
+            throw new BadRequestException("Impossible de retrograder le dernier manager du cluster");
+        }
+
+        try
+        {
+            var updateParams = new NodeUpdateParameters
+            {
+                Role = "worker",
+                Availability = node.Spec?.Availability ?? "active"
+            };
+
+            await _client.Swarm.UpdateNodeAsync(nodeId, node.Version.Index, updateParams, cancellationToken);
+            _logger.LogInformation("Node {NodeId} demoted to worker", nodeId);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to demote node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de la retrogradation du noeud '{nodeId}'");
+        }
+    }
+
+    public async Task DrainNodeAsync(string nodeId, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        if (node.Spec?.Availability?.Equals("drain", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            throw new BadRequestException($"Le noeud '{nodeId}' est deja en mode drain");
+        }
+
+        try
+        {
+            var updateParams = new NodeUpdateParameters
+            {
+                Role = node.Spec?.Role ?? "worker",
+                Availability = "drain"
+            };
+
+            await _client.Swarm.UpdateNodeAsync(nodeId, node.Version.Index, updateParams, cancellationToken);
+            _logger.LogInformation("Node {NodeId} set to drain mode", nodeId);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to drain node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de la mise en drain du noeud '{nodeId}'");
+        }
+    }
+
+    public async Task ActivateNodeAsync(string nodeId, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        if (node.Spec?.Availability?.Equals("active", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            throw new BadRequestException($"Le noeud '{nodeId}' est deja actif");
+        }
+
+        try
+        {
+            var updateParams = new NodeUpdateParameters
+            {
+                Role = node.Spec?.Role ?? "worker",
+                Availability = "active"
+            };
+
+            await _client.Swarm.UpdateNodeAsync(nodeId, node.Version.Index, updateParams, cancellationToken);
+            _logger.LogInformation("Node {NodeId} activated", nodeId);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to activate node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de l'activation du noeud '{nodeId}'");
+        }
+    }
+
+    public async Task RemoveNodeAsync(string nodeId, bool force = false, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        // Check if node is active (must be drained first unless force)
+        if (!force && node.Spec?.Availability?.Equals("active", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            throw new BadRequestException("Le noeud doit etre en mode drain avant suppression. Utilisez force=true pour forcer.");
+        }
+
+        // Check if node is a manager
+        if (node.Spec?.Role?.Equals("manager", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            // Check if this is the last manager
+            var allNodes = await GetNodesAsync(cancellationToken);
+            var managerCount = allNodes.Count(n => n.Spec?.Role?.Equals("manager", StringComparison.OrdinalIgnoreCase) == true);
+            if (managerCount <= 1)
+            {
+                throw new BadRequestException("Impossible de supprimer le dernier manager du cluster");
+            }
+        }
+
+        try
+        {
+            await _client.Swarm.RemoveNodeAsync(nodeId, force, cancellationToken);
+            _logger.LogInformation("Node {NodeId} removed from cluster (force={Force})", nodeId, force);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de la suppression du noeud '{nodeId}'");
+        }
+    }
+
+    public async Task<Dictionary<string, string>> GetNodeLabelsAsync(string nodeId, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        return node.Spec?.Labels != null
+            ? new Dictionary<string, string>(node.Spec.Labels)
+            : new Dictionary<string, string>();
+    }
+
+    public async Task UpdateNodeLabelsAsync(string nodeId, Dictionary<string, string> labels, CancellationToken cancellationToken = default)
+    {
+        var node = await GetNodeByIdAsync(nodeId, cancellationToken);
+        if (node == null)
+        {
+            throw new NotFoundException($"Noeud '{nodeId}' non trouve");
+        }
+
+        try
+        {
+            var updateParams = new NodeUpdateParameters
+            {
+                Role = node.Spec?.Role ?? "worker",
+                Availability = node.Spec?.Availability ?? "active",
+                Labels = labels
+            };
+
+            await _client.Swarm.UpdateNodeAsync(nodeId, node.Version.Index, updateParams, cancellationToken);
+            _logger.LogInformation("Node {NodeId} labels updated", nodeId);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update labels for node {NodeId}", nodeId);
+            throw new InternalServerException($"Erreur lors de la mise a jour des labels du noeud '{nodeId}'");
+        }
+    }
+
     public async Task<IList<TaskResponse>> GetServiceTasksAsync(string serviceName, CancellationToken cancellationToken = default)
     {
         var service = await GetServiceByNameAsync(serviceName, cancellationToken);

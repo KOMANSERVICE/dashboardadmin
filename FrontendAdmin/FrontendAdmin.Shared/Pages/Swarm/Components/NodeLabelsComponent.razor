@@ -1,0 +1,234 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@using IDR.Library.Blazor.Modals
+@using IDR.Library.Blazor.Enums
+@using IDR.Library.Blazor.Buttons
+@using IDR.Library.Blazor.Inputs
+@using IDR.Library.Blazor.Loadings
+
+<Modal ModalTitle="@($"Labels du noeud: {NodeHostname ?? "..."}")" ShowModal="@ShowModal" Size="ModalSize.Medium" OnCloseModal="OnClose">
+    <div class="space-y-4">
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="p-3 bg-red-100 text-red-700 rounded-md text-sm flex justify-between items-center">
+                <span>@ErrorMessage</span>
+                <button type="button" @onclick="ClearError" class="text-red-500 hover:text-red-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(SuccessMessage))
+        {
+            <div class="p-3 bg-green-100 text-green-700 rounded-md text-sm flex justify-between items-center">
+                <span>@SuccessMessage</span>
+                <button type="button" @onclick="ClearSuccess" class="text-green-500 hover:text-green-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        }
+
+        @if (IsLoading)
+        {
+            <LoadingData />
+        }
+        else
+        {
+            <!-- Liste des labels existants -->
+            <div class="border rounded-lg p-4">
+                <h4 class="font-semibold text-gray-700 mb-3">
+                    <i class="fas fa-tags mr-2"></i>Labels actuels (@Labels.Count)
+                </h4>
+                @if (Labels.Count == 0)
+                {
+                    <p class="text-gray-500 text-sm">Aucun label defini pour ce noeud.</p>
+                }
+                else
+                {
+                    <div class="space-y-2">
+                        @foreach (var label in Labels.ToList())
+                        {
+                            <div class="flex items-center gap-2 bg-gray-50 rounded p-2">
+                                <div class="flex-1 grid grid-cols-2 gap-2">
+                                    <div class="px-3 py-2 bg-gray-100 border border-gray-200 rounded text-sm font-mono">
+                                        @label.Key
+                                    </div>
+                                    <TextInput Value="@label.Value"
+                                               ValueChanged="(v) => UpdateLabelValue(label.Key, v)"
+                                               Placeholder="Valeur" />
+                                </div>
+                                <Button type="button" @onclick="() => RemoveLabel(label.Key)"
+                                        ButtonColor="ButtonColor.Danger"
+                                        IconCss="fas fa-trash" IconPlacement="ButtonIconPlacement.Left"
+                                        title="Supprimer ce label">
+                                </Button>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Ajouter un nouveau label -->
+            <div class="border border-dashed rounded-lg p-4">
+                <h4 class="font-semibold text-gray-700 mb-3">
+                    <i class="fas fa-plus-circle mr-2"></i>Ajouter un label
+                </h4>
+                <div class="flex items-end gap-2">
+                    <div class="flex-1">
+                        <TextInput @bind-Value="NewLabelKey"
+                                   Label="Cle"
+                                   Placeholder="ex: tier, env, zone..." />
+                    </div>
+                    <div class="flex-1">
+                        <TextInput @bind-Value="NewLabelValue"
+                                   Label="Valeur"
+                                   Placeholder="ex: backend, production..." />
+                    </div>
+                    <Button type="button" @onclick="AddLabel"
+                            ButtonColor="ButtonColor.Primary"
+                            Disabled="@string.IsNullOrWhiteSpace(NewLabelKey)">
+                        <span>Ajouter</span>
+                    </Button>
+                </div>
+            </div>
+
+            <!-- Boutons d'action -->
+            <div class="flex justify-end gap-2 pt-4 border-t">
+                <Button type="button" @onclick="OnCancelAsync"
+                        ButtonColor="ButtonColor.Light">
+                    <span>Annuler</span>
+                </Button>
+                <Button type="button" @onclick="SaveLabels"
+                        ButtonColor="ButtonColor.Primary"
+                        Disabled="@(!HasChanges || IsSaving)">
+                    @if (IsSaving)
+                    {
+                        <span class="animate-spin mr-2"><i class="fas fa-spinner"></i></span>
+                    }
+                    <span>Sauvegarder</span>
+                </Button>
+            </div>
+        }
+    </div>
+</Modal>
+
+@code {
+    [Parameter] public bool ShowModal { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnCloseModal { get; set; }
+    [Parameter] public string? NodeId { get; set; }
+    [Parameter] public string? NodeHostname { get; set; }
+    [Parameter] public Dictionary<string, string> InitialLabels { get; set; } = new();
+    [Parameter] public EventCallback<Dictionary<string, string>> OnSaveLabels { get; set; }
+
+    private Dictionary<string, string> Labels { get; set; } = new();
+    private Dictionary<string, string> OriginalLabels { get; set; } = new();
+
+    private string NewLabelKey { get; set; } = "";
+    private string NewLabelValue { get; set; } = "";
+
+    private bool IsLoading { get; set; }
+    private bool IsSaving { get; set; }
+    private string? ErrorMessage { get; set; }
+    private string? SuccessMessage { get; set; }
+
+    private bool HasChanges => !LabelsAreEqual(Labels, OriginalLabels);
+
+    protected override void OnParametersSet()
+    {
+        if (ShowModal)
+        {
+            Labels = new Dictionary<string, string>(InitialLabels);
+            OriginalLabels = new Dictionary<string, string>(InitialLabels);
+            NewLabelKey = "";
+            NewLabelValue = "";
+            ErrorMessage = null;
+            SuccessMessage = null;
+        }
+    }
+
+    private bool LabelsAreEqual(Dictionary<string, string> a, Dictionary<string, string> b)
+    {
+        if (a.Count != b.Count) return false;
+        foreach (var kvp in a)
+        {
+            if (!b.TryGetValue(kvp.Key, out var value) || value != kvp.Value)
+                return false;
+        }
+        return true;
+    }
+
+    private async Task OnClose(MouseEventArgs e)
+    {
+        await OnCloseModal.InvokeAsync(e);
+    }
+
+    private async Task OnCancelAsync()
+    {
+        await OnCloseModal.InvokeAsync(null);
+    }
+
+    private void ClearError()
+    {
+        ErrorMessage = null;
+    }
+
+    private void ClearSuccess()
+    {
+        SuccessMessage = null;
+    }
+
+    private void AddLabel()
+    {
+        if (string.IsNullOrWhiteSpace(NewLabelKey)) return;
+
+        var key = NewLabelKey.Trim();
+        if (Labels.ContainsKey(key))
+        {
+            ErrorMessage = $"Le label '{key}' existe deja.";
+            return;
+        }
+
+        Labels[key] = NewLabelValue?.Trim() ?? "";
+        NewLabelKey = "";
+        NewLabelValue = "";
+        ErrorMessage = null;
+        StateHasChanged();
+    }
+
+    private void RemoveLabel(string key)
+    {
+        Labels.Remove(key);
+        StateHasChanged();
+    }
+
+    private void UpdateLabelValue(string key, string newValue)
+    {
+        if (Labels.ContainsKey(key))
+        {
+            Labels[key] = newValue ?? "";
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveLabels()
+    {
+        if (NodeId == null) return;
+
+        IsSaving = true;
+        ErrorMessage = null;
+
+        try
+        {
+            await OnSaveLabels.InvokeAsync(Labels);
+            OriginalLabels = new Dictionary<string, string>(Labels);
+            SuccessMessage = "Labels mis a jour avec succes";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+}

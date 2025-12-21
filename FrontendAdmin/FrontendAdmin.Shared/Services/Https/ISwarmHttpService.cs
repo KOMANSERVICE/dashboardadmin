@@ -4,9 +4,41 @@ namespace FrontendAdmin.Shared.Services.Https;
 
 public interface ISwarmHttpService
 {
-    // Nodes
+    // Nodes - List
     [Get("/api/swarm/nodes")]
     Task<BaseResponse<GetNodesResponse>> GetNodesAsync();
+
+    // Nodes - Details
+    [Get("/api/swarm/nodes/{id}")]
+    Task<BaseResponse<GetNodeDetailsResponse>> GetNodeDetailsAsync(string id);
+
+    // Nodes - Labels
+    [Get("/api/swarm/nodes/{id}/labels")]
+    Task<BaseResponse<GetNodeLabelsResponse>> GetNodeLabelsAsync(string id);
+
+    // Nodes - Update Labels
+    [Put("/api/swarm/nodes/{id}/labels")]
+    Task<BaseResponse<UpdateNodeLabelsResponse>> UpdateNodeLabelsAsync(string id, [Body] UpdateNodeLabelsRequest request);
+
+    // Nodes - Promote to Manager
+    [Post("/api/swarm/nodes/{id}/promote")]
+    Task<BaseResponse<PromoteNodeResponse>> PromoteNodeAsync(string id);
+
+    // Nodes - Demote to Worker
+    [Post("/api/swarm/nodes/{id}/demote")]
+    Task<BaseResponse<DemoteNodeResponse>> DemoteNodeAsync(string id);
+
+    // Nodes - Drain
+    [Post("/api/swarm/nodes/{id}/drain")]
+    Task<BaseResponse<DrainNodeResponse>> DrainNodeAsync(string id);
+
+    // Nodes - Activate
+    [Post("/api/swarm/nodes/{id}/activate")]
+    Task<BaseResponse<ActivateNodeResponse>> ActivateNodeAsync(string id);
+
+    // Nodes - Remove
+    [Delete("/api/swarm/nodes/{id}")]
+    Task<BaseResponse<RemoveNodeResponse>> RemoveNodeAsync(string id, [Query] bool? force = false);
 
     // Services - List
     [Get("/api/swarm/services")]
