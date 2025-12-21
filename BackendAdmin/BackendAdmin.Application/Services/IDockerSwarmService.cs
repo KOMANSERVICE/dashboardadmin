@@ -77,4 +77,11 @@ public interface IDockerSwarmService
     Task<PushImageResponse> PushImageAsync(string imageId, PushImageRequest request, CancellationToken cancellationToken = default);
     Task<(int count, long spaceReclaimed, List<string> deletedImages)> PruneImagesAsync(bool dangling = true, CancellationToken cancellationToken = default);
     Task<int> GetImageContainerCountAsync(string imageId, CancellationToken cancellationToken = default);
+
+    // Stack management methods
+    Task<IList<StackDTO>> GetStacksAsync(CancellationToken cancellationToken = default);
+    Task<StackDetailsDTO?> GetStackByNameAsync(string stackName, CancellationToken cancellationToken = default);
+    Task<DeployStackResponse> DeployStackAsync(DeployStackRequest request, CancellationToken cancellationToken = default);
+    Task DeleteStackAsync(string stackName, CancellationToken cancellationToken = default);
+    Task<IList<StackServiceDTO>> GetStackServicesAsync(string stackName, CancellationToken cancellationToken = default);
 }

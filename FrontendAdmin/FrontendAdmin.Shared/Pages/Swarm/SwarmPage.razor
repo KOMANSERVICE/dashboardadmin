@@ -21,12 +21,19 @@
             </Button>
             @if (activeTab == 0)
             {
+                <Button type="button" @onclick="ShowDeployStackModal" id="deployStackBtn"
+                        IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
+                    <span>Deployer une stack</span>
+                </Button>
+            }
+            else if (activeTab == 1)
+            {
                 <Button type="button" @onclick="ShowCreateServiceModal" id="addServiceBtn"
                         IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
                     <span>Nouveau service</span>
                 </Button>
             }
-            else if (activeTab == 2)
+            else if (activeTab == 3)
             {
                 <Button type="button" @onclick="ShowCreateVolumeModal" id="addVolumeBtn"
                         IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
@@ -38,7 +45,7 @@
                     <span>Pruner</span>
                 </Button>
             }
-            else if (activeTab == 4)
+            else if (activeTab == 5)
             {
                 <Button type="button" @onclick="ShowCreateNetworkModal" id="addNetworkBtn"
                         IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
@@ -50,7 +57,7 @@
                     <span>Pruner</span>
                 </Button>
             }
-            else if (activeTab == 5)
+            else if (activeTab == 6)
             {
                 <Button type="button" @onclick="ShowPullImageModal" id="pullImageBtn"
                         IconCss="fas fa-download" IconPlacement="ButtonIconPlacement.Left">
@@ -68,34 +75,39 @@
     <!-- Tabs -->
     <div class="mb-6">
         <div class="border-b border-gray-200">
-            <nav class="-mb-px flex space-x-8">
+            <nav class="-mb-px flex space-x-8 overflow-x-auto">
                 <button @onclick="() => SetActiveTab(0)"
                         class="@GetTabClass(0) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                    <i class="fas fa-cubes mr-2"></i>
-                    Services (@services.Count)
+                    <i class="fas fa-layer-group mr-2"></i>
+                    Stacks (@stacks.Count)
                 </button>
                 <button @onclick="() => SetActiveTab(1)"
                         class="@GetTabClass(1) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                    <i class="fas fa-server mr-2"></i>
-                    Noeuds (@nodes.Count)
+                    <i class="fas fa-cubes mr-2"></i>
+                    Services (@services.Count)
                 </button>
                 <button @onclick="() => SetActiveTab(2)"
                         class="@GetTabClass(2) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                    <i class="fas fa-database mr-2"></i>
-                    Volumes (@volumes.Count)
+                    <i class="fas fa-server mr-2"></i>
+                    Noeuds (@nodes.Count)
                 </button>
                 <button @onclick="() => SetActiveTab(3)"
                         class="@GetTabClass(3) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                    <i class="fas fa-cube mr-2"></i>
-                    Conteneurs (@containers.Count)
+                    <i class="fas fa-database mr-2"></i>
+                    Volumes (@volumes.Count)
                 </button>
                 <button @onclick="() => SetActiveTab(4)"
                         class="@GetTabClass(4) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                    <i class="fas fa-network-wired mr-2"></i>
-                    Reseaux (@networks.Count)
+                    <i class="fas fa-cube mr-2"></i>
+                    Conteneurs (@containers.Count)
                 </button>
                 <button @onclick="() => SetActiveTab(5)"
                         class="@GetTabClass(5) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-network-wired mr-2"></i>
+                    Reseaux (@networks.Count)
+                </button>
+                <button @onclick="() => SetActiveTab(6)"
+                        class="@GetTabClass(6) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                     <i class="fas fa-layer-group mr-2"></i>
                     Images (@images.Count)
                 </button>
@@ -109,6 +121,15 @@
     }
     else if (activeTab == 0)
     {
+        <!-- Stacks Tab -->
+        <StackListComponent Stacks="@stacks"
+                            OnRefresh="RefreshData"
+                            OnViewDetails="ViewStackDetails"
+                            OnViewServices="ViewStackServices"
+                            OnDelete="ShowStackDeleteConfirmation" />
+    }
+    else if (activeTab == 1)
+    {
         <!-- Services Tab -->
         <ServiceListComponent Services="@services"
                               OnRefresh="RefreshData"
@@ -120,12 +141,12 @@
                               OnDelete="ShowDeleteConfirmation"
                               OnResources="ShowResourcesModal" />
     }
-    else if (activeTab == 1)
+    else if (activeTab == 2)
     {
         <!-- Nodes Tab -->
         <NodeListComponent Nodes="@nodes" />
     }
-    else if (activeTab == 2)
+    else if (activeTab == 3)
     {
         <!-- Volumes Tab -->
         <VolumeListComponent Volumes="@volumes"
@@ -134,7 +155,7 @@
                              OnBackup="ShowBackupModal"
                              OnDelete="ShowVolumeDeleteConfirmation" />
     }
-    else if (activeTab == 3)
+    else if (activeTab == 4)
     {
         <!-- Containers Tab -->
         <ContainerListComponent Containers="@containers"
@@ -144,7 +165,7 @@
                                 OnViewLogs="ViewContainerLogs"
                                 OnExec="ShowExecModal" />
     }
-    else if (activeTab == 4)
+    else if (activeTab == 5)
     {
         <!-- Networks Tab -->
         <NetworkListComponent Networks="@networks"
@@ -153,7 +174,7 @@
                               OnConnect="ShowConnectContainerModal"
                               OnDelete="ShowNetworkDeleteConfirmation" />
     }
-    else if (activeTab == 5)
+    else if (activeTab == 6)
     {
         <!-- Images Tab -->
         <ImageListComponent Images="@images"
@@ -606,7 +627,61 @@
     </div>
 </Modal>
 
+<!-- Stack Modals -->
+<Modal OnCloseModal="() => showDeployStackModal = false"
+       ShowModal="showDeployStackModal"
+       ModalTitle="Deployer une stack Docker"
+       ModalSize="ModalSize.Large">
+    <DeployStackComponent OnStackDeployed="OnStackDeployed"
+                          OnCancel="() => showDeployStackModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showStackDetailsModal = false"
+       ShowModal="showStackDetailsModal"
+       ModalTitle="@($"Details de la stack: {selectedStackName}")"
+       ModalSize="ModalSize.Large">
+    <StackDetailsComponent StackName="@selectedStackName"
+                           OnClose="() => showStackDetailsModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showStackServicesModal = false"
+       ShowModal="showStackServicesModal"
+       ModalTitle="@($"Services de la stack: {selectedStackName}")"
+       ModalSize="ModalSize.Large">
+    <StackServicesComponent StackName="@selectedStackName"
+                            OnClose="() => showStackServicesModal = false" />
+</Modal>
+
+<Modal OnCloseModal="() => showStackDeleteModal = false"
+       ShowModal="showStackDeleteModal"
+       ModalTitle="Confirmer la suppression">
+    <div class="p-4">
+        <p class="text-gray-700 mb-4">
+            Etes-vous sur de vouloir supprimer la stack <strong>@selectedStackName</strong> ?
+            Tous les services de cette stack seront supprimes.
+        </p>
+        <div class="flex justify-end gap-2">
+            <Button type="button" @onclick="() => showStackDeleteModal = false"
+                    ButtonColor="ButtonColor.Light">
+                <span>Annuler</span>
+            </Button>
+            <Button type="button" @onclick="ConfirmStackDelete"
+                    ButtonColor="ButtonColor.Danger"
+                    Disabled="@isDeleting">
+                @if (isDeleting)
+                {
+                    <span class="animate-spin mr-2">
+                        <i class="fas fa-spinner"></i>
+                    </span>
+                }
+                <span>Supprimer</span>
+            </Button>
+        </div>
+    </div>
+</Modal>
+
 @code {
+    private List<StackDto> stacks = new();
     private List<SwarmServiceDto> services = new();
     private List<NodeDto> nodes = new();
     private List<VolumeDto> volumes = new();
@@ -615,6 +690,13 @@
     private List<ImageDto> images = new();
     private bool isLoading = true;
     private int activeTab = 0;
+
+    // Stack state
+    private bool showDeployStackModal;
+    private bool showStackDetailsModal;
+    private bool showStackServicesModal;
+    private bool showStackDeleteModal;
+    private string selectedStackName = "";
 
     // Service state
     private bool showCreateModal;
@@ -687,6 +769,7 @@
 
         try
         {
+            var stacksTask = SwarmService.GetStacksAsync();
             var servicesTask = SwarmService.GetServicesAsync();
             var nodesTask = SwarmService.GetNodesAsync();
             var volumesTask = SwarmService.GetVolumesAsync();
@@ -694,14 +777,18 @@
             var networksTask = SwarmService.GetNetworksAsync();
             var imagesTask = SwarmService.GetImagesAsync();
 
-            await Task.WhenAll(servicesTask, nodesTask, volumesTask, containersTask, networksTask, imagesTask);
+            await Task.WhenAll(stacksTask, servicesTask, nodesTask, volumesTask, containersTask, networksTask, imagesTask);
 
+            var stacksResponse = await stacksTask;
             var servicesResponse = await servicesTask;
             var nodesResponse = await nodesTask;
             var volumesResponse = await volumesTask;
             var containersResponse = await containersTask;
             var networksResponse = await networksTask;
             var imagesResponse = await imagesTask;
+
+            if (stacksResponse.Success)
+                stacks = stacksResponse.Data.Stacks;
 
             if (servicesResponse.Success)
                 services = servicesResponse.Data.Services;
@@ -742,6 +829,58 @@
         return activeTab == tab
             ? "border-primary-700 text-primary-700"
             : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300";
+    }
+
+    // Stack methods
+    private void ShowDeployStackModal()
+    {
+        showDeployStackModal = true;
+    }
+
+    private async Task OnStackDeployed()
+    {
+        showDeployStackModal = false;
+        await RefreshData();
+    }
+
+    private void ViewStackDetails(string stackName)
+    {
+        selectedStackName = stackName;
+        showStackDetailsModal = true;
+    }
+
+    private void ViewStackServices(string stackName)
+    {
+        selectedStackName = stackName;
+        showStackServicesModal = true;
+    }
+
+    private void ShowStackDeleteConfirmation(string stackName)
+    {
+        selectedStackName = stackName;
+        showStackDeleteModal = true;
+    }
+
+    private async Task ConfirmStackDelete()
+    {
+        isDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            await SwarmService.DeleteStackAsync(selectedStackName);
+            showStackDeleteModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting stack: {ex.Message}");
+        }
+        finally
+        {
+            isDeleting = false;
+            StateHasChanged();
+        }
     }
 
     // Service methods

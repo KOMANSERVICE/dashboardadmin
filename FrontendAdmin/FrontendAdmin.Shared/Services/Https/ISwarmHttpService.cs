@@ -183,4 +183,24 @@ public interface ISwarmHttpService
     // Images - Prune
     [Post("/api/swarm/images/prune")]
     Task<BaseResponse<PruneImagesResponse>> PruneImagesAsync([Query] bool? dangling = true);
+
+    // Stacks - List
+    [Get("/api/swarm/stacks")]
+    Task<BaseResponse<GetStacksResponse>> GetStacksAsync();
+
+    // Stacks - Details
+    [Get("/api/swarm/stacks/{name}")]
+    Task<BaseResponse<GetStackDetailsResponse>> GetStackDetailsAsync(string name);
+
+    // Stacks - Services
+    [Get("/api/swarm/stacks/{name}/services")]
+    Task<BaseResponse<GetStackServicesResponse>> GetStackServicesAsync(string name);
+
+    // Stacks - Deploy
+    [Post("/api/swarm/stacks")]
+    Task<BaseResponse<DeployStackResponse>> DeployStackAsync([Body] DeployStackRequest request);
+
+    // Stacks - Delete
+    [Delete("/api/swarm/stacks/{name}")]
+    Task DeleteStackAsync(string name);
 }

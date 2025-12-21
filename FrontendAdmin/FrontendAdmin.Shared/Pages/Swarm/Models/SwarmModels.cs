@@ -577,3 +577,53 @@ public record PruneImagesResponse(
     long SpaceReclaimed,
     List<string> DeletedImages
 );
+
+// Stack models
+public record StackDto(
+    string Name,
+    int ServiceCount,
+    string Orchestrator,
+    DateTime CreatedAt
+);
+
+public record StackDetailsDto(
+    string Name,
+    int ServiceCount,
+    string Orchestrator,
+    DateTime CreatedAt,
+    List<StackServiceDto> Services
+);
+
+public record StackServiceDto(
+    string Id,
+    string Name,
+    string Image,
+    int Replicas,
+    int DesiredReplicas,
+    string Status,
+    List<StackServicePortDto> Ports
+);
+
+public record StackServicePortDto(
+    int TargetPort,
+    int PublishedPort,
+    string Protocol
+);
+
+public record GetStacksResponse(List<StackDto> Stacks);
+
+public record GetStackDetailsResponse(StackDetailsDto Stack);
+
+public record GetStackServicesResponse(List<StackServiceDto> Services);
+
+public record DeployStackRequest(
+    string Name,
+    string ComposeFileContent,
+    bool Prune = false
+);
+
+public record DeployStackResponse(
+    string StackName,
+    int ServicesDeployed,
+    DateTime DeployedAt
+);
