@@ -478,6 +478,106 @@ public record DisconnectContainerResponse(
     string ContainerId
 );
 
+// Image models
+public record ImageDto(
+    string Id,
+    string? Repository,
+    string? Tag,
+    long Size,
+    DateTime CreatedAt,
+    int ContainerCount,
+    bool IsDangling
+);
+
+public record ImageDetailsDto(
+    string Id,
+    string? Repository,
+    string? Tag,
+    long Size,
+    DateTime CreatedAt,
+    string? Author,
+    string? Architecture,
+    string? Os,
+    string? DockerVersion,
+    Dictionary<string, string> Labels,
+    List<string> RepoTags,
+    List<string> RepoDigests,
+    string? Comment,
+    string? Container,
+    ImageConfigDto Config
+);
+
+public record ImageConfigDto(
+    string? Hostname,
+    string? Domainname,
+    string? User,
+    List<string>? Cmd,
+    List<string>? Entrypoint,
+    List<string>? Env,
+    string? WorkingDir,
+    List<string>? ExposedPorts,
+    List<string>? Volumes
+);
+
+public record ImageHistoryDto(
+    string Id,
+    string CreatedBy,
+    DateTime CreatedAt,
+    long Size,
+    string? Comment,
+    List<string> Tags
+);
+
+public record GetImagesResponse(List<ImageDto> Images);
+
+public record GetImageDetailsResponse(ImageDetailsDto Image);
+
+public record GetImageHistoryResponse(List<ImageHistoryDto> History);
+
+public record GetDanglingImagesResponse(List<ImageDto> Images);
+
+public record PullImageRequest(
+    string Image,
+    string? Tag = "latest",
+    string? Registry = null
+);
+
+public record PullImageResponse(
+    string ImageName,
+    string Tag,
+    string Status,
+    DateTime PulledAt
+);
+
+public record TagImageRequest(
+    string NewRepository,
+    string NewTag
+);
+
+public record TagImageResponse(
+    string SourceImage,
+    string NewRepository,
+    string NewTag
+);
+
+public record PushImageRequest(
+    string? Tag = null,
+    string? Registry = null
+);
+
+public record PushImageResponse(
+    string ImageName,
+    string Tag,
+    string Status,
+    DateTime PushedAt
+);
+
+public record PruneImagesResponse(
+    int DeletedCount,
+    long SpaceReclaimed,
+    List<string> DeletedImages
+);
+
 // Stack models
 public record StackDto(
     string Name,

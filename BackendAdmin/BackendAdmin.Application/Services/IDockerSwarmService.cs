@@ -66,6 +66,18 @@ public interface IDockerSwarmService
     Task ConnectContainerToNetworkAsync(string networkName, ConnectContainerRequest request, CancellationToken cancellationToken = default);
     Task DisconnectContainerFromNetworkAsync(string networkName, DisconnectContainerRequest request, CancellationToken cancellationToken = default);
 
+    // Image management methods
+    Task<IList<ImagesListResponse>> GetImagesAsync(bool all = false, CancellationToken cancellationToken = default);
+    Task<ImageInspectResponse?> GetImageByIdAsync(string imageId, CancellationToken cancellationToken = default);
+    Task<IList<ImageHistoryResponse>> GetImageHistoryAsync(string imageId, CancellationToken cancellationToken = default);
+    Task<IList<ImagesListResponse>> GetDanglingImagesAsync(CancellationToken cancellationToken = default);
+    Task<PullImageResponse> PullImageAsync(PullImageRequest request, CancellationToken cancellationToken = default);
+    Task DeleteImageAsync(string imageId, bool force = false, bool pruneChildren = false, CancellationToken cancellationToken = default);
+    Task<TagImageResponse> TagImageAsync(string imageId, TagImageRequest request, CancellationToken cancellationToken = default);
+    Task<PushImageResponse> PushImageAsync(string imageId, PushImageRequest request, CancellationToken cancellationToken = default);
+    Task<(int count, long spaceReclaimed, List<string> deletedImages)> PruneImagesAsync(bool dangling = true, CancellationToken cancellationToken = default);
+    Task<int> GetImageContainerCountAsync(string imageId, CancellationToken cancellationToken = default);
+
     // Stack management methods
     Task<IList<StackDTO>> GetStacksAsync(CancellationToken cancellationToken = default);
     Task<StackDetailsDTO?> GetStackByNameAsync(string stackName, CancellationToken cancellationToken = default);

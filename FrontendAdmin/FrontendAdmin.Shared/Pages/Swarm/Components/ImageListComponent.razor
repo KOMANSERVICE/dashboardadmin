@@ -1,0 +1,147 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+
+<div class="bg-white shadow-md rounded-lg overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tag</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Taille</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conteneurs</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creee le</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            @if (!Images.Any())
+            {
+                <tr>
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <i class="fas fa-layer-group text-4xl mb-2"></i>
+                        <p>Aucune image Docker</p>
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var image in Images)
+                {
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <i class="@GetImageIconClass(image) mr-3"></i>
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">
+                                        @(image.Repository ?? "<none>")
+                                    </div>
+                                    <div class="text-sm text-gray-500 font-mono truncate max-w-xs" title="@image.Id">
+                                        @TruncateId(image.Id)
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            @if (!string.IsNullOrEmpty(image.Tag))
+                            {
+                                <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                                    @image.Tag
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-sm text-gray-400 italic">aucun</span>
+                            }
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-sm text-gray-900">@FormatBytes(image.Size)</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="@GetContainerCountClass(image.ContainerCount) px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
+                                @image.ContainerCount conteneur(s)
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            @image.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div class="flex justify-end gap-2">
+                                <button @onclick="() => OnViewDetails.InvokeAsync(image.Id)"
+                                        class="text-gray-400 hover:text-primary-700 transition"
+                                        title="Details">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                                <button @onclick="() => OnViewHistory.InvokeAsync(image.Id)"
+                                        class="text-gray-400 hover:text-blue-600 transition"
+                                        title="Historique">
+                                    <i class="fas fa-history"></i>
+                                </button>
+                                <button @onclick="() => OnTag.InvokeAsync(image)"
+                                        class="text-gray-400 hover:text-green-600 transition"
+                                        title="Tag">
+                                    <i class="fas fa-tag"></i>
+                                </button>
+                                @if (!string.IsNullOrEmpty(image.Repository))
+                                {
+                                    <button @onclick="() => OnPush.InvokeAsync(image)"
+                                            class="text-gray-400 hover:text-purple-600 transition"
+                                            title="Push">
+                                        <i class="fas fa-upload"></i>
+                                    </button>
+                                }
+                                <button @onclick="() => OnDelete.InvokeAsync(image)"
+                                        class="text-gray-400 hover:text-red-600 transition"
+                                        title="Supprimer">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter] public List<ImageDto> Images { get; set; } = new();
+    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public EventCallback<string> OnViewDetails { get; set; }
+    [Parameter] public EventCallback<string> OnViewHistory { get; set; }
+    [Parameter] public EventCallback<ImageDto> OnTag { get; set; }
+    [Parameter] public EventCallback<ImageDto> OnPush { get; set; }
+    [Parameter] public EventCallback<ImageDto> OnDelete { get; set; }
+
+    private string GetImageIconClass(ImageDto image)
+    {
+        if (image.IsDangling)
+            return "fas fa-exclamation-triangle text-yellow-500";
+        return "fas fa-layer-group text-primary-700";
+    }
+
+    private string GetContainerCountClass(int count)
+    {
+        return count > 0
+            ? "bg-green-100 text-green-800"
+            : "bg-gray-100 text-gray-800";
+    }
+
+    private string TruncateId(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return "N/A";
+        if (id.Length <= 12) return id;
+        return id[..12];
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:0.##} {sizes[order]}";
+    }
+}

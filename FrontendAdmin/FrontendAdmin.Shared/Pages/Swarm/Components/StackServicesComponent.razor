@@ -1,0 +1,139 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+@if (isLoading)
+{
+    <div class="flex justify-center items-center p-8">
+        <i class="fas fa-spinner fa-spin text-2xl text-primary-700"></i>
+    </div>
+}
+else if (services.Any())
+{
+    <div class="p-4">
+        <div class="bg-white shadow-md rounded-lg overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Replicas</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ports</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @foreach (var service in services)
+                    {
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <i class="fas fa-cube text-primary-700 mr-3"></i>
+                                    <div class="text-sm font-medium text-gray-900">@service.Name</div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                @service.Image
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @GetReplicaClass(service)">
+                                    @service.Replicas / @service.DesiredReplicas
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @GetStatusClass(service.Status)">
+                                    @service.Status
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                @if (service.Ports?.Any() == true)
+                                {
+                                    @string.Join(", ", service.Ports.Select(p => $"{p.PublishedPort}:{p.TargetPort}/{p.Protocol}"))
+                                }
+                                else
+                                {
+                                    <span class="text-gray-400">-</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-4 flex justify-end">
+            <Button type="button" @onclick="() => OnClose.InvokeAsync()"
+                    ButtonColor="ButtonColor.Light">
+                <span>Fermer</span>
+            </Button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="p-8 text-center text-gray-500">
+        <i class="fas fa-cubes text-4xl mb-2"></i>
+        <p>Aucun service dans cette stack</p>
+        <div class="mt-4">
+            <Button type="button" @onclick="() => OnClose.InvokeAsync()"
+                    ButtonColor="ButtonColor.Light">
+                <span>Fermer</span>
+            </Button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string StackName { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private List<StackServiceDto> services = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadServices();
+    }
+
+    private async Task LoadServices()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SwarmService.GetStackServicesAsync(StackName);
+            if (response.Success)
+            {
+                services = response.Data.Services;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading stack services: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetReplicaClass(StackServiceDto service)
+    {
+        if (service.Replicas >= service.DesiredReplicas)
+            return "bg-green-100 text-green-800";
+        if (service.Replicas > 0)
+            return "bg-yellow-100 text-yellow-800";
+        return "bg-red-100 text-red-800";
+    }
+
+    private string GetStatusClass(string status)
+    {
+        return status?.ToLower() switch
+        {
+            "running" => "bg-green-100 text-green-800",
+            "updating" => "bg-yellow-100 text-yellow-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+}

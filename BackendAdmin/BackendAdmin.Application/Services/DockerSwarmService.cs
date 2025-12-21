@@ -1600,6 +1600,327 @@ public class DockerSwarmService : IDockerSwarmService
         }
     }
 
+    // Image management methods
+
+    public async Task<IList<ImagesListResponse>> GetImagesAsync(bool all = false, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var images = await _client.Images.ListImagesAsync(
+                new ImagesListParameters { All = all },
+                cancellationToken);
+            return images.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker images");
+            throw new InternalServerException("Docker socket non accessible");
+        }
+    }
+
+    public async Task<ImageInspectResponse?> GetImageByIdAsync(string imageId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var image = await _client.Images.InspectImageAsync(imageId, cancellationToken);
+            return image;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get image {ImageId}", imageId);
+            throw new InternalServerException($"Erreur lors de la recuperation de l'image '{imageId}'");
+        }
+    }
+
+    public async Task<IList<ImageHistoryResponse>> GetImageHistoryAsync(string imageId, CancellationToken cancellationToken = default)
+    {
+        var image = await GetImageByIdAsync(imageId, cancellationToken);
+        if (image == null)
+        {
+            throw new NotFoundException($"Image '{imageId}' non trouvee");
+        }
+
+        try
+        {
+            var history = await _client.Images.GetImageHistoryAsync(imageId, cancellationToken);
+            return history.ToList();
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get history for image {ImageId}", imageId);
+            throw new InternalServerException($"Erreur lors de la recuperation de l'historique de l'image '{imageId}'");
+        }
+    }
+
+    public async Task<IList<ImagesListResponse>> GetDanglingImagesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var images = await _client.Images.ListImagesAsync(
+                new ImagesListParameters
+                {
+                    Filters = new Dictionary<string, IDictionary<string, bool>>
+                    {
+                        ["dangling"] = new Dictionary<string, bool> { ["true"] = true }
+                    }
+                },
+                cancellationToken);
+            return images.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get dangling images");
+            throw new InternalServerException("Erreur lors de la recuperation des images dangling");
+        }
+    }
+
+    public async Task<PullImageResponse> PullImageAsync(PullImageRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var imageName = request.Image;
+            var tag = request.Tag ?? "latest";
+
+            // Add registry prefix if specified
+            if (!string.IsNullOrEmpty(request.Registry))
+            {
+                imageName = $"{request.Registry}/{imageName}";
+            }
+
+            var createParams = new ImagesCreateParameters
+            {
+                FromImage = imageName,
+                Tag = tag
+            };
+
+            // Use progress handler to track pull progress
+            var lastStatus = "";
+            await _client.Images.CreateImageAsync(
+                createParams,
+                null, // authConfig - could be extended to support private registries
+                new Progress<JSONMessage>(message =>
+                {
+                    if (!string.IsNullOrEmpty(message.Status))
+                    {
+                        lastStatus = message.Status;
+                    }
+                }),
+                cancellationToken);
+
+            _logger.LogInformation("Image {ImageName}:{Tag} pulled successfully", imageName, tag);
+
+            return new PullImageResponse(
+                ImageName: imageName,
+                Tag: tag,
+                Status: lastStatus ?? "Pull completed",
+                PulledAt: DateTime.UtcNow
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to pull image {ImageName}", request.Image);
+            throw new InternalServerException($"Erreur lors du pull de l'image '{request.Image}:{request.Tag ?? "latest"}'");
+        }
+    }
+
+    public async Task DeleteImageAsync(string imageId, bool force = false, bool pruneChildren = false, CancellationToken cancellationToken = default)
+    {
+        var image = await GetImageByIdAsync(imageId, cancellationToken);
+        if (image == null)
+        {
+            throw new NotFoundException($"Image '{imageId}' non trouvee");
+        }
+
+        try
+        {
+            var deleteParams = new ImageDeleteParameters
+            {
+                Force = force,
+                NoPrune = !pruneChildren
+            };
+
+            await _client.Images.DeleteImageAsync(imageId, deleteParams, cancellationToken);
+            _logger.LogInformation("Image {ImageId} deleted successfully", imageId);
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (DockerApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            throw new BadRequestException($"L'image '{imageId}' est utilisee par un ou plusieurs conteneurs. Utilisez force=true pour forcer la suppression.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete image {ImageId}", imageId);
+            throw new InternalServerException($"Erreur lors de la suppression de l'image '{imageId}'");
+        }
+    }
+
+    public async Task<TagImageResponse> TagImageAsync(string imageId, TagImageRequest request, CancellationToken cancellationToken = default)
+    {
+        var image = await GetImageByIdAsync(imageId, cancellationToken);
+        if (image == null)
+        {
+            throw new NotFoundException($"Image '{imageId}' non trouvee");
+        }
+
+        try
+        {
+            var tagParams = new ImageTagParameters
+            {
+                RepositoryName = request.NewRepository,
+                Tag = request.NewTag
+            };
+
+            await _client.Images.TagImageAsync(imageId, tagParams, cancellationToken);
+            _logger.LogInformation("Image {ImageId} tagged as {Repository}:{Tag}", imageId, request.NewRepository, request.NewTag);
+
+            return new TagImageResponse(
+                SourceImage: imageId,
+                NewRepository: request.NewRepository,
+                NewTag: request.NewTag
+            );
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to tag image {ImageId}", imageId);
+            throw new InternalServerException($"Erreur lors du tagging de l'image '{imageId}'");
+        }
+    }
+
+    public async Task<PushImageResponse> PushImageAsync(string imageId, PushImageRequest request, CancellationToken cancellationToken = default)
+    {
+        var image = await GetImageByIdAsync(imageId, cancellationToken);
+        if (image == null)
+        {
+            throw new NotFoundException($"Image '{imageId}' non trouvee");
+        }
+
+        try
+        {
+            // Get the first repo tag to push
+            var repoTag = image.RepoTags?.FirstOrDefault();
+            if (string.IsNullOrEmpty(repoTag))
+            {
+                throw new BadRequestException($"L'image '{imageId}' n'a pas de tag. Veuillez d'abord la taguer.");
+            }
+
+            var parts = repoTag.Split(':');
+            var repository = parts[0];
+            var tag = request.Tag ?? (parts.Length > 1 ? parts[1] : "latest");
+
+            // Add registry prefix if specified
+            if (!string.IsNullOrEmpty(request.Registry))
+            {
+                repository = $"{request.Registry}/{repository}";
+            }
+
+            var lastStatus = "";
+            await _client.Images.PushImageAsync(
+                $"{repository}:{tag}",
+                new ImagePushParameters(),
+                null, // authConfig - could be extended to support private registries
+                new Progress<JSONMessage>(message =>
+                {
+                    if (!string.IsNullOrEmpty(message.Status))
+                    {
+                        lastStatus = message.Status;
+                    }
+                }),
+                cancellationToken);
+
+            _logger.LogInformation("Image {Repository}:{Tag} pushed successfully", repository, tag);
+
+            return new PushImageResponse(
+                ImageName: repository,
+                Tag: tag,
+                Status: lastStatus ?? "Push completed",
+                PushedAt: DateTime.UtcNow
+            );
+        }
+        catch (NotFoundException)
+        {
+            throw;
+        }
+        catch (BadRequestException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to push image {ImageId}", imageId);
+            throw new InternalServerException($"Erreur lors du push de l'image '{imageId}'");
+        }
+    }
+
+    public async Task<(int count, long spaceReclaimed, List<string> deletedImages)> PruneImagesAsync(bool dangling = true, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var filters = new Dictionary<string, IDictionary<string, bool>>();
+            if (dangling)
+            {
+                filters["dangling"] = new Dictionary<string, bool> { ["true"] = true };
+            }
+
+            var response = await _client.Images.PruneImagesAsync(
+                new ImagesPruneParameters { Filters = filters },
+                cancellationToken);
+
+            var deletedImages = response.ImagesDeleted?
+                .Where(i => !string.IsNullOrEmpty(i.Deleted))
+                .Select(i => i.Deleted!)
+                .ToList() ?? new List<string>();
+
+            var spaceReclaimed = (long)response.SpaceReclaimed;
+
+            _logger.LogInformation("Pruned {Count} images, reclaimed {SpaceReclaimed} bytes", deletedImages.Count, spaceReclaimed);
+
+            return (deletedImages.Count, spaceReclaimed, deletedImages);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to prune images");
+            throw new InternalServerException("Erreur lors du nettoyage des images");
+        }
+    }
+
+    public async Task<int> GetImageContainerCountAsync(string imageId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containers = await _client.Containers.ListContainersAsync(
+                new ContainersListParameters { All = true },
+                cancellationToken);
+
+            // Count containers using this image (by ID or name)
+            var count = containers.Count(c =>
+                c.ImageID == imageId ||
+                c.ImageID == $"sha256:{imageId}" ||
+                c.Image == imageId);
+
+            return count;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get container count for image {ImageId}", imageId);
+            return 0;
+        }
+    }
+
     // Stack management methods
     // Docker Swarm stacks are identified by the "com.docker.stack.namespace" label on services
 

@@ -1,0 +1,208 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    @if (isLoading)
+    {
+        <div class="flex justify-center items-center py-8">
+            <i class="fas fa-spinner fa-spin text-2xl text-primary-700"></i>
+        </div>
+    }
+    else if (imageDetails != null)
+    {
+        <div class="space-y-6">
+            <!-- Image Info -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Repository</label>
+                    <p class="text-gray-900">@(imageDetails.Repository ?? "<none>")</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Tag</label>
+                    <p class="text-gray-900">@(imageDetails.Tag ?? "<none>")</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">ID</label>
+                    <p class="text-gray-900 font-mono text-xs">@imageDetails.Id</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Taille</label>
+                    <p class="text-gray-900">@FormatBytes(imageDetails.Size)</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Architecture</label>
+                    <p class="text-gray-900">@(imageDetails.Architecture ?? "N/A") / @(imageDetails.Os ?? "N/A")</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Version Docker</label>
+                    <p class="text-gray-900">@(imageDetails.DockerVersion ?? "N/A")</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Auteur</label>
+                    <p class="text-gray-900">@(imageDetails.Author ?? "N/A")</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Creee le</label>
+                    <p class="text-gray-900">@imageDetails.CreatedAt.ToString("dd/MM/yyyy HH:mm:ss")</p>
+                </div>
+            </div>
+
+            <!-- Tags -->
+            @if (imageDetails.RepoTags?.Any() == true)
+            {
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Tags</label>
+                    <div class="flex flex-wrap gap-2 mt-1">
+                        @foreach (var tag in imageDetails.RepoTags)
+                        {
+                            <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                                @tag
+                            </span>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Configuration -->
+            @if (imageDetails.Config != null)
+            {
+                <div>
+                    <label class="text-sm font-medium text-gray-500 mb-2 block">Configuration</label>
+                    <div class="bg-gray-50 rounded-lg p-4 space-y-2">
+                        @if (imageDetails.Config.Cmd?.Any() == true)
+                        {
+                            <div>
+                                <span class="text-xs text-gray-500">CMD:</span>
+                                <code class="text-xs bg-gray-200 px-1 rounded ml-1">@string.Join(" ", imageDetails.Config.Cmd)</code>
+                            </div>
+                        }
+                        @if (imageDetails.Config.Entrypoint?.Any() == true)
+                        {
+                            <div>
+                                <span class="text-xs text-gray-500">ENTRYPOINT:</span>
+                                <code class="text-xs bg-gray-200 px-1 rounded ml-1">@string.Join(" ", imageDetails.Config.Entrypoint)</code>
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(imageDetails.Config.WorkingDir))
+                        {
+                            <div>
+                                <span class="text-xs text-gray-500">WORKDIR:</span>
+                                <code class="text-xs bg-gray-200 px-1 rounded ml-1">@imageDetails.Config.WorkingDir</code>
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(imageDetails.Config.User))
+                        {
+                            <div>
+                                <span class="text-xs text-gray-500">USER:</span>
+                                <code class="text-xs bg-gray-200 px-1 rounded ml-1">@imageDetails.Config.User</code>
+                            </div>
+                        }
+                        @if (imageDetails.Config.ExposedPorts?.Any() == true)
+                        {
+                            <div>
+                                <span class="text-xs text-gray-500">EXPOSE:</span>
+                                <code class="text-xs bg-gray-200 px-1 rounded ml-1">@string.Join(", ", imageDetails.Config.ExposedPorts)</code>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Environment Variables -->
+            @if (imageDetails.Config?.Env?.Any() == true)
+            {
+                <div>
+                    <label class="text-sm font-medium text-gray-500 mb-2 block">Variables d'environnement</label>
+                    <div class="bg-gray-50 rounded-lg p-4 max-h-40 overflow-y-auto">
+                        @foreach (var env in imageDetails.Config.Env)
+                        {
+                            <div class="text-xs font-mono text-gray-700 truncate" title="@env">@env</div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Labels -->
+            @if (imageDetails.Labels?.Any() == true)
+            {
+                <div>
+                    <label class="text-sm font-medium text-gray-500 mb-2 block">Labels</label>
+                    <div class="bg-gray-50 rounded-lg p-4 max-h-40 overflow-y-auto">
+                        @foreach (var label in imageDetails.Labels)
+                        {
+                            <div class="text-xs font-mono text-gray-700 truncate" title="@label.Key=@label.Value">
+                                <span class="font-semibold">@label.Key:</span> @label.Value
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="flex justify-end mt-6">
+            <Button type="button" @onclick="() => OnClose.InvokeAsync()"
+                    ButtonColor="ButtonColor.Light">
+                <span>Fermer</span>
+            </Button>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-8 text-gray-500">
+            <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+            <p>Impossible de charger les details de l'image</p>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string ImageId { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private bool isLoading = true;
+    private ImageDetailsDto? imageDetails;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadImageDetails();
+    }
+
+    private async Task LoadImageDetails()
+    {
+        if (string.IsNullOrEmpty(ImageId)) return;
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SwarmService.GetImageDetailsAsync(ImageId);
+            if (response.Success)
+            {
+                imageDetails = response.Data.Image;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading image details: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:0.##} {sizes[order]}";
+    }
+}

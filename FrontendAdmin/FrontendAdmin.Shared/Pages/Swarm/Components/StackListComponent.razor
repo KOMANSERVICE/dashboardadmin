@@ -55,7 +55,7 @@
                                         title="Services">
                                     <i class="fas fa-cubes"></i>
                                 </button>
-                                <button @onclick="() => OnDelete.InvokeAsync(stack)"
+                                <button @onclick="() => OnDelete.InvokeAsync(stack.Name)"
                                         class="text-gray-400 hover:text-red-600 transition"
                                         title="Supprimer">
                                     <i class="fas fa-trash"></i>
@@ -74,5 +74,5 @@
     [Parameter] public EventCallback OnRefresh { get; set; }
     [Parameter] public EventCallback<string> OnViewDetails { get; set; }
     [Parameter] public EventCallback<string> OnViewServices { get; set; }
-    [Parameter] public EventCallback<StackDto> OnDelete { get; set; }
+    [Parameter] public EventCallback<string> OnDelete { get; set; }
 }
