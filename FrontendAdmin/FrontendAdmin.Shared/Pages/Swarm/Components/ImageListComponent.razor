@@ -99,6 +99,36 @@
                 }
             }
         </tbody>
+        @if (Images.Any())
+        {
+            <tfoot class="bg-gray-100">
+                <tr>
+                    <td colspan="6" class="px-6 py-3">
+                        <div class="flex items-center gap-4 text-sm flex-wrap">
+                            <span class="font-medium text-gray-700">Total:</span>
+                            <span class="bg-primary-100 text-primary-800 px-2 py-1 rounded">
+                                @Images.Count image(s)
+                            </span>
+                            <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded">
+                                <i class="fas fa-hdd mr-1"></i>@FormatBytes(Images.Sum(i => i.Size))
+                            </span>
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded">
+                                @Images.Count(i => !i.IsDangling) utilisee(s)
+                            </span>
+                            @if (Images.Any(i => i.IsDangling))
+                            {
+                                <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                                    @Images.Count(i => i.IsDangling) dangling
+                                </span>
+                            }
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                @Images.Sum(i => i.ContainerCount) conteneur(s)
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+            </tfoot>
+        }
     </table>
 </div>
 
