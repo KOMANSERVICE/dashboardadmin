@@ -211,4 +211,20 @@ public interface ISwarmHttpService
     // Stacks - Delete
     [Delete("/api/swarm/stacks/{name}")]
     Task DeleteStackAsync(string name);
+
+    // System - Info
+    [Get("/api/swarm/system/info")]
+    Task<BaseResponse<GetSystemInfoResponse>> GetSystemInfoAsync();
+
+    // System - Version
+    [Get("/api/swarm/system/version")]
+    Task<BaseResponse<GetDockerVersionResponse>> GetDockerVersionAsync();
+
+    // System - Disk Usage
+    [Get("/api/swarm/system/disk")]
+    Task<BaseResponse<GetDiskUsageResponse>> GetDiskUsageAsync();
+
+    // System - Prune All
+    [Post("/api/swarm/system/prune")]
+    Task<BaseResponse<PruneAllResponse>> PruneAllAsync();
 }

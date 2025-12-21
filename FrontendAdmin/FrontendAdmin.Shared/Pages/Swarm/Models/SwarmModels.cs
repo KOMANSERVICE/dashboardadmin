@@ -679,3 +679,139 @@ public record ContainerMetricsSummaryDto(
 );
 
 public record GetContainersMetricsSummaryResponse(List<ContainerMetricsSummaryDto> Containers);
+
+// System Info models
+public record SystemInfoDto(
+    string Id,
+    string Name,
+    string OperatingSystem,
+    string OSType,
+    string Architecture,
+    long NCPU,
+    long MemTotal,
+    string DockerRootDir,
+    string KernelVersion,
+    long Containers,
+    long ContainersRunning,
+    long ContainersPaused,
+    long ContainersStopped,
+    long Images,
+    string Driver,
+    bool MemoryLimit,
+    bool SwapLimit,
+    bool CpuCfsPeriod,
+    bool CpuCfsQuota,
+    bool CPUShares,
+    bool IPv4Forwarding,
+    bool Debug,
+    bool ExperimentalBuild,
+    string HttpProxy,
+    string HttpsProxy,
+    string NoProxy,
+    string ServerVersion,
+    string ClusterStore,
+    DateTime SystemTime,
+    string LoggingDriver
+);
+
+public record GetSystemInfoResponse(SystemInfoDto SystemInfo);
+
+// Docker Version models
+public record DockerVersionDto(
+    string Version,
+    string ApiVersion,
+    string MinAPIVersion,
+    string GitCommit,
+    string GoVersion,
+    string Os,
+    string Arch,
+    string KernelVersion,
+    bool Experimental,
+    DateTime BuildTime
+);
+
+public record GetDockerVersionResponse(DockerVersionDto Version);
+
+// Disk Usage models
+public record DiskUsageDto(
+    long LayersSize,
+    List<DiskUsageImageDto> Images,
+    List<DiskUsageContainerDto> Containers,
+    List<DiskUsageVolumeDto> Volumes,
+    List<DiskUsageBuildCacheDto>? BuildCache,
+    DiskUsageSummaryDto Summary
+);
+
+public record DiskUsageImageDto(
+    string Id,
+    List<string> RepoTags,
+    long Size,
+    long SharedSize,
+    long VirtualSize,
+    long Containers,
+    DateTime Created
+);
+
+public record DiskUsageContainerDto(
+    string Id,
+    string Name,
+    string Image,
+    string ImageID,
+    long SizeRw,
+    long SizeRootFs,
+    string State,
+    DateTime Created
+);
+
+public record DiskUsageVolumeDto(
+    string Name,
+    string Driver,
+    string Mountpoint,
+    long Size,
+    int UsageCount,
+    DateTime? CreatedAt
+);
+
+public record DiskUsageBuildCacheDto(
+    string Id,
+    string Type,
+    string Description,
+    long Size,
+    bool InUse,
+    bool Shared,
+    DateTime CreatedAt,
+    DateTime? LastUsedAt
+);
+
+public record DiskUsageSummaryDto(
+    long TotalSize,
+    long ReclaimableSize,
+    int TotalImages,
+    int TotalContainers,
+    int TotalVolumes,
+    int TotalBuildCache,
+    long ImagesSize,
+    long ContainersSize,
+    long VolumesSize,
+    long BuildCacheSize
+);
+
+public record GetDiskUsageResponse(DiskUsageDto DiskUsage);
+
+// Prune All models
+public record PruneAllResponse(
+    int ContainersDeleted,
+    long ContainersSpaceReclaimed,
+    int ImagesDeleted,
+    long ImagesSpaceReclaimed,
+    int VolumesDeleted,
+    long VolumesSpaceReclaimed,
+    int NetworksDeleted,
+    int BuildCacheDeleted,
+    long BuildCacheSpaceReclaimed,
+    long TotalSpaceReclaimed,
+    List<string> DeletedContainers,
+    List<string> DeletedImages,
+    List<string> DeletedVolumes,
+    List<string> DeletedNetworks
+);

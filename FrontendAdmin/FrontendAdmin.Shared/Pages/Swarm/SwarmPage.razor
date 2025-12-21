@@ -116,6 +116,11 @@
                     <i class="fas fa-layer-group mr-2"></i>
                     Images (@images.Count)
                 </button>
+                <button @onclick="() => SetActiveTab(7)"
+                        class="@GetTabClass(7) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    <i class="fas fa-cogs mr-2"></i>
+                    Systeme
+                </button>
             </nav>
         </div>
     </div>
@@ -189,6 +194,18 @@
                             OnTag="ShowTagImageModal"
                             OnPush="ShowPushImageModal"
                             OnDelete="ShowImageDeleteConfirmation" />
+    }
+    else if (activeTab == 7)
+    {
+        <!-- System Tab -->
+        <SystemTabComponent SystemInfo="@systemInfo"
+                            DockerVersion="@dockerVersion"
+                            DiskUsage="@diskUsage"
+                            LastPruneResult="@pruneAllResult"
+                            IsPruning="@isSystemPruning"
+                            OnPruneRequested="ExecuteSystemPrune"
+                            DockerEvents="@dockerEvents"
+                            OnEventsRefresh="RefreshDockerEvents" />
     }
 </div>
 
@@ -696,6 +713,14 @@
     private bool isLoading = true;
     private int activeTab = 0;
 
+    // System state
+    private SystemInfoDto? systemInfo;
+    private DockerVersionDto? dockerVersion;
+    private DiskUsageDto? diskUsage;
+    private PruneAllResponse? pruneAllResult;
+    private bool isSystemPruning;
+    private List<DockerEventDto>? dockerEvents;
+
     // Stack state
     private bool showDeployStackModal;
     private bool showStackDetailsModal;
@@ -824,9 +849,97 @@
         }
     }
 
-    private void SetActiveTab(int tab)
+    private async Task SetActiveTab(int tab)
     {
         activeTab = tab;
+        if (tab == 7)
+        {
+            await LoadSystemData();
+        }
+    }
+
+    private async Task LoadSystemData()
+    {
+        try
+        {
+            var systemInfoTask = SwarmService.GetSystemInfoAsync();
+            var versionTask = SwarmService.GetDockerVersionAsync();
+            var diskUsageTask = SwarmService.GetDiskUsageAsync();
+            var eventsTask = SwarmService.GetDockerEventsAsync(DateTime.UtcNow.AddMinutes(-15), null);
+
+            await Task.WhenAll(systemInfoTask, versionTask, diskUsageTask, eventsTask);
+
+            var systemInfoResponse = await systemInfoTask;
+            var versionResponse = await versionTask;
+            var diskUsageResponse = await diskUsageTask;
+            var eventsResponse = await eventsTask;
+
+            if (systemInfoResponse.Success)
+                systemInfo = systemInfoResponse.Data.SystemInfo;
+
+            if (versionResponse.Success)
+                dockerVersion = versionResponse.Data.Version;
+
+            if (diskUsageResponse.Success)
+                diskUsage = diskUsageResponse.Data.DiskUsage;
+
+            if (eventsResponse.Success)
+                dockerEvents = eventsResponse.Data.Events;
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading system data: {ex.Message}");
+        }
+    }
+
+    private async Task RefreshDockerEvents()
+    {
+        try
+        {
+            var eventsResponse = await SwarmService.GetDockerEventsAsync(DateTime.UtcNow.AddMinutes(-15), null);
+            if (eventsResponse.Success)
+            {
+                dockerEvents = eventsResponse.Data.Events;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error refreshing docker events: {ex.Message}");
+        }
+    }
+
+    private async Task ExecuteSystemPrune()
+    {
+        isSystemPruning = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SwarmService.PruneAllAsync();
+            if (response.Success)
+            {
+                pruneAllResult = response.Data;
+                // Reload disk usage to show updated values
+                var diskUsageResponse = await SwarmService.GetDiskUsageAsync();
+                if (diskUsageResponse.Success)
+                    diskUsage = diskUsageResponse.Data.DiskUsage;
+
+                // Refresh all data since prune affects containers, images, volumes, networks
+                await RefreshData();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error pruning system: {ex.Message}");
+        }
+        finally
+        {
+            isSystemPruning = false;
+            StateHasChanged();
+        }
     }
 
     private string GetTabClass(int tab)

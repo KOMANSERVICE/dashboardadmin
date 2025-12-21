@@ -2350,4 +2350,301 @@ public class DockerSwarmService : IDockerSwarmService
             throw new InternalServerException($"Erreur lors de la suppression de la stack '{stackName}'");
         }
     }
+
+    // System management methods
+
+    public async Task<SystemInfoDTO> GetSystemInfoAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var systemInfo = await _client.System.GetSystemInfoAsync(cancellationToken);
+
+            return new SystemInfoDTO(
+                Id: systemInfo.ID ?? "",
+                Name: systemInfo.Name ?? "",
+                OperatingSystem: systemInfo.OperatingSystem ?? "",
+                OSType: systemInfo.OSType ?? "",
+                Architecture: systemInfo.Architecture ?? "",
+                NCPU: systemInfo.NCPU,
+                MemTotal: systemInfo.MemTotal,
+                DockerRootDir: systemInfo.DockerRootDir ?? "",
+                KernelVersion: systemInfo.KernelVersion ?? "",
+                Containers: systemInfo.Containers,
+                ContainersRunning: systemInfo.ContainersRunning,
+                ContainersPaused: systemInfo.ContainersPaused,
+                ContainersStopped: systemInfo.ContainersStopped,
+                Images: systemInfo.Images,
+                Driver: systemInfo.Driver ?? "",
+                MemoryLimit: systemInfo.MemoryLimit,
+                SwapLimit: systemInfo.SwapLimit,
+                CpuCfsPeriod: systemInfo.CPUCfsPeriod,
+                CpuCfsQuota: systemInfo.CPUCfsQuota,
+                CPUShares: systemInfo.CPUShares,
+                IPv4Forwarding: systemInfo.IPv4Forwarding,
+                Debug: systemInfo.Debug,
+                ExperimentalBuild: systemInfo.ExperimentalBuild,
+                HttpProxy: systemInfo.HTTPProxy ?? "",
+                HttpsProxy: systemInfo.HTTPSProxy ?? "",
+                NoProxy: systemInfo.NoProxy ?? "",
+                ServerVersion: systemInfo.ServerVersion ?? "",
+                ClusterStore: systemInfo.ClusterStore ?? "",
+                SystemTime: DateTime.TryParse(systemInfo.SystemTime, out var st) ? st : DateTime.UtcNow,
+                LoggingDriver: systemInfo.LoggingDriver ?? ""
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker system info");
+            throw new InternalServerException("Docker socket non accessible");
+        }
+    }
+
+    public async Task<DockerVersionDTO> GetDockerVersionAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var version = await _client.System.GetVersionAsync(cancellationToken);
+
+            return new DockerVersionDTO(
+                Version: version.Version ?? "",
+                ApiVersion: version.APIVersion ?? "",
+                MinAPIVersion: version.MinAPIVersion ?? "",
+                GitCommit: version.GitCommit ?? "",
+                GoVersion: version.GoVersion ?? "",
+                Os: version.Os ?? "",
+                Arch: version.Arch ?? "",
+                KernelVersion: version.KernelVersion ?? "",
+                Experimental: version.Experimental,
+                BuildTime: DateTime.TryParse(version.BuildTime, out var bt) ? bt : DateTime.UtcNow
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker version");
+            throw new InternalServerException("Docker socket non accessible");
+        }
+    }
+
+    public async Task<DiskUsageDTO> GetDiskUsageAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Docker.DotNet doesn't have a direct GetSystemDataUsageAsync method,
+            // so we build disk usage info from available sources
+
+            // Get all images
+            var allImages = await _client.Images.ListImagesAsync(new ImagesListParameters { All = true }, cancellationToken);
+            var images = allImages.Select(i => new DiskUsageImageDTO(
+                Id: i.ID ?? "",
+                RepoTags: i.RepoTags?.ToList() ?? new List<string>(),
+                Size: i.Size,
+                SharedSize: i.SharedSize,
+                VirtualSize: i.VirtualSize,
+                Containers: i.Containers,
+                Created: i.Created
+            )).ToList();
+
+            // Get all containers (including stopped ones)
+            var allContainers = await _client.Containers.ListContainersAsync(
+                new ContainersListParameters { All = true, Size = true },
+                cancellationToken);
+            var containers = allContainers.Select(c => new DiskUsageContainerDTO(
+                Id: c.ID ?? "",
+                Name: c.Names?.FirstOrDefault()?.TrimStart('/') ?? "",
+                Image: c.Image ?? "",
+                ImageID: c.ImageID ?? "",
+                SizeRw: c.SizeRw,
+                SizeRootFs: c.SizeRootFs,
+                State: c.State ?? "",
+                Created: c.Created
+            )).ToList();
+
+            // Get all volumes
+            var volumeListResponse = await _client.Volumes.ListAsync(cancellationToken);
+            var volumes = volumeListResponse.Volumes?.Select(v => new DiskUsageVolumeDTO(
+                Name: v.Name ?? "",
+                Driver: v.Driver ?? "",
+                Mountpoint: v.Mountpoint ?? "",
+                Size: v.UsageData?.Size ?? 0,
+                UsageCount: (int)(v.UsageData?.RefCount ?? 0),
+                CreatedAt: DateTime.TryParse(v.CreatedAt, out var ca) ? ca : (DateTime?)null
+            )).ToList() ?? new List<DiskUsageVolumeDTO>();
+
+            // Build cache info is not available through Docker.DotNet API
+            List<DiskUsageBuildCacheDTO>? buildCache = null;
+
+            // Calculate summary
+            var imagesSize = images.Sum(i => i.Size);
+            var containersSize = containers.Sum(c => c.SizeRw);
+            var volumesSize = volumes.Sum(v => v.Size);
+            var buildCacheSize = 0L;
+
+            // Estimate layers size from images (shared layers between images)
+            var layersSize = images.Sum(i => i.Size - i.SharedSize);
+
+            var totalSize = layersSize + containersSize + volumesSize + buildCacheSize;
+            var reclaimableSize = CalculateReclaimableSize(images, containers, volumes, buildCache);
+
+            var summary = new DiskUsageSummaryDTO(
+                TotalSize: totalSize,
+                ReclaimableSize: reclaimableSize,
+                TotalImages: images.Count,
+                TotalContainers: containers.Count,
+                TotalVolumes: volumes.Count,
+                TotalBuildCache: 0,
+                ImagesSize: imagesSize,
+                ContainersSize: containersSize,
+                VolumesSize: volumesSize,
+                BuildCacheSize: buildCacheSize
+            );
+
+            return new DiskUsageDTO(
+                LayersSize: layersSize,
+                Images: images,
+                Containers: containers,
+                Volumes: volumes,
+                BuildCache: buildCache,
+                Summary: summary
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get Docker disk usage");
+            throw new InternalServerException("Docker socket non accessible");
+        }
+    }
+
+    private static long CalculateReclaimableSize(
+        List<DiskUsageImageDTO> images,
+        List<DiskUsageContainerDTO> containers,
+        List<DiskUsageVolumeDTO> volumes,
+        List<DiskUsageBuildCacheDTO>? buildCache)
+    {
+        long reclaimable = 0;
+
+        // Dangling images (no containers using them)
+        var usedImageIds = containers.Select(c => c.ImageID).ToHashSet();
+        reclaimable += images.Where(i => i.Containers == 0 || !usedImageIds.Contains(i.Id)).Sum(i => i.Size);
+
+        // Stopped containers
+        reclaimable += containers.Where(c => c.State == "exited" || c.State == "dead").Sum(c => c.SizeRw);
+
+        // Unused volumes
+        reclaimable += volumes.Where(v => v.UsageCount == 0).Sum(v => v.Size);
+
+        // Unused build cache
+        if (buildCache != null)
+        {
+            reclaimable += buildCache.Where(b => !b.InUse).Sum(b => b.Size);
+        }
+
+        return reclaimable;
+    }
+
+    public async Task<PruneAllResponseDTO> PruneAllAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var deletedContainers = new List<string>();
+            var deletedImages = new List<string>();
+            var deletedVolumes = new List<string>();
+            var deletedNetworks = new List<string>();
+            long containersSpaceReclaimed = 0;
+            long imagesSpaceReclaimed = 0;
+            long volumesSpaceReclaimed = 0;
+            int buildCacheDeleted = 0;
+            long buildCacheSpaceReclaimed = 0;
+
+            // 1. Prune containers (stopped containers)
+            try
+            {
+                var containerPrune = await _client.Containers.PruneContainersAsync(null, cancellationToken);
+                deletedContainers = containerPrune.ContainersDeleted?.ToList() ?? new List<string>();
+                containersSpaceReclaimed = (long)containerPrune.SpaceReclaimed;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to prune containers during prune all");
+            }
+
+            // 2. Prune images (dangling and unreferenced)
+            try
+            {
+                var imagePrune = await _client.Images.PruneImagesAsync(
+                    new ImagesPruneParameters
+                    {
+                        Filters = new Dictionary<string, IDictionary<string, bool>>
+                        {
+                            ["dangling"] = new Dictionary<string, bool> { ["false"] = true }
+                        }
+                    },
+                    cancellationToken);
+                deletedImages = imagePrune.ImagesDeleted?
+                    .Where(i => !string.IsNullOrEmpty(i.Deleted))
+                    .Select(i => i.Deleted!)
+                    .ToList() ?? new List<string>();
+                imagesSpaceReclaimed = (long)imagePrune.SpaceReclaimed;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to prune images during prune all");
+            }
+
+            // 3. Prune volumes (unused volumes)
+            try
+            {
+                var volumePrune = await _client.Volumes.PruneAsync(null, cancellationToken);
+                deletedVolumes = volumePrune.VolumesDeleted?.ToList() ?? new List<string>();
+                volumesSpaceReclaimed = (long)volumePrune.SpaceReclaimed;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to prune volumes during prune all");
+            }
+
+            // 4. Prune networks (unused networks)
+            try
+            {
+                var networkPrune = await _client.Networks.PruneNetworksAsync(null, cancellationToken);
+                deletedNetworks = networkPrune.NetworksDeleted?.ToList() ?? new List<string>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to prune networks during prune all");
+            }
+
+            // 5. Prune build cache - Docker.DotNet doesn't expose this API
+            // Build cache pruning would require direct HTTP calls to Docker API
+            // Skipping for now as it's not critical for basic cleanup
+            _logger.LogInformation("Build cache pruning is not available through Docker.DotNet API");
+
+            var totalSpaceReclaimed = containersSpaceReclaimed + imagesSpaceReclaimed + volumesSpaceReclaimed + buildCacheSpaceReclaimed;
+
+            _logger.LogInformation(
+                "Prune all completed: {ContainersDeleted} containers, {ImagesDeleted} images, {VolumesDeleted} volumes, {NetworksDeleted} networks, {BuildCacheDeleted} build cache. Total space reclaimed: {TotalSpace} bytes",
+                deletedContainers.Count, deletedImages.Count, deletedVolumes.Count, deletedNetworks.Count, buildCacheDeleted, totalSpaceReclaimed);
+
+            return new PruneAllResponseDTO(
+                ContainersDeleted: deletedContainers.Count,
+                ContainersSpaceReclaimed: containersSpaceReclaimed,
+                ImagesDeleted: deletedImages.Count,
+                ImagesSpaceReclaimed: imagesSpaceReclaimed,
+                VolumesDeleted: deletedVolumes.Count,
+                VolumesSpaceReclaimed: volumesSpaceReclaimed,
+                NetworksDeleted: deletedNetworks.Count,
+                BuildCacheDeleted: buildCacheDeleted,
+                BuildCacheSpaceReclaimed: buildCacheSpaceReclaimed,
+                TotalSpaceReclaimed: totalSpaceReclaimed,
+                DeletedContainers: deletedContainers,
+                DeletedImages: deletedImages,
+                DeletedVolumes: deletedVolumes,
+                DeletedNetworks: deletedNetworks
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to prune all Docker resources");
+            throw new InternalServerException("Erreur lors du nettoyage global des ressources Docker");
+        }
+    }
 }
