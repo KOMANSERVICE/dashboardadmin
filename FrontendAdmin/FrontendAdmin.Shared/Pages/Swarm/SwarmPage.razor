@@ -10,7 +10,9 @@
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <div>
             <h2 class="text-3xl font-bold text-primary-700 text-gray-900 sm:text-2xl">Docker Swarm</h2>
+
             <p class="text-gray-600">Gestion des services, noeuds, volumes, conteneurs, reseaux et images du cluster Docker Swarm</p>
+
         </div>
 
         <div class="flex gap-2 mt-4 md:mt-0">
@@ -50,7 +52,9 @@
                     <span>Pruner</span>
                 </Button>
             }
+
             else if (activeTab == 5)
+
             {
                 <Button type="button" @onclick="ShowCreateNetworkModal" id="addNetworkBtn"
                         IconCss="fas fa-plus" IconPlacement="ButtonIconPlacement.Left">
@@ -62,6 +66,7 @@
                     <span>Pruner</span>
                 </Button>
             }
+
             else if (activeTab == 6)
             {
                 <Button type="button" @onclick="ShowPullImageModal" id="pullImageBtn"
@@ -74,6 +79,7 @@
                     <span>Pruner</span>
                 </Button>
             }
+
         </div>
     </div>
 
@@ -106,6 +112,7 @@
                     <i class="fas fa-cube mr-2"></i>
                     Conteneurs (@containers.Count)
                 </button>
+
                 <button @onclick="() => SetActiveTab(5)"
                         class="@GetTabClass(5) whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
                     <i class="fas fa-network-wired mr-2"></i>
@@ -121,6 +128,7 @@
                     <i class="fas fa-cogs mr-2"></i>
                     Systeme
                 </button>
+
             </nav>
         </div>
     </div>
@@ -168,7 +176,9 @@
                              OnBackup="ShowBackupModal"
                              OnDelete="ShowVolumeDeleteConfirmation" />
     }
+
     else if (activeTab == 4)
+
     {
         <!-- Containers Tab -->
         <ContainerListComponent Containers="@containers"
@@ -178,7 +188,9 @@
                                 OnViewLogs="ViewContainerLogs"
                                 OnExec="ShowExecModal" />
     }
+
     else if (activeTab == 5)
+
     {
         <!-- Networks Tab -->
         <NetworkListComponent Networks="@networks"
@@ -187,6 +199,7 @@
                               OnConnect="ShowConnectContainerModal"
                               OnDelete="ShowNetworkDeleteConfirmation" />
     }
+
     else if (activeTab == 6)
     {
         <!-- Images Tab -->
@@ -210,6 +223,7 @@
                             DockerEvents="@dockerEvents"
                             OnEventsRefresh="RefreshDockerEvents" />
     }
+
 </div>
 
 <!-- Node Modals -->
@@ -551,6 +565,7 @@
     </div>
 </Modal>
 
+
 <!-- Image Modals -->
 <Modal OnCloseModal="() => showPullImageModal = false"
        ShowModal="showPullImageModal"
@@ -735,6 +750,7 @@
     private List<VolumeDto> volumes = new();
     private List<ContainerDto> containers = new();
     private List<NetworkDto> networks = new();
+
     private List<ImageDto> images = new();
     private bool isLoading = true;
     private int activeTab = 0;
@@ -798,6 +814,7 @@
     private int selectedNetworkContainerCount;
     private PruneNetworksResponse? networkPruneResult;
 
+
     // Image state
     private bool showPullImageModal;
     private bool showImageDetailsModal;
@@ -841,9 +858,11 @@
             var volumesTask = SwarmService.GetVolumesAsync();
             var containersTask = SwarmService.GetContainersAsync();
             var networksTask = SwarmService.GetNetworksAsync();
+
             var imagesTask = SwarmService.GetImagesAsync();
 
             await Task.WhenAll(stacksTask, servicesTask, nodesTask, volumesTask, containersTask, networksTask, imagesTask);
+
 
             var stacksResponse = await stacksTask;
             var servicesResponse = await servicesTask;
@@ -851,10 +870,12 @@
             var volumesResponse = await volumesTask;
             var containersResponse = await containersTask;
             var networksResponse = await networksTask;
+
             var imagesResponse = await imagesTask;
 
             if (stacksResponse.Success)
                 stacks = stacksResponse.Data.Stacks;
+
 
             if (servicesResponse.Success)
                 services = servicesResponse.Data.Services;
@@ -871,8 +892,10 @@
             if (networksResponse.Success)
                 networks = networksResponse.Data.Networks;
 
+
             if (imagesResponse.Success)
                 images = imagesResponse.Data.Images;
+
         }
         catch (Exception ex)
         {
@@ -1357,6 +1380,7 @@
         }
     }
 
+
     // Image methods
     private void ShowPullImageModal()
     {
@@ -1630,4 +1654,5 @@
             throw; // Re-throw to let the component handle the error
         }
     }
+
 }

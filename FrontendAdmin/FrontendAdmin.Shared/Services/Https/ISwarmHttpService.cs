@@ -188,6 +188,7 @@ public interface ISwarmHttpService
     [Post("/api/swarm/networks/{name}/disconnect")]
     Task<BaseResponse<DisconnectContainerResponse>> DisconnectContainerAsync(string name, [Body] DisconnectContainerRequest request);
 
+
     // Images - List
     [Get("/api/swarm/images")]
     Task<BaseResponse<GetImagesResponse>> GetImagesAsync([Query] bool? all = false);
@@ -259,4 +260,5 @@ public interface ISwarmHttpService
     // System - Prune All
     [Post("/api/swarm/system/prune")]
     Task<BaseResponse<PruneAllResponse>> PruneAllAsync();
+
 }

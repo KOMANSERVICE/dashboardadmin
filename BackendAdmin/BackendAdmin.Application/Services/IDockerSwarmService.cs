@@ -71,6 +71,7 @@ public interface IDockerSwarmService
     Task<ContainerTopDTO> GetContainerTopAsync(string containerId, CancellationToken cancellationToken = default);
     Task<IList<ContainerFileSystemChangeResponse>> GetContainerChangesAsync(string containerId, CancellationToken cancellationToken = default);
 
+
     // Metrics and monitoring methods
     Task<IList<ContainerMetricsSummaryDTO>> GetAllContainersMetricsSummaryAsync(CancellationToken cancellationToken = default);
     Task<IList<DockerEventDTO>> GetDockerEventsAsync(DateTime? since = null, DateTime? until = null, CancellationToken cancellationToken = default);
@@ -83,6 +84,7 @@ public interface IDockerSwarmService
     Task<(int count, List<string> deletedNetworks)> PruneNetworksAsync(CancellationToken cancellationToken = default);
     Task ConnectContainerToNetworkAsync(string networkName, ConnectContainerRequest request, CancellationToken cancellationToken = default);
     Task DisconnectContainerFromNetworkAsync(string networkName, DisconnectContainerRequest request, CancellationToken cancellationToken = default);
+
 
     // Image management methods
     Task<IList<ImagesListResponse>> GetImagesAsync(bool all = false, CancellationToken cancellationToken = default);
@@ -114,4 +116,5 @@ public interface IDockerSwarmService
     Task<DockerVersionDTO> GetDockerVersionAsync(CancellationToken cancellationToken = default);
     Task<DiskUsageDTO> GetDiskUsageAsync(CancellationToken cancellationToken = default);
     Task<PruneAllResponseDTO> PruneAllAsync(CancellationToken cancellationToken = default);
+
 }

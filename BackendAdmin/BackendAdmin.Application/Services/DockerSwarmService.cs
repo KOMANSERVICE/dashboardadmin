@@ -1756,6 +1756,7 @@ public class DockerSwarmService : IDockerSwarmService
         }
     }
 
+
     // Metrics and monitoring methods
 
     public async Task<IList<ContainerMetricsSummaryDTO>> GetAllContainersMetricsSummaryAsync(CancellationToken cancellationToken = default)
@@ -1881,6 +1882,7 @@ public class DockerSwarmService : IDockerSwarmService
             throw new InternalServerException("Erreur lors de la recuperation des evenements Docker");
         }
     }
+
 
     // Network management methods
 
@@ -2102,6 +2104,7 @@ public class DockerSwarmService : IDockerSwarmService
             throw new InternalServerException($"Erreur lors de la deconnexion du conteneur du reseau '{networkName}'");
         }
     }
+
 
     // Image management methods
 
@@ -3038,4 +3041,5 @@ public class DockerSwarmService : IDockerSwarmService
             throw new InternalServerException("Erreur lors du nettoyage global des ressources Docker");
         }
     }
+
 }
