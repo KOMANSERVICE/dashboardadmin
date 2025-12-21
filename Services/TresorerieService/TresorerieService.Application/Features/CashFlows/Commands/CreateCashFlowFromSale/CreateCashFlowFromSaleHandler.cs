@@ -101,7 +101,7 @@ public class CreateCashFlowFromSaleHandler(
             AccountId = command.AccountId,
             DestinationAccountId = null,
             PaymentMethod = command.PaymentMethod,
-            Date = command.SaleDate,
+            Date = command.SaleDate.ToUtc(),
             ThirdPartyType = ThirdPartyType.CUSTOMER,
             ThirdPartyName = command.CustomerName,
             ThirdPartyId = command.CustomerId,

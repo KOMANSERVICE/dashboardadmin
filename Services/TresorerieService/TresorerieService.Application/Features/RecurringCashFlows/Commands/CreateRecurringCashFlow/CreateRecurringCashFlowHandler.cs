@@ -60,9 +60,13 @@ public class CreateRecurringCashFlowHandler(
             throw new NotFoundException("Compte non trouve");
         }
 
+        // Convertir les dates en UTC
+        var startDateUtc = command.StartDate.ToUtc();
+        var endDateUtc = command.EndDate?.ToUtc();
+
         // Calculer la prochaine occurrence
         var nextOccurrence = CalculateNextOccurrence(
-            command.StartDate,
+            startDateUtc,
             command.Frequency,
             command.Interval,
             command.DayOfMonth,
@@ -86,8 +90,8 @@ public class CreateRecurringCashFlowHandler(
             Interval = command.Interval,
             DayOfMonth = command.DayOfMonth,
             DayOfWeek = command.DayOfWeek,
-            StartDate = command.StartDate,
-            EndDate = command.EndDate,
+            StartDate = startDateUtc,
+            EndDate = endDateUtc,
             NextOccurrence = nextOccurrence,
             AutoValidate = command.AutoValidate,
             IsActive = true,

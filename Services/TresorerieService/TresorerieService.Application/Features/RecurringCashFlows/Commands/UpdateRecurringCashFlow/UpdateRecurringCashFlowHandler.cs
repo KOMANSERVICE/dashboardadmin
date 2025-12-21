@@ -145,19 +145,20 @@ public class UpdateRecurringCashFlowHandler(
 
         if (data.StartDate.HasValue)
         {
-            recurringCashFlow.StartDate = data.StartDate.Value;
+            recurringCashFlow.StartDate = data.StartDate.Value.ToUtc();
             frequencyChanged = true; // Recalculer aussi si startDate change
         }
 
         if (data.EndDate.HasValue)
         {
             // Valider que EndDate est posterieur a StartDate (existant ou nouveau)
-            var startDateToCheck = data.StartDate ?? recurringCashFlow.StartDate;
-            if (data.EndDate.Value <= startDateToCheck)
+            var startDateToCheck = data.StartDate?.ToUtc() ?? recurringCashFlow.StartDate;
+            var endDateUtc = data.EndDate.Value.ToUtc();
+            if (endDateUtc <= startDateToCheck)
             {
                 throw new BadRequestException("La date de fin doit etre posterieure a la date de debut");
             }
-            recurringCashFlow.EndDate = data.EndDate.Value;
+            recurringCashFlow.EndDate = endDateUtc;
         }
 
         if (data.AutoValidate.HasValue)

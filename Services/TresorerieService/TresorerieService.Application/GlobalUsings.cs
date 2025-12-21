@@ -9,3 +9,4 @@ global using Microsoft.Extensions.DependencyInjection;
 global using System.Reflection;
 global using TresorerieService.Domain.Entities;
 global using TresorerieService.Domain.Enums;
+global using TresorerieService.Domain.Extensions;
