@@ -26,7 +26,6 @@ public class CreateAppAdmin : ICarterModule
        .ProducesProblem(StatusCodes.Status400BadRequest)
        .WithSummary("CreateAppAdmin")
        .WithDescription("CreateAppAdmin")
-       .RequireAuthorization()
-       .WithOpenApi();
+       .RequireAuthorization();
     }
 }

@@ -16,6 +16,7 @@ public static class DependencyInjection
 
         services.AddScoped<AuthServices>();
 
+        services.AddSingleton<IDockerSwarmService, DockerSwarmService>();
 
         return services;
     }

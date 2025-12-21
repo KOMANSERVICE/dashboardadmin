@@ -1,4 +1,4 @@
-﻿
+
 
 using Mapster;
 
@@ -14,7 +14,7 @@ public class GetAllMenuHandler(
         var menus = await _menuRepository.GetByConditionAsync(
             m => m.AppAdminReference == request.AppAdminReference
             , cancellationToken);
-        var result = menus.Select(m => m.Adapt<MenuStateDto>()).ToList();
+        var result = menus.OrderBy(m => m.SortOrder).Select(m => m.Adapt<MenuStateDto>()).ToList();
         return new GetAllMenuResult(result);
     }
 }

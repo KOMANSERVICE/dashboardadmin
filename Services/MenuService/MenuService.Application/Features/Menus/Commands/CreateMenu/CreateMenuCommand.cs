@@ -1,4 +1,4 @@
-﻿namespace MenuService.Application.Features.Menus.Commands.CreateMenu;
+namespace MenuService.Application.Features.Menus.Commands.CreateMenu;
 
 public record CreateMenuCommand(MenuDTO Menu)
     : ICommand<CreateMenuResult>;
@@ -25,5 +25,9 @@ public class CreateMenuValidator : AbstractValidator<CreateMenuCommand>
         RuleFor(x => x.Menu.AppAdminReference)
             .NotEmpty().WithMessage("La référence de l'application admin est requise.")
             .MaximumLength(50).WithMessage("La référence de l'application admin ne doit pas dépasser 50 caractères.");
+        RuleFor(x => x.Menu.Group)
+            .MaximumLength(50).WithMessage("Le groupe ne doit pas dépasser 50 caractères.");
+        RuleFor(x => x.Menu.SortOrder)
+            .GreaterThanOrEqualTo(0).WithMessage("SortOrder doit être supérieur ou égal à 0.");
     }
 }

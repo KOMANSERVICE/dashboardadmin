@@ -1,4 +1,5 @@
 ﻿using BackendAdmin.Application.Features.Menus.Commands.InactiveMenu;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BackendAdmin.Api.Endpoints.Menus;
 
@@ -9,7 +10,7 @@ public class InactiveMenu : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapPatch("/menu/inactive", async (InactiveMenuRequest request, ISender sender) =>
+        app.MapPatch("/menu/inactive", async ([FromBody] InactiveMenuRequest request, ISender sender) =>
         {
             var command = request.Adapt<InactiveMenuCommand>();
             var result = await sender.Send(command);
@@ -26,6 +27,6 @@ public class InactiveMenu : ICarterModule
        .WithSummary("InactiveMenu")
        .WithDescription("InactiveMenu")
        //.RequireAuthorization()
-       .WithOpenApi();
+       ;
     }
 }

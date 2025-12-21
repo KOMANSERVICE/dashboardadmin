@@ -1,4 +1,4 @@
-﻿using MenuService.Application.Data;
+using MenuService.Application.Data;
 
 namespace MenuService.Application.Features.Menus.Commands.CreateMenu;
 
@@ -38,7 +38,9 @@ public class CreateMenuHandler(
             Reference = menu.Reference,
             UrlFront = menu.UrlFront,
             Icon = menu.Icon,
-            AppAdminReference = menu.AppAdminReference
+            AppAdminReference = menu.AppAdminReference,
+            Group = menu.Group,
+            SortOrder = menu.SortOrder
         };
     }
 }

@@ -4,13 +4,16 @@ using MagasinService.Application.Features.Magasins.DTOs;
 namespace MagasinService.Application.Features.Magasins.Queries.GetOneMagasin;
 
 public class GetOneMagasinHandler(
-        IGenericRepository<StockLocation> _stockLocationRepository
+        IMagasinServiceDbContext _dbContext
     )
     : IQueryHandler<GetOneMagasinQuery, GetOneMagasinResult>
 {
     public async Task<GetOneMagasinResult> Handle(GetOneMagasinQuery request, CancellationToken cancellationToken)
     {
-        var stockLocation = await _stockLocationRepository.GetByIdAsync(request.Id);
+        var stockLocation = await _dbContext.StockLocations
+            .FirstOrDefaultAsync(
+                s => s.BoutiqueId == request.BoutiqueId && s.Id == StockLocationId.Of(request.Id),
+                cancellationToken);
 
         if (stockLocation is null)
         {

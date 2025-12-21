@@ -1,0 +1,86 @@
+services:
+  magasinDB:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_MAGASIN}
+      POSTGRES_USER: ${POSTGRES_USER_MAGASIN}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_MAGASIN}
+    volumes:
+      - pgdata_magasin:/var/lib/postgresql/data  
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_MAGASIN} -d ${POSTGRES_DB_MAGASIN}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    env_file:
+      - ./.env
+    networks:
+      - vault-net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+            
+  ef-migrator-magasinservice:
+    image: komanatse/magasinservicesql:${DOCKER_TAG}
+    environment:
+      DB_HOST: magasinDB
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER_MAGASIN}
+      DB_PASSWORD: ${POSTGRES_PASSWORD_MAGASIN}
+      DB_NAME: ${POSTGRES_DB_MAGASIN}
+    env_file:
+      - ./.env
+    networks:
+      - vault-net
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        max_attempts: 5
+        delay: 10s
+ 
+  magasinservice-api:
+    image: komanatse/magasinservice:${DOCKER_TAG}
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+      - Vault__Uri=${VAULT_URI}
+      - Vault__RoleId=${VAULT_ROLE_ID}
+      - Vault__SecretId=${VAULT_SECRET_ID}
+      - Vault__PathMountPoint=${VAULT_PATH_MOUNT_POINT_MAGASIN}
+      - Vault__MountPoint=${VAULT_MOUNT_POINT}
+      - Allow__Origins=${CORS_ALLOWED_ORIGINS}
+      - ConnectionStrings__Database=${CONNECTION_STRING_API}
+    ports:
+      - target: 8080
+        published: 9211
+        protocol: tcp
+        mode: ingress
+    env_file:
+      - ./.env
+    networks:
+      - vault-net
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      restart_policy:
+        condition: on-failure
+      
+networks:
+  vault-net:
+    external: true 
+      
+volumes:
+  pgdata_magasin:
+    external: true 

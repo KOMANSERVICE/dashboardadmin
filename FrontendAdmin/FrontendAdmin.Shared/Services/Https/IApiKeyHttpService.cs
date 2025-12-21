@@ -9,7 +9,9 @@ public interface IApiKeyHttpService
     /// Create a new API Key for an application
     /// </summary>
     [Post("/apikeys")]
+
     Task<BaseResponse<ApiKeyCreatedResponse>> CreateApiKeyAsync(CreateApiKeyRequest request);
+
 
     /// <summary>
     /// Get all API Keys for an application
@@ -28,4 +30,5 @@ public interface IApiKeyHttpService
     /// </summary>
     [Post("/apikeys/rotate")]
     Task<BaseResponse<ApiKeyCreatedResponse>> RotateApiKeyAsync(RotateApiKeyRequest request);
+
 }

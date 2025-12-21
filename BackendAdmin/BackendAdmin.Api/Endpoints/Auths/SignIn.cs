@@ -25,7 +25,6 @@ public class SignIn : ICarterModule
        .Produces<BaseResponse<SignInResponse>>(StatusCodes.Status200OK)
        .ProducesProblem(StatusCodes.Status400BadRequest)
        .WithSummary("SignIn")
-       .WithDescription("SignIn")
-       .WithOpenApi();
+       .WithDescription("SignIn");
     }
 }

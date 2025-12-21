@@ -57,6 +57,17 @@ public record ApiKeyInfo
 }
 
 /// <summary>
+/// Response wrapper for created API Key (matches backend CreateApiKeyResponse)
+/// </summary>
+public record CreateApiKeyResponseWrapper(ApiKeyCreatedResponse ApiKey);
+
+/// <summary>
+/// Response wrapper for rotated API Key (matches backend RotateApiKeyResponse)
+/// </summary>
+public record RotateApiKeyResponseWrapper(ApiKeyCreatedResponse NewApiKey);
+
+/// <summary>
+
 /// Response containing list of API Keys
 /// </summary>
 public record GetApiKeysResponse(List<ApiKeyInfo> ApiKeys);

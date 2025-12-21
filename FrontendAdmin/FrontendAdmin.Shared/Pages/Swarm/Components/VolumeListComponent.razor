@@ -1,0 +1,138 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+
+<div class="bg-white shadow-md rounded-lg overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Volume</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Taille</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cree le</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            @if (!Volumes.Any())
+            {
+                <tr>
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <i class="fas fa-database text-4xl mb-2"></i>
+                        <p>Aucun volume Docker</p>
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var volume in Volumes)
+                {
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <i class="fas fa-database text-primary-700 mr-3"></i>
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">@volume.Name</div>
+                                    <div class="text-sm text-gray-500 truncate max-w-xs" title="@volume.Mountpoint">
+                                        @TruncatePath(volume.Mountpoint)
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-sm text-gray-900">@volume.Driver</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-sm text-gray-900">@FormatBytes(volume.SizeBytes)</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="@GetStatusBadgeClass(volume.IsUsed) px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
+                                @(volume.IsUsed ? "Utilise" : "Orphelin")
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            @volume.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div class="flex justify-end gap-2">
+                                <button @onclick="() => OnViewDetails.InvokeAsync(volume.Name)"
+                                        class="text-gray-400 hover:text-primary-700 transition"
+                                        title="Details">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                                <button @onclick="() => OnBackup.InvokeAsync(volume.Name)"
+                                        class="text-gray-400 hover:text-blue-600 transition"
+                                        title="Backup">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                                <button @onclick="() => OnDelete.InvokeAsync(volume)"
+                                        class="text-gray-400 hover:text-red-600 transition"
+                                        title="Supprimer">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+        @if (Volumes.Any())
+        {
+            <tfoot class="bg-gray-100">
+                <tr>
+                    <td colspan="6" class="px-6 py-3">
+                        <div class="flex items-center gap-4 text-sm flex-wrap">
+                            <span class="font-medium text-gray-700">Total:</span>
+                            <span class="bg-primary-100 text-primary-800 px-2 py-1 rounded">
+                                @Volumes.Count volume(s)
+                            </span>
+                            <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded">
+                                <i class="fas fa-hdd mr-1"></i>@FormatBytes(Volumes.Sum(v => v.SizeBytes))
+                            </span>
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded">
+                                @Volumes.Count(v => v.IsUsed) utilise(s)
+                            </span>
+                            <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                                @Volumes.Count(v => !v.IsUsed) orphelin(s)
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+            </tfoot>
+        }
+    </table>
+</div>
+
+@code {
+    [Parameter] public List<VolumeDto> Volumes { get; set; } = new();
+    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public EventCallback<string> OnViewDetails { get; set; }
+    [Parameter] public EventCallback<string> OnBackup { get; set; }
+    [Parameter] public EventCallback<VolumeDto> OnDelete { get; set; }
+
+    private string GetStatusBadgeClass(bool isUsed)
+    {
+        return isUsed
+            ? "bg-green-100 text-green-800"
+            : "bg-yellow-100 text-yellow-800";
+    }
+
+    private string TruncatePath(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return "N/A";
+        if (path.Length <= 40) return path;
+        return "..." + path[^37..];
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:0.##} {sizes[order]}";
+    }
+}

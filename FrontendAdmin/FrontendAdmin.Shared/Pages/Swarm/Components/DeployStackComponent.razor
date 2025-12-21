@@ -1,0 +1,122 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@using System.ComponentModel.DataAnnotations
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    <EditForm Model="@model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <div class="space-y-4">
+            <!-- Stack Name -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nom de la stack *</label>
+                <InputText @bind-Value="model.Name"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-700 focus:border-transparent"
+                           placeholder="ma-stack" />
+                <ValidationMessage For="() => model.Name" class="text-red-500 text-sm mt-1" />
+            </div>
+
+            <!-- Compose File Content -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Fichier Docker Compose *</label>
+                <InputTextArea @bind-Value="model.ComposeFileContent"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-700 focus:border-transparent font-mono text-sm"
+                               rows="15"
+                               placeholder="version: '3.8'&#10;services:&#10;  web:&#10;    image: nginx:latest&#10;    ports:&#10;      - '80:80'" />
+                <ValidationMessage For="() => model.ComposeFileContent" class="text-red-500 text-sm mt-1" />
+                <p class="text-gray-500 text-xs mt-1">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Collez le contenu de votre fichier docker-compose.yml
+                </p>
+            </div>
+
+            <!-- Prune Option -->
+            <div class="flex items-center">
+                <InputCheckbox @bind-Value="model.Prune"
+                               id="pruneOption"
+                               class="h-4 w-4 text-primary-700 focus:ring-primary-700 border-gray-300 rounded" />
+                <label for="pruneOption" class="ml-2 block text-sm text-gray-700">
+                    Pruner les services supprimes
+                    <span class="text-gray-500 text-xs ml-1">(supprime les services qui ne sont plus dans le compose file)</span>
+                </label>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="mt-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
+                <i class="fas fa-exclamation-triangle mr-2"></i>@errorMessage
+            </div>
+        }
+
+        <div class="flex justify-end gap-2 mt-6">
+            <Button type="button" @onclick="OnCancel" ButtonColor="ButtonColor.Light">
+                <span>Annuler</span>
+            </Button>
+            <Button type="submit" ButtonColor="ButtonColor.Primary" Disabled="@isSubmitting">
+                @if (isSubmitting)
+                {
+                    <span class="animate-spin mr-2"><i class="fas fa-spinner"></i></span>
+                }
+                <span>Deployer</span>
+            </Button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnStackDeployed { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private DeployStackModel model = new();
+    private bool isSubmitting;
+    private string? errorMessage;
+
+    private class DeployStackModel
+    {
+        [Required(ErrorMessage = "Le nom de la stack est requis")]
+        [RegularExpression(@"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$", ErrorMessage = "Nom invalide - utilisez uniquement lettres, chiffres, tirets, underscores et points")]
+        public string Name { get; set; } = "";
+
+        [Required(ErrorMessage = "Le fichier compose est requis")]
+        public string ComposeFileContent { get; set; } = "";
+
+        public bool Prune { get; set; } = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var request = new DeployStackRequest(
+                Name: model.Name,
+                ComposeFileContent: model.ComposeFileContent,
+                Prune: model.Prune
+            );
+
+            var response = await SwarmService.DeployStackAsync(request);
+
+            if (response.Success)
+            {
+                await OnStackDeployed.InvokeAsync();
+            }
+            else
+            {
+                errorMessage = response.Message ?? "Erreur lors du deploiement de la stack";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+}

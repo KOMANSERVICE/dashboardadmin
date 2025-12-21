@@ -1,0 +1,178 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    @if (isLoading)
+    {
+        <div class="flex justify-center items-center py-8">
+            <i class="fas fa-spinner fa-spin text-2xl text-primary-700"></i>
+        </div>
+    }
+    else if (stackDetails != null)
+    {
+        <div class="space-y-4">
+            <!-- Basic Info -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Nom</label>
+                    <p class="text-gray-900">@stackDetails.Name</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Orchestrateur</label>
+                    <p class="text-gray-900">@stackDetails.Orchestrator</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Nombre de services</label>
+                    <p class="text-gray-900">@stackDetails.ServiceCount</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Creee le</label>
+                    <p class="text-gray-900">@stackDetails.CreatedAt.ToString("dd/MM/yyyy HH:mm:ss")</p>
+                </div>
+            </div>
+
+            <!-- Services List -->
+            <div>
+                <label class="text-sm font-medium text-gray-500">Services</label>
+                <div class="mt-2 bg-gray-50 rounded-lg overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Service</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Image</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Replicas</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ports</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            @foreach (var service in stackDetails.Services)
+                            {
+                                <tr class="hover:bg-gray-100">
+                                    <td class="px-4 py-2 text-sm text-gray-900">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-cube text-primary-700 mr-2"></i>
+                                            @service.Name
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-2 text-sm text-gray-600 font-mono">
+                                        @TruncateImage(service.Image)
+                                    </td>
+                                    <td class="px-4 py-2 text-sm">
+                                        <span class="@GetReplicasBadgeClass(service.Replicas, service.DesiredReplicas)">
+                                            @service.Replicas / @service.DesiredReplicas
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-2 text-sm text-gray-600">
+                                        @if (service.Ports.Any())
+                                        {
+                                            <div class="flex flex-wrap gap-1">
+                                                @foreach (var port in service.Ports)
+                                                {
+                                                    <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
+                                                        @port.PublishedPort:@port.TargetPort/@port.Protocol
+                                                    </span>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-gray-400">-</span>
+                                        }
+                                    </td>
+                                    <td class="px-4 py-2 text-sm">
+                                        <span class="@GetStatusBadgeClass(service.Status) px-2 py-0.5 rounded-full text-xs font-medium">
+                                            @service.Status
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end mt-6">
+            <Button type="button" @onclick="OnClose" ButtonColor="ButtonColor.Light">
+                <span>Fermer</span>
+            </Button>
+        </div>
+    }
+    else
+    {
+        <div class="text-center text-red-600 py-4">
+            <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+            <p>Erreur lors du chargement des details de la stack</p>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string StackName { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private StackDetailsDto? stackDetails;
+    private bool isLoading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(StackName))
+        {
+            await LoadStackDetails();
+        }
+    }
+
+    private async Task LoadStackDetails()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SwarmService.GetStackDetailsAsync(StackName);
+            if (response.Success)
+            {
+                stackDetails = response.Data.Stack;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading stack details: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string TruncateImage(string image)
+    {
+        if (string.IsNullOrEmpty(image)) return "N/A";
+        // Remove tag and hash for display
+        var imageName = image.Split(':')[0];
+        if (imageName.Length <= 40) return imageName;
+        return "..." + imageName[^37..];
+    }
+
+    private string GetReplicasBadgeClass(int replicas, int desired)
+    {
+        if (replicas >= desired)
+            return "text-green-600 font-medium";
+        if (replicas > 0)
+            return "text-yellow-600 font-medium";
+        return "text-red-600 font-medium";
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status.ToLower() switch
+        {
+            "running" => "bg-green-100 text-green-800",
+            "updating" => "bg-yellow-100 text-yellow-800",
+            "error" or "failed" => "bg-red-100 text-red-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+}

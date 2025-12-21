@@ -28,5 +28,6 @@ public interface IMenuService
     [Put("/menu")]
     Task<BaseResponse<UpdateMenuResponse>> UpdateMenuAsync(UpdateMenuRequest request);
 
-    
+    [Patch("/menu/reorder")]
+    Task<BaseResponse<ReorderMenusResponse>> ReorderMenusAsync(ReorderMenusRequest request);
 }

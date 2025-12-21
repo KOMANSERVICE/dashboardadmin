@@ -18,4 +18,7 @@ public interface IMenuHttpService
 
     [Put("/menu/{appAdminReference}")]
     Task<BaseResponse<UpdateMenuResponse>> UpdateMenuAsync(string appAdminReference, UpdateMenuRequest request);
+
+    [Patch("/menu/{appAdminReference}/reorder")]
+    Task<BaseResponse<ReorderMenusResponse>> ReorderMenusAsync(string appAdminReference, ReorderMenusRequest request);
 }
