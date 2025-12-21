@@ -130,9 +130,9 @@
 
             var response = await ApiKeyService.CreateApiKeyAsync(createRequest);
 
-            if (response.Success && response.Data?.ApiKey != null)
+            if (response.Success && response.Data != null)
             {
-                await OnApiKeyCreated.InvokeAsync(response.Data.ApiKey);
+                await OnApiKeyCreated.InvokeAsync(response.Data);
 
             }
         }

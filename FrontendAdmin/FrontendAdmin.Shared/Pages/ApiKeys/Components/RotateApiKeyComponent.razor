@@ -94,9 +94,9 @@
 
             var response = await ApiKeyService.RotateApiKeyAsync(request);
 
-            if (response.Success && response.Data?.NewApiKey != null)
+            if (response.Success && response.Data != null)
             {
-                await OnRotated.InvokeAsync(response.Data.NewApiKey);
+                await OnRotated.InvokeAsync(response.Data);
 
             }
         }
