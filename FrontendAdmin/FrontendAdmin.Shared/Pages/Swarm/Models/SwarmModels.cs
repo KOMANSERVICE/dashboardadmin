@@ -16,6 +16,45 @@ public record NodeDto(
 
 public record GetNodesResponse(List<NodeDto> Nodes);
 
+// Node details models
+public record NodeDetailsDto(
+    string Id,
+    string Hostname,
+    string Role,
+    string State,
+    string Availability,
+    string EngineVersion,
+    long NanoCPUs,
+    long MemoryBytes,
+    DateTime CreatedAt,
+    DateTime UpdatedAt,
+    string? StatusMessage,
+    string? StatusAddr,
+    string? Platform,
+    string? Architecture,
+    Dictionary<string, string> Labels
+);
+
+public record GetNodeDetailsResponse(NodeDetailsDto Node);
+
+// Node labels models
+public record GetNodeLabelsResponse(string NodeId, Dictionary<string, string> Labels);
+
+public record UpdateNodeLabelsRequest(Dictionary<string, string> Labels);
+
+public record UpdateNodeLabelsResponse(string Message);
+
+// Node action responses
+public record PromoteNodeResponse(string Message);
+
+public record DemoteNodeResponse(string Message);
+
+public record DrainNodeResponse(string Message);
+
+public record ActivateNodeResponse(string Message);
+
+public record RemoveNodeResponse(string Message);
+
 // Service models
 public record SwarmServiceDto(
     string Id,

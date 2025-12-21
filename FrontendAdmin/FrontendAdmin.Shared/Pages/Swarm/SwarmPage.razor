@@ -154,7 +154,10 @@
     else if (activeTab == 2)
     {
         <!-- Nodes Tab -->
-        <NodeListComponent Nodes="@nodes" />
+        <NodeListComponent Nodes="@nodes"
+                           OnViewDetails="ShowNodeDetails"
+                           OnEditLabels="ShowNodeLabels"
+                           OnManageNode="ShowNodeActions" />
     }
     else if (activeTab == 3)
     {
@@ -208,6 +211,29 @@
                             OnEventsRefresh="RefreshDockerEvents" />
     }
 </div>
+
+<!-- Node Modals -->
+<NodeDetailsComponent ShowModal="@showNodeDetailsModal"
+                      OnCloseModal="() => showNodeDetailsModal = false"
+                      Node="@selectedNodeDetails"
+                      IsLoading="@isNodeDetailsLoading"
+                      ErrorMessage="@nodeDetailsError" />
+
+<NodeActionsComponent ShowModal="@showNodeActionsModal"
+                      OnCloseModal="CloseNodeActionsModal"
+                      Node="@selectedNode"
+                      OnPromoteNode="PromoteNode"
+                      OnDemoteNode="DemoteNode"
+                      OnDrainNode="DrainNode"
+                      OnActivateNode="ActivateNode"
+                      OnRemoveNode="RemoveNode" />
+
+<NodeLabelsComponent ShowModal="@showNodeLabelsModal"
+                     OnCloseModal="() => showNodeLabelsModal = false"
+                     NodeId="@selectedNode?.Id"
+                     NodeHostname="@selectedNode?.Hostname"
+                     InitialLabels="@selectedNodeLabels"
+                     OnSaveLabels="SaveNodeLabels" />
 
 <!-- Service Modals -->
 <Modal OnCloseModal="() => showCreateModal = false"
@@ -786,6 +812,16 @@
     private int selectedImageContainerCount;
     private bool forceDeleteImage;
     private PruneImagesResponse? imagePruneResult;
+
+    // Node state
+    private bool showNodeDetailsModal;
+    private bool showNodeActionsModal;
+    private bool showNodeLabelsModal;
+    private bool isNodeDetailsLoading;
+    private string? nodeDetailsError;
+    private NodeDto? selectedNode;
+    private NodeDetailsDto? selectedNodeDetails;
+    private Dictionary<string, string> selectedNodeLabels = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -1440,5 +1476,158 @@
     private void NavigateToMetrics()
     {
         NavigationManager.NavigateTo("/swarm/metrics");
+    }
+
+    // Node methods
+    private async Task ShowNodeDetails(NodeDto node)
+    {
+        selectedNode = node;
+        showNodeDetailsModal = true;
+        isNodeDetailsLoading = true;
+        nodeDetailsError = null;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SwarmService.GetNodeDetailsAsync(node.Id);
+            if (response.Success)
+            {
+                selectedNodeDetails = response.Data.Node;
+            }
+            else
+            {
+                nodeDetailsError = response.Message ?? "Erreur lors de la recuperation des details du noeud";
+            }
+        }
+        catch (Exception ex)
+        {
+            nodeDetailsError = ex.Message;
+        }
+        finally
+        {
+            isNodeDetailsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ShowNodeLabels(NodeDto node)
+    {
+        selectedNode = node;
+        selectedNodeLabels = new Dictionary<string, string>();
+
+        try
+        {
+            var response = await SwarmService.GetNodeLabelsAsync(node.Id);
+            if (response.Success)
+            {
+                selectedNodeLabels = response.Data.Labels ?? new Dictionary<string, string>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading node labels: {ex.Message}");
+        }
+
+        showNodeLabelsModal = true;
+        StateHasChanged();
+    }
+
+    private void ShowNodeActions(NodeDto node)
+    {
+        selectedNode = node;
+        showNodeActionsModal = true;
+    }
+
+    private void CloseNodeActionsModal()
+    {
+        showNodeActionsModal = false;
+    }
+
+    private async Task PromoteNode(string nodeId)
+    {
+        try
+        {
+            await SwarmService.PromoteNodeAsync(nodeId);
+            showNodeActionsModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error promoting node: {ex.Message}");
+        }
+    }
+
+    private async Task DemoteNode(string nodeId)
+    {
+        try
+        {
+            await SwarmService.DemoteNodeAsync(nodeId);
+            showNodeActionsModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error demoting node: {ex.Message}");
+        }
+    }
+
+    private async Task DrainNode(string nodeId)
+    {
+        try
+        {
+            await SwarmService.DrainNodeAsync(nodeId);
+            showNodeActionsModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error draining node: {ex.Message}");
+        }
+    }
+
+    private async Task ActivateNode(string nodeId)
+    {
+        try
+        {
+            await SwarmService.ActivateNodeAsync(nodeId);
+            showNodeActionsModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error activating node: {ex.Message}");
+        }
+    }
+
+    private async Task RemoveNode((string nodeId, bool force) args)
+    {
+        try
+        {
+            await SwarmService.RemoveNodeAsync(args.nodeId, args.force);
+            showNodeActionsModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error removing node: {ex.Message}");
+        }
+    }
+
+    private async Task SaveNodeLabels(Dictionary<string, string> labels)
+    {
+        if (selectedNode == null) return;
+
+        try
+        {
+            var request = new UpdateNodeLabelsRequest(labels);
+            await SwarmService.UpdateNodeLabelsAsync(selectedNode.Id, request);
+            showNodeLabelsModal = false;
+            await RefreshData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving node labels: {ex.Message}");
+            throw; // Re-throw to let the component handle the error
+        }
     }
 }
