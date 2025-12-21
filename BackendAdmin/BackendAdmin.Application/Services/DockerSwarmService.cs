@@ -1037,16 +1037,16 @@ public class DockerSwarmService : IDockerSwarmService
                 throw new InternalServerException($"Impossible de parser les stats du conteneur '{containerId}'");
             }
 
-            // Calculate CPU percentage
+            // Calculate CPU percentage (capped to 0-100)
             var cpuDelta = (double)(stats.CPUStats?.CPUUsage?.TotalUsage ?? 0) - (double)(stats.PreCPUStats?.CPUUsage?.TotalUsage ?? 0);
             var systemDelta = (double)(stats.CPUStats?.SystemUsage ?? 0) - (double)(stats.PreCPUStats?.SystemUsage ?? 0);
             var onlineCpus = stats.CPUStats?.OnlineCPUs ?? 1;
-            var cpuPercent = systemDelta > 0 ? (cpuDelta / systemDelta) * onlineCpus * 100.0 : 0;
+            var cpuPercent = systemDelta > 0 ? Math.Min(100.0, Math.Max(0.0, (cpuDelta / systemDelta) * onlineCpus * 100.0)) : 0;
 
-            // Calculate memory percentage
+            // Calculate memory percentage (capped to 0-100)
             var memoryUsage = stats.MemoryStats?.Usage ?? 0;
             var memoryLimit = stats.MemoryStats?.Limit ?? 1;
-            var memoryPercent = (double)memoryUsage / memoryLimit * 100.0;
+            var memoryPercent = Math.Min(100.0, Math.Max(0.0, (double)memoryUsage / memoryLimit * 100.0));
 
             // Calculate network stats
             ulong rxBytes = 0, txBytes = 0, rxPackets = 0, txPackets = 0;

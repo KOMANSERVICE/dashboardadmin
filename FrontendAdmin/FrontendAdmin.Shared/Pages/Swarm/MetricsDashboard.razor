@@ -216,18 +216,22 @@
             var metricsResponse = await metricsTask;
             var eventsResponse = await eventsTask;
 
-            if (metricsResponse.Success)
+            if (metricsResponse.Success && metricsResponse.Data != null)
             {
                 containers = metricsResponse.Data.Containers?.ToList() ?? new List<ContainerMetricsSummaryDto>();
             }
             else
             {
-                errorMessage = metricsResponse.Message;
+                errorMessage = metricsResponse.Message ?? "Impossible de recuperer les metriques des conteneurs";
             }
 
-            if (eventsResponse.Success)
+            if (eventsResponse.Success && eventsResponse.Data != null)
             {
                 events = eventsResponse.Data.Events?.ToList() ?? new List<DockerEventDto>();
+            }
+            else if (string.IsNullOrEmpty(errorMessage))
+            {
+                errorMessage = eventsResponse.Message ?? "Impossible de recuperer les evenements Docker";
             }
         }
         catch (Exception ex)
@@ -246,7 +250,7 @@
         try
         {
             var response = await SwarmService.GetDockerEventsAsync();
-            if (response.Success)
+            if (response.Success && response.Data != null)
             {
                 events = response.Data.Events?.ToList() ?? new List<DockerEventDto>();
             }

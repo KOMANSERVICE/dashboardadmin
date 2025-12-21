@@ -185,13 +185,13 @@
         {
             var response = await SwarmService.GetContainerStatsAsync(ContainerId);
 
-            if (response.Success)
+            if (response.Success && response.Data != null)
             {
                 stats = response.Data.Stats;
             }
             else
             {
-                errorMessage = response.Message;
+                errorMessage = response.Message ?? "Impossible de recuperer les statistiques du conteneur";
             }
         }
         catch (Exception ex)
