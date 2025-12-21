@@ -1,3 +1,4 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
 using TresorerieService.Application.Features.CashFlows.DTOs;
 
 namespace TresorerieService.Application.Features.CashFlows.Commands.ReconcileCashFlow;
@@ -7,7 +8,8 @@ public class ReconcileCashFlowHandler(
     IGenericRepository<CashFlowHistory> cashFlowHistoryRepository,
     IGenericRepository<Category> categoryRepository,
     IGenericRepository<Account> accountRepository,
-    IUnitOfWork unitOfWork
+    IUnitOfWork unitOfWork,
+    IUserContextService userContextService
 ) : ICommandHandler<ReconcileCashFlowCommand, ReconcileCashFlowResult>
 {
     public async Task<ReconcileCashFlowResult> Handle(
@@ -15,7 +17,7 @@ public class ReconcileCashFlowHandler(
         CancellationToken cancellationToken = default)
     {
         // Verifier que l'utilisateur est manager ou admin
-        // TODO: mal gerer je vais m'enoccupé plus tard
+        // TODO: mal gerer je vais m'enoccupï¿½ plus tard
         //var userRole = command.UserRole.ToLower();
         //if (userRole != "manager" && userRole != "admin")
         //{
@@ -47,14 +49,15 @@ public class ReconcileCashFlowHandler(
             throw new BadRequestException("Ce flux est deja reconcilie");
         }
 
+        var email = userContextService.GetEmail();
+
         // Mettre a jour les informations de reconciliation
         cashFlow.IsReconciled = true;
         cashFlow.ReconciledAt = DateTime.UtcNow;
-        cashFlow.ReconciledBy = command.ReconciledBy;
+        cashFlow.ReconciledBy = email;
         cashFlow.BankStatementReference = command.BankStatementReference;
         cashFlow.UpdatedAt = DateTime.UtcNow;
-        cashFlow.UpdatedBy = command.ReconciledBy;
-
+        
         // Creer une entree dans l'historique
         var history = new CashFlowHistory
         {
@@ -64,8 +67,8 @@ public class ReconcileCashFlowHandler(
             OldStatus = cashFlow.Status.ToString(),
             NewStatus = cashFlow.Status.ToString(), // Le statut ne change pas, seul IsReconciled change
             Comment = string.IsNullOrEmpty(command.BankStatementReference)
-                ? $"Flux reconcilie par {command.ReconciledBy}"
-                : $"Flux reconcilie par {command.ReconciledBy} - Ref: {command.BankStatementReference}"
+                ? $"Flux reconcilie par {email}"
+                : $"Flux reconcilie par {email} - Ref: {command.BankStatementReference}"
         };
 
         // Sauvegarder les modifications

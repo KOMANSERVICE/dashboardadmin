@@ -1,3 +1,4 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
 using TresorerieService.Application.Features.CashFlows.DTOs;
 
 namespace TresorerieService.Application.Features.CashFlows.Queries.GetCashFlows;
@@ -5,13 +6,15 @@ namespace TresorerieService.Application.Features.CashFlows.Queries.GetCashFlows;
 public class GetCashFlowsHandler(
     IGenericRepository<CashFlow> cashFlowRepository,
     IGenericRepository<Category> categoryRepository,
-    IGenericRepository<Account> accountRepository
+    IGenericRepository<Account> accountRepository,
+    IUserContextService userContextService
 ) : IQueryHandler<GetCashFlowsQuery, GetCashFlowsResponse>
 {
     public async Task<GetCashFlowsResponse> Handle(
         GetCashFlowsQuery query,
         CancellationToken cancellationToken = default)
     {
+        var email = userContextService.GetEmail();
         // Recuperer les categories pour le mapping
         var categories = await categoryRepository.GetByConditionAsync(
             c => c.ApplicationId == query.ApplicationId,
@@ -32,10 +35,12 @@ public class GetCashFlowsHandler(
             cancellationToken);
 
         // Filtrer selon le role : employe voit ses propres flux, manager voit tous les flux
-        IEnumerable<CashFlow> filteredCashFlows = query.IsManager
-            ? cashFlows
-            : cashFlows.Where(cf => cf.CreatedBy == query.UserId);
+        //TODO: a revoir pas tres bien gerer
+        //IEnumerable<CashFlow> filteredCashFlows = query.IsManager
+        //    ? cashFlows
+        //    : cashFlows.Where(cf => cf.CreatedBy == email);
 
+        IEnumerable<CashFlow> filteredCashFlows = cashFlows;
         // Appliquer les filtres optionnels
         if (query.Type.HasValue)
         {

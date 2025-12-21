@@ -1,3 +1,4 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
 using TresorerieService.Application.Features.RecurringCashFlows.DTOs;
 
 namespace TresorerieService.Application.Features.RecurringCashFlows.Commands.UpdateRecurringCashFlow;
@@ -6,7 +7,8 @@ public class UpdateRecurringCashFlowHandler(
     IGenericRepository<RecurringCashFlow> recurringCashFlowRepository,
     IGenericRepository<Category> categoryRepository,
     IGenericRepository<Account> accountRepository,
-    IUnitOfWork unitOfWork
+    IUnitOfWork unitOfWork,
+    IUserContextService userContextService
 ) : ICommandHandler<UpdateRecurringCashFlowCommand, UpdateRecurringCashFlowResult>
 {
     public async Task<UpdateRecurringCashFlowResult> Handle(
@@ -182,10 +184,7 @@ public class UpdateRecurringCashFlowHandler(
                 recurringCashFlow.DayOfWeek);
         }
 
-        // Mettre a jour les champs d'audit
-        recurringCashFlow.UpdatedAt = DateTime.UtcNow;
-        recurringCashFlow.UpdatedBy = command.UserId;
-
+        
         recurringCashFlowRepository.UpdateData(recurringCashFlow);
         await unitOfWork.SaveChangesDataAsync(cancellationToken);
 

@@ -1,3 +1,4 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
 using TresorerieService.Application.Features.CashFlows.DTOs;
 
 namespace TresorerieService.Application.Features.CashFlows.Commands.CreateCashFlow;
@@ -97,11 +98,7 @@ public class CreateCashFlowHandler(
             IsReconciled = false,
             IsRecurring = false,
             IsSystemGenerated = false,
-            AutoApproved = false,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            CreatedBy = command.CreatedBy,
-            UpdatedBy = command.CreatedBy
+            AutoApproved = false
         };
 
         await cashFlowRepository.AddDataAsync(cashFlow, cancellationToken);

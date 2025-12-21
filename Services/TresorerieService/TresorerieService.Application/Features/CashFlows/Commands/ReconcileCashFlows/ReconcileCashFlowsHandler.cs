@@ -1,9 +1,12 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
+
 namespace TresorerieService.Application.Features.CashFlows.Commands.ReconcileCashFlows;
 
 public class ReconcileCashFlowsHandler(
     IGenericRepository<CashFlow> cashFlowRepository,
     IGenericRepository<CashFlowHistory> cashFlowHistoryRepository,
-    IUnitOfWork unitOfWork
+    IUnitOfWork unitOfWork,
+    IUserContextService userContextService
 ) : ICommandHandler<ReconcileCashFlowsCommand, ReconcileCashFlowsResult>
 {
     public async Task<ReconcileCashFlowsResult> Handle(
@@ -53,6 +56,7 @@ public class ReconcileCashFlowsHandler(
 
         // Reconcilier tous les flux
         var reconciledAt = DateTime.UtcNow;
+        var email = userContextService.GetEmail();
         var reconciledCashFlows = new List<ReconciledCashFlowDto>();
 
         foreach (var cashFlow in cashFlowList)
@@ -60,11 +64,10 @@ public class ReconcileCashFlowsHandler(
             // Mettre a jour les informations de reconciliation
             cashFlow.IsReconciled = true;
             cashFlow.ReconciledAt = reconciledAt;
-            cashFlow.ReconciledBy = command.ReconciledBy;
+            cashFlow.ReconciledBy = email;
             cashFlow.BankStatementReference = command.BankStatementReference;
             cashFlow.UpdatedAt = reconciledAt;
-            cashFlow.UpdatedBy = command.ReconciledBy;
-
+       
             // Creer une entree dans l'historique
             var history = new CashFlowHistory
             {
@@ -74,8 +77,8 @@ public class ReconcileCashFlowsHandler(
                 OldStatus = cashFlow.Status.ToString(),
                 NewStatus = cashFlow.Status.ToString(),
                 Comment = string.IsNullOrEmpty(command.BankStatementReference)
-                    ? $"Flux reconcilie en masse par {command.ReconciledBy}"
-                    : $"Flux reconcilie en masse par {command.ReconciledBy} - Ref: {command.BankStatementReference}"
+                    ? $"Flux reconcilie en masse par {email}"
+                    : $"Flux reconcilie en masse par {email} - Ref: {command.BankStatementReference}"
             };
 
             await cashFlowHistoryRepository.AddDataAsync(history, cancellationToken);

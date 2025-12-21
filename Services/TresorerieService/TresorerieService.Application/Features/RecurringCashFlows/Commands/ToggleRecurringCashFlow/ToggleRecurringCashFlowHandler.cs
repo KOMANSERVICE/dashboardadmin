@@ -1,8 +1,11 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
+
 namespace TresorerieService.Application.Features.RecurringCashFlows.Commands.ToggleRecurringCashFlow;
 
 public class ToggleRecurringCashFlowHandler(
     IGenericRepository<RecurringCashFlow> recurringCashFlowRepository,
-    IUnitOfWork unitOfWork
+    IUnitOfWork unitOfWork,
+    IUserContextService userContextService
 ) : ICommandHandler<ToggleRecurringCashFlowCommand, ToggleRecurringCashFlowResult>
 {
     public async Task<ToggleRecurringCashFlowResult> Handle(
@@ -26,9 +29,7 @@ public class ToggleRecurringCashFlowHandler(
         recurringCashFlow.IsActive = !recurringCashFlow.IsActive;
 
         // Mettre a jour les champs d'audit
-        recurringCashFlow.UpdatedAt = DateTime.UtcNow;
-        recurringCashFlow.UpdatedBy = command.UserId;
-
+       
         recurringCashFlowRepository.UpdateData(recurringCashFlow);
         await unitOfWork.SaveChangesDataAsync(cancellationToken);
 

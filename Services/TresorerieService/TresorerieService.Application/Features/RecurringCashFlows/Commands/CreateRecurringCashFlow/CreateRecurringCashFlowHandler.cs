@@ -1,3 +1,4 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
 using TresorerieService.Application.Features.RecurringCashFlows.DTOs;
 
 namespace TresorerieService.Application.Features.RecurringCashFlows.Commands.CreateRecurringCashFlow;
@@ -6,7 +7,8 @@ public class CreateRecurringCashFlowHandler(
     IGenericRepository<RecurringCashFlow> recurringCashFlowRepository,
     IGenericRepository<Category> categoryRepository,
     IGenericRepository<Account> accountRepository,
-    IUnitOfWork unitOfWork
+    IUnitOfWork unitOfWork,
+    IUserContextService userContextService
 ) : ICommandHandler<CreateRecurringCashFlowCommand, CreateRecurringCashFlowResult>
 {
     public async Task<CreateRecurringCashFlowResult> Handle(
@@ -98,9 +100,7 @@ public class CreateRecurringCashFlowHandler(
             LastGeneratedAt = null,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
-            CreatedBy = command.CreatedBy,
-            UpdatedBy = command.CreatedBy
-        };
+            };
 
         await recurringCashFlowRepository.AddDataAsync(recurringCashFlow, cancellationToken);
         await unitOfWork.SaveChangesDataAsync(cancellationToken);
