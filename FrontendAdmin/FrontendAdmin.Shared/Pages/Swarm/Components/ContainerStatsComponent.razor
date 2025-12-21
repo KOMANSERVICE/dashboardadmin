@@ -1,0 +1,247 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    @if (isLoading)
+    {
+        <LoadingData />
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="p-4 bg-red-50 text-red-700 rounded-md">
+            @errorMessage
+        </div>
+    }
+    else if (stats != null)
+    {
+        <div class="space-y-6">
+            <!-- Header avec nom et refresh -->
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">@stats.ContainerName</h3>
+                    <p class="text-sm text-gray-500">Derniere mise a jour: @stats.ReadAt.ToString("HH:mm:ss")</p>
+                </div>
+                <button @onclick="RefreshStats" class="text-primary-600 hover:text-primary-800" disabled="@isLoading">
+                    <i class="fas fa-sync-alt @(isLoading ? "animate-spin" : "")"></i>
+                    Actualiser
+                </button>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 gap-4">
+                <!-- CPU -->
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-blue-800">
+                            <i class="fas fa-microchip mr-2"></i>CPU
+                        </span>
+                        <span class="text-2xl font-bold text-blue-900">@stats.Cpu.UsagePercent.ToString("0.00")%</span>
+                    </div>
+                    <div class="w-full bg-blue-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full" style="width: @Math.Min(stats.Cpu.UsagePercent, 100)%"></div>
+                    </div>
+                    <div class="mt-2 text-xs text-blue-700">
+                        <span>@stats.Cpu.OnlineCpus CPU(s) disponible(s)</span>
+                    </div>
+                </div>
+
+                <!-- Memoire -->
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-green-800">
+                            <i class="fas fa-memory mr-2"></i>Memoire
+                        </span>
+                        <span class="text-2xl font-bold text-green-900">@stats.Memory.UsagePercent.ToString("0.00")%</span>
+                    </div>
+                    <div class="w-full bg-green-200 rounded-full h-2">
+                        <div class="bg-green-600 h-2 rounded-full" style="width: @Math.Min(stats.Memory.UsagePercent, 100)%"></div>
+                    </div>
+                    <div class="mt-2 text-xs text-green-700">
+                        <span>@FormatBytes((long)stats.Memory.Usage) / @FormatBytes((long)stats.Memory.Limit)</span>
+                    </div>
+                </div>
+
+                <!-- Reseau -->
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <span class="text-sm font-medium text-purple-800">
+                            <i class="fas fa-network-wired mr-2"></i>Reseau
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                            <span class="text-purple-600">RX:</span>
+                            <span class="font-semibold text-purple-900">@FormatBytes((long)stats.Network.RxBytes)</span>
+                        </div>
+                        <div>
+                            <span class="text-purple-600">TX:</span>
+                            <span class="font-semibold text-purple-900">@FormatBytes((long)stats.Network.TxBytes)</span>
+                        </div>
+                        <div>
+                            <span class="text-purple-600">Paquets RX:</span>
+                            <span class="font-semibold text-purple-900">@stats.Network.RxPackets</span>
+                        </div>
+                        <div>
+                            <span class="text-purple-600">Paquets TX:</span>
+                            <span class="font-semibold text-purple-900">@stats.Network.TxPackets</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Block I/O -->
+                <div class="bg-orange-50 p-4 rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <span class="text-sm font-medium text-orange-800">
+                            <i class="fas fa-hdd mr-2"></i>Block I/O
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                            <span class="text-orange-600">Lecture:</span>
+                            <span class="font-semibold text-orange-900">@FormatBytes((long)stats.BlockIO.ReadBytes)</span>
+                        </div>
+                        <div>
+                            <span class="text-orange-600">Ecriture:</span>
+                            <span class="font-semibold text-orange-900">@FormatBytes((long)stats.BlockIO.WriteBytes)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Metrics Row -->
+            <div class="grid grid-cols-3 gap-4 mt-4">
+                <!-- Health Status -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <span class="text-sm font-medium text-gray-800">
+                            <i class="fas fa-heartbeat mr-2"></i>Statut de sante
+                        </span>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="px-3 py-1 rounded-full text-sm font-semibold @GetHealthBadgeClass(stats.HealthStatus)">
+                            @stats.HealthStatus
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Restart Count -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <span class="text-sm font-medium text-gray-800">
+                            <i class="fas fa-redo mr-2"></i>Redemarrages
+                        </span>
+                    </div>
+                    <div class="text-2xl font-bold @(stats.RestartCount > 0 ? "text-yellow-600" : "text-gray-900")">
+                        @stats.RestartCount
+                    </div>
+                </div>
+
+                <!-- Uptime -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <span class="text-sm font-medium text-gray-800">
+                            <i class="fas fa-clock mr-2"></i>Uptime
+                        </span>
+                    </div>
+                    <div class="text-lg font-bold text-gray-900">
+                        @FormatUptime(stats.Uptime)
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        Demarre: @stats.StartedAt.ToString("dd/MM/yyyy HH:mm")
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="flex justify-end mt-6">
+        <Button type="button" @onclick="OnClose" ButtonColor="ButtonColor.Light">
+            <span>Fermer</span>
+        </Button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string ContainerId { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ContainerStatsDto? stats;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStats();
+    }
+
+    private async Task LoadStats()
+    {
+        if (string.IsNullOrEmpty(ContainerId)) return;
+
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await SwarmService.GetContainerStatsAsync(ContainerId);
+
+            if (response.Success && response.Data != null)
+            {
+                stats = response.Data.Stats;
+            }
+            else
+            {
+                errorMessage = response.Message ?? "Impossible de recuperer les statistiques du conteneur";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshStats()
+    {
+        await LoadStats();
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        if (bytes == 0) return "0 B";
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:0.##} {sizes[order]}";
+    }
+
+    private string FormatUptime(TimeSpan uptime)
+    {
+        if (uptime.TotalDays >= 1)
+            return $"{(int)uptime.TotalDays}j {uptime.Hours}h {uptime.Minutes}m";
+        if (uptime.TotalHours >= 1)
+            return $"{(int)uptime.TotalHours}h {uptime.Minutes}m";
+        return $"{uptime.Minutes}m {uptime.Seconds}s";
+    }
+
+    private string GetHealthBadgeClass(string? status)
+    {
+        if (string.IsNullOrEmpty(status)) return "bg-gray-100 text-gray-800";
+        return status.ToLower() switch
+        {
+            "healthy" or "running" => "bg-green-100 text-green-800",
+            "unhealthy" => "bg-red-100 text-red-800",
+            "starting" => "bg-yellow-100 text-yellow-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+}

@@ -28,7 +28,6 @@ public class Refresh : ICarterModule
         .Produces<BaseResponse<RefreshTokenResponse>>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .WithSummary("RefreshToken")
-        .WithDescription("RefreshToken")
-        .WithOpenApi();
+        .WithDescription("RefreshToken");
     }
 }

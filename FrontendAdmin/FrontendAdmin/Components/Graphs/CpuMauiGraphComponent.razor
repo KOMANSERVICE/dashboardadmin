@@ -1,0 +1,34 @@
+@using ApexCharts
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+
+@if (Stats != null && Stats.Any())
+{
+    <ApexChart TItem="ContainerMetricsSummaryDto"
+               Title="Utilisation CPU par conteneur"
+               Height="300">
+
+        <ApexPointSeries TItem="ContainerMetricsSummaryDto"
+                         Items="Stats"
+                         Name="CPU %"
+                         XValue="@(e => TruncateName(e.ContainerName))"
+                         YValue="@(e => (decimal)e.CpuPercent)"
+                         SeriesType="SeriesType.Bar"
+                         Color="#3B82F6" />
+    </ApexChart>
+}
+else
+{
+    <div class="flex items-center justify-center h-[300px] text-gray-500">
+        Aucune donnee disponible
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IEnumerable<ContainerMetricsSummaryDto> Stats { get; set; } = new List<ContainerMetricsSummaryDto>();
+
+    private string TruncateName(string name)
+    {
+        return name.Length > 15 ? name[..15] + "..." : name;
+    }
+}

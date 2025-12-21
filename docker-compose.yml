@@ -8,6 +8,9 @@ services:
   magasinDB:
     image: postgres:17
 
+  tresorerieDB:
+    image: postgres:17
+
   frontendadmin.web:
     image: ${DOCKER_REGISTRY-}frontendadminweb
     build:
@@ -38,10 +41,18 @@ services:
       context: .
       dockerfile: Services/MagasinService/MagasinService.Api/Dockerfile
 
+  tresorerieservice.api:
+    image: ${DOCKER_REGISTRY-}tresorerieserviceapi
+    build:
+      context: .
+      dockerfile: Services/TresorerieService/TresorerieService.Api/Dockerfile
+
 volumes:
   pgdata_dashadmin:
   pgdata_menu:
   pgdata_magasin:
+  pgdata_tresorerie:
+
 
 
 

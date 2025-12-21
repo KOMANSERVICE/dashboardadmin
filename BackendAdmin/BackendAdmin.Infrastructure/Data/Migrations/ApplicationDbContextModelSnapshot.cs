@@ -17,7 +17,7 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.10")
+                .HasAnnotation("ProductVersion", "10.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -210,66 +210,6 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("BackendAdmin.Domain.Models.Menu", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("ch1");
-
-                    b.Property<string>("ApiRoute")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("cf2");
-
-                    b.Property<Guid>("AppAdminId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("cf5");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("ch2");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("ch4");
-
-                    b.Property<string>("Icon")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("cf4");
-
-                    b.Property<bool>("IsActif")
-                        .HasColumnType("boolean")
-                        .HasColumnName("cf6");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("cf1");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("ch3");
-
-                    b.Property<string>("UpdatedBy")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("ch5");
-
-                    b.Property<string>("UrlFront")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("cf3");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AppAdminId");
-
-                    b.ToTable("TM00001");
-                });
-
             modelBuilder.Entity("BackendAdmin.Domain.Models.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -316,6 +256,64 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("TR00001");
+                });
+
+            modelBuilder.Entity("BackendAdmin.Domain.Models.ServiceResourceConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("rc1");
+
+                    b.Property<int?>("BlkioWeight")
+                        .HasColumnType("integer")
+                        .HasColumnName("rc8");
+
+                    b.Property<long?>("CpuLimit")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rc3");
+
+                    b.Property<long?>("CpuReservation")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rc4");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rc10");
+
+                    b.Property<long?>("MemoryLimit")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rc5");
+
+                    b.Property<long?>("MemoryReservation")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rc6");
+
+                    b.Property<long?>("PidsLimit")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rc7");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("rc2");
+
+                    b.Property<string>("UlimitsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("rc9");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rc11");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceName")
+                        .IsUnique();
+
+                    b.ToTable("TK00002");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -450,17 +448,6 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("BackendAdmin.Domain.Models.Menu", b =>
-                {
-                    b.HasOne("BackendAdmin.Domain.Models.AppAdmin", "AppAdmin")
-                        .WithMany("Menus")
-                        .HasForeignKey("AppAdminId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("AppAdmin");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -510,11 +497,6 @@ namespace BackendAdmin.Infrastructure.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("BackendAdmin.Domain.Models.AppAdmin", b =>
-                {
-                    b.Navigation("Menus");
                 });
 #pragma warning restore 612, 618
         }

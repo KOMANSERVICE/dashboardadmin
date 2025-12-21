@@ -25,7 +25,6 @@ public class GetMenuByApplication : ICarterModule
        .ProducesProblem(StatusCodes.Status400BadRequest)
        .WithSummary("GetMenuByApplication")
        .WithDescription("GetMenuByApplication")
-       .RequireAuthorization()
-       .WithOpenApi();
+       .RequireAuthorization();
     }
 }

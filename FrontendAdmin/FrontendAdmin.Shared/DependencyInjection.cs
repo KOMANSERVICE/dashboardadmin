@@ -8,6 +8,13 @@ public static class DependencyInjection
     {
         var uri = configuration["ApiSettings:Uri"]!;
 
+        
+        if (string.IsNullOrWhiteSpace(uri))
+        {
+            throw new InvalidOperationException(
+                "ApiSettings:Uri is not configured. Please check your appsettings.json file.");
+        }
+
         services.AddBlazorLibrairyServices(configuration, (options) =>
         {
             options.Uri = uri;
@@ -31,6 +38,19 @@ public static class DependencyInjection
 
         services.AddRefitClient<IApiKeyHttpService>()
             .ConfigureHttpClient(c => c.BaseAddress = new Uri(uri))
+            .AddHttpMessageHandler<CookieHandler>()
+            .AddHttpMessageHandler<JwtAuthorizationHandler>();
+
+        // Swarm Service
+        services.AddRefitClient<ISwarmHttpService>()
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri(uri))
+            .AddHttpMessageHandler<CookieHandler>()
+            .AddHttpMessageHandler<JwtAuthorizationHandler>();
+
+        // Tresorerie Service
+        var tresorerieUri = configuration["ApiSettings:TresorerieUri"] ?? uri;
+        services.AddRefitClient<ITresorerieHttpService>()
+            .ConfigureHttpClient(c => c.BaseAddress = new Uri(tresorerieUri))
             .AddHttpMessageHandler<CookieHandler>()
             .AddHttpMessageHandler<JwtAuthorizationHandler>();
 

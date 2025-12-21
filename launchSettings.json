@@ -9,7 +9,8 @@
         "menu.grpc": "StartDebugging",
         "menuservice.grpc": "StartDebugging",
         "menuservice.api": "StartDebugging",
-        "magasinservice.api": "StartDebugging"
+        "magasinservice.api": "StartDebugging",
+        "tresorerieservice.api": "StartDebugging"
       }
     }
   }

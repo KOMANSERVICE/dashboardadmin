@@ -141,8 +141,7 @@ services:
           memory: 1g
     networks:
       - vault-net
-
-      
+ 
   magasinDB:
     container_name: magasinDB
     restart: unless-stopped
@@ -169,10 +168,10 @@ services:
       - vault-net
  
   magasinservice.api:
+    container_name: magasinservice.api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
-      - ASPNETCORE_HTTPS_PORTS=8081
       - JWT__ValidAudience=${JWT_VALID_AUDIENCE_API}
       - JWT__ValidIssuer=${JWT_VALID_ISSUER_API}
       - JWT__Secret=${JWT_SECRET_API}
@@ -185,7 +184,6 @@ services:
       - ConnectionStrings__Database=${CONNECTION_STRING_API}
     ports:
       - "9211:8080"
-      - "9222:8081"
     deploy:
       resources:
         limits:
@@ -195,9 +193,63 @@ services:
     networks:
       - vault-net
  
+  tresorerieservice.api:
+    container_name: tresorerieservice.api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - Vault__Uri=${VAULT_URI}
+      - Vault__RoleId=${VAULT_ROLE_ID}
+      - Vault__SecretId=${VAULT_SECRET_ID}
+      - Vault__PathMountPoint=${VAULT_PATH_MOUNT_POINT_TRESORERIE}
+      - Vault__MountPoint=${VAULT_MOUNT_POINT}
+      - Allow__Origins=${CORS_ALLOWED_ORIGINS}
+      - ConnectionStrings__Database=${CONNECTION_STRING_API}
+      - JWT__ValidAudience=${JWT_VALID_AUDIENCE_API}
+      - JWT__ValidIssuer=${JWT_VALID_ISSUER_API}
+      - JWT__Secret=${JWT_SECRET_API}
+    ports:
+      - "9301:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    env_file:
+      - ./.env
+    networks:
+      - vault-net
+
+       
+  tresorerieDB:
+    container_name: tresorerieDB
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_TRESORERIE}
+      POSTGRES_USER: ${POSTGRES_USER_TRESORERIE}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_TRESORERIE}
+    ports:
+      - "5444:5432"
+    volumes:
+      - pgdata_tresorerie:/var/lib/postgresql/data  
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSWORD=$$POSTGRES_PASSWORD_TRESORERIE psql -U $$POSTGRES_USER_TRESORERIE -d $$POSTGRES_DB_TRESORERIE -c 'SELECT 1;' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    env_file:
+      - ./.env
+    networks:
+      - vault-net
+
+
 networks:
   vault-net:
     external: true 
+
 
 
 

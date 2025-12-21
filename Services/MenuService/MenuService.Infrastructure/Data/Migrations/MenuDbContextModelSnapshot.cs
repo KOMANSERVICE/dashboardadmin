@@ -17,7 +17,7 @@ namespace MenuService.Infrastructure.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -114,6 +114,10 @@ namespace MenuService.Infrastructure.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("cf6");
 
+                    b.Property<string>("Group")
+                        .HasColumnType("text")
+                        .HasColumnName("cf7");
+
                     b.Property<string>("Icon")
                         .IsRequired()
                         .HasColumnType("text")
@@ -132,6 +136,10 @@ namespace MenuService.Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("cf2");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("cf8");
 
                     b.Property<string>("UrlFront")
                         .IsRequired()

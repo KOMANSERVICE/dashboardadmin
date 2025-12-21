@@ -9,7 +9,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents();
 
 // Add device-specific services used by the FrontendAdmin.Shared project
@@ -38,16 +37,25 @@ else
 
 app.UseHttpsRedirection();
 
-app.UseStaticFiles();
+app.MapStaticAssets();
 app.UseAntiforgery();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/api/config", (IConfiguration config) =>
+{
+    var apiUrl = Environment.GetEnvironmentVariable("API_SETTINGS_URL")
+                 ?? config["ApiSettings:Uri"];
+
+    return Results.Json(new { ApiSettings = new { Uri = apiUrl } });
+});
+
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(
         typeof(FrontendAdmin.Shared._Imports).Assembly,
-        typeof(FrontendAdmin.Web.Client._Imports).Assembly);
+        typeof(FrontendAdmin.Web.Client._Imports).Assembly)
+    .WithStaticAssets();
 
 app.Run();

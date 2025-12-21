@@ -1,0 +1,180 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+
+<div class="bg-white shadow-md rounded-lg overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conteneur</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Etat</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cree le</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            @if (!Containers.Any())
+            {
+                <tr>
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <i class="fas fa-cube text-4xl mb-2"></i>
+                        <p>Aucun conteneur Docker</p>
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var container in Containers)
+                {
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <i class="fas fa-cube @GetStateIconColor(container.State) mr-3"></i>
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">@container.Name</div>
+                                    <div class="text-sm text-gray-500 font-mono truncate max-w-[150px]" title="@container.Id">
+                                        @TruncateId(container.Id)
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-sm text-gray-900 truncate max-w-[200px] inline-block" title="@container.Image">
+                                @TruncateImage(container.Image)
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="@GetStateBadgeClass(container.State) px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
+                                @container.State
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" title="@container.Status">
+                            @TruncateStatus(container.Status)
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            @container.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div class="flex justify-end gap-2">
+                                <button @onclick="() => OnViewDetails.InvokeAsync(container)"
+                                        class="text-gray-400 hover:text-primary-700 transition"
+                                        title="Details">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                                <button @onclick="() => OnViewStats.InvokeAsync(container)"
+                                        class="text-gray-400 hover:text-blue-600 transition"
+                                        title="Statistiques">
+                                    <i class="fas fa-chart-line"></i>
+                                </button>
+                                <button @onclick="() => OnViewLogs.InvokeAsync(container)"
+                                        class="text-gray-400 hover:text-green-600 transition"
+                                        title="Logs">
+                                    <i class="fas fa-file-alt"></i>
+                                </button>
+                                @if (container.State == "running")
+                                {
+                                    <button @onclick="() => OnExec.InvokeAsync(container)"
+                                            class="text-gray-400 hover:text-purple-600 transition"
+                                            title="Executer une commande">
+                                        <i class="fas fa-terminal"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+        @if (Containers.Any())
+        {
+            <tfoot class="bg-gray-100">
+                <tr>
+                    <td colspan="6" class="px-6 py-3">
+                        <div class="flex items-center gap-4 text-sm flex-wrap">
+                            <span class="font-medium text-gray-700">Total:</span>
+                            <span class="bg-primary-100 text-primary-800 px-2 py-1 rounded">
+                                @Containers.Count conteneur(s)
+                            </span>
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded">
+                                @Containers.Count(c => c.State?.ToLower() == "running") running
+                            </span>
+                            @if (Containers.Any(c => c.State?.ToLower() == "paused"))
+                            {
+                                <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                                    @Containers.Count(c => c.State?.ToLower() == "paused") paused
+                                </span>
+                            }
+                            @if (Containers.Any(c => c.State?.ToLower() == "exited"))
+                            {
+                                <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded">
+                                    @Containers.Count(c => c.State?.ToLower() == "exited") exited
+                                </span>
+                            }
+                            @if (Containers.Any(c => c.State?.ToLower() == "dead"))
+                            {
+                                <span class="bg-red-100 text-red-800 px-2 py-1 rounded">
+                                    @Containers.Count(c => c.State?.ToLower() == "dead") dead
+                                </span>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            </tfoot>
+        }
+    </table>
+</div>
+
+@code {
+    [Parameter] public List<ContainerDto> Containers { get; set; } = new();
+    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public EventCallback<ContainerDto> OnViewDetails { get; set; }
+    [Parameter] public EventCallback<ContainerDto> OnViewStats { get; set; }
+    [Parameter] public EventCallback<ContainerDto> OnViewLogs { get; set; }
+    [Parameter] public EventCallback<ContainerDto> OnExec { get; set; }
+
+    private string GetStateBadgeClass(string state)
+    {
+        return state?.ToLower() switch
+        {
+            "running" => "bg-green-100 text-green-800",
+            "paused" => "bg-yellow-100 text-yellow-800",
+            "restarting" => "bg-blue-100 text-blue-800",
+            "exited" => "bg-gray-100 text-gray-800",
+            "dead" => "bg-red-100 text-red-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+
+    private string GetStateIconColor(string state)
+    {
+        return state?.ToLower() switch
+        {
+            "running" => "text-green-500",
+            "paused" => "text-yellow-500",
+            "restarting" => "text-blue-500",
+            "exited" => "text-gray-500",
+            "dead" => "text-red-500",
+            _ => "text-gray-500"
+        };
+    }
+
+    private string TruncateId(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return "N/A";
+        return id.Length > 12 ? id[..12] : id;
+    }
+
+    private string TruncateImage(string image)
+    {
+        if (string.IsNullOrEmpty(image)) return "N/A";
+        if (image.Length <= 40) return image;
+        return image[..37] + "...";
+    }
+
+    private string TruncateStatus(string status)
+    {
+        if (string.IsNullOrEmpty(status)) return "N/A";
+        if (status.Length <= 30) return status;
+        return status[..27] + "...";
+    }
+}

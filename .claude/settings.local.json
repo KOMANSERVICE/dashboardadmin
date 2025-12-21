@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet --version:*)",
+      "Bash(dotnet restore:*)",
+      "Bash(dotnet ef migrations add:*)",
+      "Bash(dotnet build:*)",
+      "Bash(if exist objDocker rmdir /s /q objDocker)",
+      "Bash(dir \"C:\\\\Workspace\\\\App\\\\depensio\\\\dashboardadmin\\\\Services\\\\TresorerieService\\\\TresorerieService.Infrastructure\\\\Data\\\\Migrations\" /o-d /b)",
+      "Bash(dotnet ef migrations remove:*)"
+    ]
+  }
+}

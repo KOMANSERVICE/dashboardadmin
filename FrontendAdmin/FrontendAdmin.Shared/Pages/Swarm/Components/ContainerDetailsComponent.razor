@@ -1,0 +1,321 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    @if (isLoading)
+    {
+        <LoadingData />
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="p-4 bg-red-50 text-red-700 rounded-md">
+            @errorMessage
+        </div>
+    }
+    else if (container != null)
+    {
+        <div class="space-y-6">
+            <!-- Info generales -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">Informations generales</h3>
+                <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-md">
+                    <div>
+                        <span class="text-sm text-gray-500">ID</span>
+                        <p class="font-mono text-sm truncate" title="@container.Id">@container.Id</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Nom</span>
+                        <p class="font-semibold">@container.Name</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Image</span>
+                        <p class="font-mono text-sm break-all">@container.Image</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Status</span>
+                        <span class="@GetStatusBadgeClass(container.State) px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full">
+                            @container.State
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Commande</span>
+                        <p class="font-mono text-sm">@(container.Command ?? "N/A")</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Repertoire de travail</span>
+                        <p class="font-mono text-sm">@(container.WorkingDir ?? "/")</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Taille (Lecture/Ecriture)</span>
+                        <p>@FormatBytes(container.SizeRw)</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Taille totale</span>
+                        <p>@FormatBytes(container.SizeRootFs)</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Driver</span>
+                        <p>@container.Driver</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Cree le</span>
+                        <p>@container.CreatedAt.ToString("dd/MM/yyyy HH:mm:ss")</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration Host -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">Configuration</h3>
+                <div class="grid grid-cols-3 gap-4 bg-gray-50 p-4 rounded-md">
+                    <div>
+                        <span class="text-sm text-gray-500">Memoire limite</span>
+                        <p>@FormatBytes(container.HostConfig.Memory)</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">CPU Shares</span>
+                        <p>@container.HostConfig.CpuShares</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Restart Policy</span>
+                        <p>@(string.IsNullOrEmpty(container.HostConfig.RestartPolicy) ? "N/A" : container.HostConfig.RestartPolicy)</p>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Privileged</span>
+                        <span class="@(container.HostConfig.Privileged ? "text-red-600" : "text-green-600")">
+                            @(container.HostConfig.Privileged ? "Oui" : "Non")
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">RootFS Lecture seule</span>
+                        <span class="@(container.HostConfig.ReadonlyRootfs ? "text-green-600" : "text-gray-600")">
+                            @(container.HostConfig.ReadonlyRootfs ? "Oui" : "Non")
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ports -->
+            @if (container.Ports?.Any() == true)
+            {
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Ports</h3>
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var port in container.Ports)
+                            {
+                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-md text-sm">
+                                    @if (port.PublicPort.HasValue)
+                                    {
+                                        @($"{port.Ip ?? "0.0.0.0"}:{port.PublicPort}→{port.PrivatePort}/{port.Type}")
+                                    }
+                                    else
+                                    {
+                                        @($"{port.PrivatePort}/{port.Type}")
+                                    }
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Reseaux -->
+            @if (container.Networks?.Any() == true)
+            {
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Reseaux</h3>
+                    <div class="bg-gray-50 p-4 rounded-md overflow-auto">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="text-left py-1 text-gray-500">Reseau</th>
+                                    <th class="text-left py-1 text-gray-500">IP</th>
+                                    <th class="text-left py-1 text-gray-500">Gateway</th>
+                                    <th class="text-left py-1 text-gray-500">MAC</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var network in container.Networks)
+                                {
+                                    <tr class="border-b border-gray-200">
+                                        <td class="py-1">
+                                            <span class="px-2 py-0.5 bg-green-100 text-green-800 rounded text-xs">
+                                                @network.NetworkName
+                                            </span>
+                                        </td>
+                                        <td class="py-1 font-mono text-xs">@(network.IpAddress ?? "N/A")</td>
+                                        <td class="py-1 font-mono text-xs">@(network.Gateway ?? "N/A")</td>
+                                        <td class="py-1 font-mono text-xs">@(network.MacAddress ?? "N/A")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            <!-- Mounts -->
+            @if (container.Mounts?.Any() == true)
+            {
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Volumes / Montages</h3>
+                    <div class="bg-gray-50 p-4 rounded-md overflow-auto max-h-48">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="text-left py-1 text-gray-500">Type</th>
+                                    <th class="text-left py-1 text-gray-500">Source</th>
+                                    <th class="text-left py-1 text-gray-500">Destination</th>
+                                    <th class="text-left py-1 text-gray-500">Mode</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var mount in container.Mounts)
+                                {
+                                    <tr class="border-b border-gray-200">
+                                        <td class="py-1">
+                                            <span class="px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-xs">
+                                                @mount.Type
+                                            </span>
+                                        </td>
+                                        <td class="py-1 font-mono text-xs truncate max-w-[150px]" title="@mount.Source">@mount.Source</td>
+                                        <td class="py-1 font-mono text-xs">@mount.Destination</td>
+                                        <td class="py-1">
+                                            <span class="@(mount.ReadOnly ? "text-yellow-600" : "text-green-600") text-xs">
+                                                @(mount.ReadOnly ? "RO" : "RW")
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            <!-- Variables d'environnement -->
+            @if (container.Env?.Any() == true)
+            {
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Variables d'environnement</h3>
+                    <div class="bg-gray-50 p-4 rounded-md overflow-auto max-h-48">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="text-left py-1 text-gray-500">Cle</th>
+                                    <th class="text-left py-1 text-gray-500">Valeur</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var env in container.Env)
+                                {
+                                    <tr class="border-b border-gray-200">
+                                        <td class="py-1 font-mono text-gray-700">@env.Key</td>
+                                        <td class="py-1 font-mono text-gray-600 break-all">@env.Value</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            <!-- Labels -->
+            @if (container.Labels?.Any() == true)
+            {
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Labels</h3>
+                    <div class="bg-gray-50 p-4 rounded-md max-h-32 overflow-auto">
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var label in container.Labels)
+                            {
+                                <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs font-mono">
+                                    @label.Key=@label.Value
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="flex justify-end mt-6">
+        <Button type="button" @onclick="OnClose" ButtonColor="ButtonColor.Light">
+            <span>Fermer</span>
+        </Button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string ContainerId { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ContainerDetailsDto? container;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadContainerDetails();
+    }
+
+    private async Task LoadContainerDetails()
+    {
+        if (string.IsNullOrEmpty(ContainerId)) return;
+
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var response = await SwarmService.GetContainerInspectAsync(ContainerId);
+
+            if (response.Success)
+            {
+                container = response.Data.Details;
+            }
+            else
+            {
+                errorMessage = response.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status?.ToLower() switch
+        {
+            "running" => "bg-green-100 text-green-800",
+            "paused" => "bg-yellow-100 text-yellow-800",
+            "exited" => "bg-gray-100 text-gray-800",
+            "dead" => "bg-red-100 text-red-800",
+            "restarting" => "bg-blue-100 text-blue-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        if (bytes == 0) return "0 B";
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:0.##} {sizes[order]}";
+    }
+}

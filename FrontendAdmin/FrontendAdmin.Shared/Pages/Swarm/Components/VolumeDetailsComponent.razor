@@ -1,0 +1,180 @@
+@using FrontendAdmin.Shared.Pages.Swarm.Models
+@inject ISwarmHttpService SwarmService
+
+<div class="p-4">
+    @if (isLoading)
+    {
+        <div class="flex justify-center items-center py-8">
+            <i class="fas fa-spinner fa-spin text-2xl text-primary-700"></i>
+        </div>
+    }
+    else if (volumeDetails != null)
+    {
+        <div class="space-y-4">
+            <!-- Basic Info -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Nom</label>
+                    <p class="text-gray-900">@volumeDetails.Name</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Driver</label>
+                    <p class="text-gray-900">@volumeDetails.Driver</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Scope</label>
+                    <p class="text-gray-900">@volumeDetails.Scope</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Taille</label>
+                    <p class="text-gray-900">@FormatBytes(volumeDetails.SizeBytes)</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Cree le</label>
+                    <p class="text-gray-900">@volumeDetails.CreatedAt.ToString("dd/MM/yyyy HH:mm:ss")</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Statut</label>
+                    <p>
+                        <span class="@GetStatusBadgeClass(volumeDetails.IsUsed) px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
+                            @(volumeDetails.IsUsed ? "Utilise" : "Orphelin")
+                        </span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Mount Point -->
+            <div>
+                <label class="text-sm font-medium text-gray-500">Point de montage</label>
+                <p class="text-gray-900 break-all bg-gray-50 p-2 rounded text-sm font-mono">@volumeDetails.Mountpoint</p>
+            </div>
+
+            <!-- Used by Containers -->
+            @if (volumeDetails.UsedByContainers.Any())
+            {
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Utilise par</label>
+                    <div class="mt-1 flex flex-wrap gap-2">
+                        @foreach (var container in volumeDetails.UsedByContainers)
+                        {
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
+                                <i class="fas fa-cube mr-1"></i>@container
+                            </span>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Labels -->
+            @if (volumeDetails.Labels.Any())
+            {
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Labels</label>
+                    <div class="mt-1 bg-gray-50 rounded p-2">
+                        <table class="w-full text-sm">
+                            @foreach (var label in volumeDetails.Labels)
+                            {
+                                <tr>
+                                    <td class="font-mono text-gray-600 pr-4">@label.Key</td>
+                                    <td class="font-mono text-gray-900 break-all">@label.Value</td>
+                                </tr>
+                            }
+                        </table>
+                    </div>
+                </div>
+            }
+
+            <!-- Options -->
+            @if (volumeDetails.Options.Any())
+            {
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Options</label>
+                    <div class="mt-1 bg-gray-50 rounded p-2">
+                        <table class="w-full text-sm">
+                            @foreach (var option in volumeDetails.Options)
+                            {
+                                <tr>
+                                    <td class="font-mono text-gray-600 pr-4">@option.Key</td>
+                                    <td class="font-mono text-gray-900 break-all">@option.Value</td>
+                                </tr>
+                            }
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="flex justify-end mt-6">
+            <Button type="button" @onclick="OnClose" ButtonColor="ButtonColor.Light">
+                <span>Fermer</span>
+            </Button>
+        </div>
+    }
+    else
+    {
+        <div class="text-center text-red-600 py-4">
+            <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+            <p>Erreur lors du chargement des details du volume</p>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string VolumeName { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private VolumeDetailsDto? volumeDetails;
+    private bool isLoading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(VolumeName))
+        {
+            await LoadVolumeDetails();
+        }
+    }
+
+    private async Task LoadVolumeDetails()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await SwarmService.GetVolumeDetailsAsync(VolumeName);
+            if (response.Success)
+            {
+                volumeDetails = response.Data.Volume;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading volume details: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetStatusBadgeClass(bool isUsed)
+    {
+        return isUsed
+            ? "bg-green-100 text-green-800"
+            : "bg-yellow-100 text-yellow-800";
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:0.##} {sizes[order]}";
+    }
+}

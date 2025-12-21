@@ -2,7 +2,6 @@
 namespace BackendAdmin.Application.Features.Menus.Commands.CreateMenu;
 
 public class CreateMenuHandler(
-        IGenericRepository<Menu> _menuRepository,
         IUnitOfWork _unitOfWork,
         IMenuService menuService
     )

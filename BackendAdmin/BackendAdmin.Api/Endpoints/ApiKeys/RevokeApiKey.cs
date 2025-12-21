@@ -4,16 +4,17 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BackendAdmin.Api.Endpoints.ApiKeys;
 
-public record RevokeApiKeyRequest(RevokeApiKeyDTO RevokeRequest);
 public record RevokeApiKeyResponse(bool Success);
 
 public class RevokeApiKey : ICarterModule
 {
     public void AddRoutes(IEndpointRouteBuilder app)
     {
-        app.MapDelete("/apikeys", async ([FromBody] RevokeApiKeyRequest request, ISender sender) =>
+
+        app.MapDelete("/apikeys", async ([FromBody] RevokeApiKeyDTO request, ISender sender) =>
+
         {
-            var command = request.Adapt<RevokeApiKeyCommand>();
+            var command = new RevokeApiKeyCommand(request);
             var result = await sender.Send(command);
             var response = result.Adapt<RevokeApiKeyResponse>();
             var baseResponse = ResponseFactory.Success(
@@ -29,7 +30,6 @@ public class RevokeApiKey : ICarterModule
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .WithSummary("Revoque une API Key")
         .WithDescription("Revoque definitivement une API Key. L'operation est irreversible.")
-        .RequireAuthorization()
-        .WithOpenApi();
+        .RequireAuthorization();
     }
 }
