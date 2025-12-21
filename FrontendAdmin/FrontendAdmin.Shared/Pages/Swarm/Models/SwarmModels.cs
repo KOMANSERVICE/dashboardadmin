@@ -152,8 +152,14 @@ public record ScaleServiceResponse(
     int NewReplicas
 );
 
+// Restart service models
+public record RestartServiceResponse(string ServiceName, string Message);
+
 // Rollback service models
-public record RollbackServiceResponse(string ServiceName);
+public record RollbackServiceResponse(string ServiceName, string? Message = null);
+
+// Delete service models
+public record DeleteServiceResponse(string ServiceName, string Message);
 
 // Volume models
 public record VolumeDto(

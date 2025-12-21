@@ -66,7 +66,7 @@ public interface ISwarmHttpService
 
     // Services - Delete
     [Delete("/api/swarm/services/{name}")]
-    Task DeleteServiceAsync(string name);
+    Task<BaseResponse<DeleteServiceResponse>> DeleteServiceAsync(string name);
 
     // Services - Scale
     [Post("/api/swarm/services/{name}/scale")]
@@ -74,7 +74,7 @@ public interface ISwarmHttpService
 
     // Services - Restart
     [Post("/api/swarm/services/{name}/restart")]
-    Task<BaseResponse<object>> RestartServiceAsync(string name);
+    Task<BaseResponse<RestartServiceResponse>> RestartServiceAsync(string name);
 
     // Services - Rollback
     [Post("/api/swarm/services/{name}/rollback")]
