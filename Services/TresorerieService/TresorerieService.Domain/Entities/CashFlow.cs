@@ -108,8 +108,8 @@ public class CashFlow : Entity<Guid>
     public string? RecurringCashFlowId { get; set; }
 
     // Budget (seulement pour EXPENSE)
-    //[Column("budget_id")]
-    //public string? BudgetId { get; set; }
+    [Column("budget_id")]
+    public Guid? BudgetId { get; set; }
 
 
     [Column("fld31")]
@@ -137,7 +137,7 @@ public class CashFlow : Entity<Guid>
 
     public virtual RecurringCashFlow? RecurringCashFlow { get; set; }
 
-    // public virtual Budget? Budget { get; set; }
+    public virtual Budget? Budget { get; set; }
 
     public virtual ICollection<CashFlowHistory> History { get; set; }
 }

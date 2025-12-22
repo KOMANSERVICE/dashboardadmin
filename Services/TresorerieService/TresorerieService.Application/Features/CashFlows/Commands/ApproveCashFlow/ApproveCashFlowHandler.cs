@@ -8,6 +8,8 @@ public class ApproveCashFlowHandler(
     IGenericRepository<CashFlowHistory> cashFlowHistoryRepository,
     IGenericRepository<Category> categoryRepository,
     IGenericRepository<Account> accountRepository,
+    IGenericRepository<Budget> budgetRepository,
+    IGenericRepository<BudgetAlert> budgetAlertRepository,
     IUnitOfWork unitOfWork,
     IUserContextService userContextService
 ) : ICommandHandler<ApproveCashFlowCommand, ApproveCashFlowResult>
@@ -81,12 +83,8 @@ public class ApproveCashFlowHandler(
             // Debiter le compte pour une depense
             account.CurrentBalance -= cashFlow.Amount;
 
-            // TODO: Mettre a jour le budget dans une prochaine US
-            // L'entite Budget est commentee dans CashFlow.cs (lignes 111-112)
-            // Une fois l'entite Budget creee, on pourra:
-            // 1. Recuperer le budget associe a cette categorie/periode
-            // 2. Incrementer le montant consomme du budget
-            // 3. Verifier les alertes de depassement
+            // Mettre a jour le budget si un budget est associe
+            await UpdateBudgetForExpenseAsync(cashFlow, cancellationToken);
         }
 
         // Creer une entree dans l'historique
@@ -158,5 +156,123 @@ public class ApproveCashFlowHandler(
         );
 
         return new ApproveCashFlowResult(cashFlowDto, account.CurrentBalance);
+    }
+
+    /// <summary>
+    /// Met a jour le budget associe a une depense approuvee.
+    /// - Ajoute le montant au spentAmount du budget
+    /// - Met a jour le flag isExceeded si spentAmount >= allocatedAmount
+    /// - Cree une alerte si le seuil est atteint ou depasse
+    /// </summary>
+    private async Task UpdateBudgetForExpenseAsync(CashFlow cashFlow, CancellationToken cancellationToken)
+    {
+        // Verifier si le flux a un budget associe
+        if (!cashFlow.BudgetId.HasValue)
+        {
+            return;
+        }
+
+        // Recuperer le budget
+        var budgets = await budgetRepository.GetByConditionAsync(
+            b => b.Id == cashFlow.BudgetId.Value && b.IsActive,
+            cancellationToken);
+
+        var budget = budgets.FirstOrDefault();
+        if (budget == null)
+        {
+            // Budget non trouve ou inactif, on ne fait rien
+            return;
+        }
+
+        // Stocker les anciennes valeurs pour detecter les changements
+        var wasExceeded = budget.IsExceeded;
+        var previousSpentAmount = budget.SpentAmount;
+
+        // Ajouter le montant de la depense au montant depense
+        budget.SpentAmount += cashFlow.Amount;
+
+        // Verifier si le budget est depasse
+        if (budget.SpentAmount >= budget.AllocatedAmount)
+        {
+            budget.IsExceeded = true;
+        }
+
+        // Mettre a jour le budget
+        budgetRepository.UpdateData(budget);
+
+        // Calculer le taux de consommation
+        var consumptionRate = budget.AllocatedAmount > 0
+            ? (budget.SpentAmount / budget.AllocatedAmount) * 100
+            : 0;
+
+        // Creer une alerte si necessaire
+        await CreateBudgetAlertIfNeededAsync(
+            budget,
+            cashFlow,
+            wasExceeded,
+            previousSpentAmount,
+            consumptionRate,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Cree une alerte budgetaire si le seuil est atteint ou si le budget est depasse.
+    /// </summary>
+    private async Task CreateBudgetAlertIfNeededAsync(
+        Budget budget,
+        CashFlow cashFlow,
+        bool wasExceeded,
+        decimal previousSpentAmount,
+        decimal consumptionRate,
+        CancellationToken cancellationToken)
+    {
+        string? alertType = null;
+        string? message = null;
+
+        // Cas 1: Budget vient d'etre depasse (transition de non-depasse a depasse)
+        if (budget.IsExceeded && !wasExceeded)
+        {
+            alertType = "EXCEEDED";
+            message = $"Le budget '{budget.Name}' a ete depasse. " +
+                      $"Montant alloue: {budget.AllocatedAmount} {budget.Currency}, " +
+                      $"Montant depense: {budget.SpentAmount} {budget.Currency}";
+        }
+        // Cas 2: Seuil d'alerte vient d'etre atteint (sans depasser le budget)
+        else if (!budget.IsExceeded)
+        {
+            var previousConsumptionRate = budget.AllocatedAmount > 0
+                ? (previousSpentAmount / budget.AllocatedAmount) * 100
+                : 0;
+
+            // Verifier si on vient de franchir le seuil d'alerte
+            if (consumptionRate >= budget.AlertThreshold && previousConsumptionRate < budget.AlertThreshold)
+            {
+                alertType = "THRESHOLD_REACHED";
+                message = $"Le budget '{budget.Name}' a atteint {consumptionRate:F1}% de consommation. " +
+                          $"Seuil d'alerte: {budget.AlertThreshold}%. " +
+                          $"Montant restant: {budget.RemainingAmount} {budget.Currency}";
+            }
+        }
+
+        // Creer l'alerte si necessaire
+        if (alertType != null)
+        {
+            var alert = new BudgetAlert
+            {
+                Id = Guid.NewGuid(),
+                BudgetId = budget.Id,
+                CashFlowId = cashFlow.Id,
+                AlertType = alertType,
+                SpentAmountAtAlert = budget.SpentAmount,
+                AllocatedAmountAtAlert = budget.AllocatedAmount,
+                ConsumptionRate = consumptionRate,
+                ThresholdAtAlert = budget.AlertThreshold,
+                Message = message,
+                IsAcknowledged = false,
+                CreatedBy = cashFlow.ValidatedBy ?? "system"
+            };
+
+            await budgetAlertRepository.AddDataAsync(alert, cancellationToken);
+        }
     }
 }
