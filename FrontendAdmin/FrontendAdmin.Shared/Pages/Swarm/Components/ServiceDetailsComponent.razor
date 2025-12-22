@@ -194,7 +194,7 @@
     private bool isLoadingTasks = true;
     private string? errorMessage;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
         await LoadServiceDetails();
         await LoadTasks();
