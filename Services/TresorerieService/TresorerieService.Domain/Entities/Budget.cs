@@ -71,4 +71,5 @@ public class Budget :Entity<Guid>
     // Navigation properties
     public virtual ICollection<CashFlow> Expenses { get; set; } = new List<CashFlow>();
     public virtual ICollection<BudgetCategory> BudgetCategories { get; set; } = new List<BudgetCategory>();
+    public virtual ICollection<BudgetAlert> Alerts { get; set; } = new List<BudgetAlert>();
 }
