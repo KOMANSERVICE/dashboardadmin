@@ -769,7 +769,14 @@
        ModalTitle="@($"Services de la stack: {selectedStackName}")"
        Size="ModalSize.Large">
     <StackServicesComponent StackName="@selectedStackName"
-                            OnClose="() => showStackServicesModal = false" />
+                            OnClose="() => showStackServicesModal = false"
+                            OnViewDetails="ViewServiceDetails"
+                            OnViewLogs="ViewServiceLogs"
+                            OnScale="ShowScaleDialogFromStackService"
+                            OnRestart="RestartService"
+                            OnRollback="RollbackService"
+                            OnDelete="ShowDeleteConfirmation"
+                            OnResources="ShowResourcesModal" />
 </Modal>
 
 <Modal OnCloseModal="() => showStackDeleteModal = false"
@@ -1146,6 +1153,13 @@
     }
 
     private void ShowScaleDialog(SwarmServiceDto service)
+    {
+        selectedServiceName = service.Name;
+        selectedServiceReplicas = service.DesiredReplicas;
+        showScaleModal = true;
+    }
+
+    private void ShowScaleDialogFromStackService(StackServiceDto service)
     {
         selectedServiceName = service.Name;
         selectedServiceReplicas = service.DesiredReplicas;
