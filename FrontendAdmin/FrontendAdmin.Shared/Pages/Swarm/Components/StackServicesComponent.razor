@@ -19,6 +19,7 @@ else if (services.Any())
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Replicas</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ports</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -28,11 +29,16 @@ else if (services.Any())
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <i class="fas fa-cube text-primary-700 mr-3"></i>
-                                    <div class="text-sm font-medium text-gray-900">@service.Name</div>
+                                    <div>
+                                        <div class="text-sm font-medium text-gray-900">@service.Name</div>
+                                        <div class="text-sm text-gray-500">@service.Id[..12]</div>
+                                    </div>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                @service.Image
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-900 max-w-xs truncate" title="@service.Image">
+                                    @GetImageShortName(service.Image)
+                                </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full @GetReplicaClass(service)">
@@ -53,6 +59,45 @@ else if (services.Any())
                                 {
                                     <span class="text-gray-400">-</span>
                                 }
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div class="flex justify-end gap-2">
+                                    <button @onclick="() => OnViewDetails.InvokeAsync(service.Name)"
+                                            class="text-gray-400 hover:text-primary-700 transition"
+                                            title="Details">
+                                        <i class="fas fa-info-circle"></i>
+                                    </button>
+                                    <button @onclick="() => OnViewLogs.InvokeAsync(service.Name)"
+                                            class="text-gray-400 hover:text-primary-700 transition"
+                                            title="Logs">
+                                        <i class="fas fa-file-alt"></i>
+                                    </button>
+                                    <button @onclick="() => OnScale.InvokeAsync(service)"
+                                            class="text-gray-400 hover:text-primary-700 transition"
+                                            title="Scaler">
+                                        <i class="fas fa-expand-arrows-alt"></i>
+                                    </button>
+                                    <button @onclick="() => OnResources.InvokeAsync(service.Name)"
+                                            class="text-gray-400 hover:text-green-600 transition"
+                                            title="Ressources">
+                                        <i class="fas fa-microchip"></i>
+                                    </button>
+                                    <button @onclick="() => OnRestart.InvokeAsync(service.Name)"
+                                            class="text-gray-400 hover:text-yellow-600 transition"
+                                            title="Redemarrer">
+                                        <i class="fas fa-redo"></i>
+                                    </button>
+                                    <button @onclick="() => OnRollback.InvokeAsync(service.Name)"
+                                            class="text-gray-400 hover:text-blue-600 transition"
+                                            title="Rollback">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                    <button @onclick="() => OnDelete.InvokeAsync(service.Name)"
+                                            class="text-gray-400 hover:text-red-600 transition"
+                                            title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     }
@@ -85,6 +130,13 @@ else
 @code {
     [Parameter] public string StackName { get; set; } = "";
     [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<string> OnViewDetails { get; set; }
+    [Parameter] public EventCallback<string> OnViewLogs { get; set; }
+    [Parameter] public EventCallback<StackServiceDto> OnScale { get; set; }
+    [Parameter] public EventCallback<string> OnRestart { get; set; }
+    [Parameter] public EventCallback<string> OnRollback { get; set; }
+    [Parameter] public EventCallback<string> OnDelete { get; set; }
+    [Parameter] public EventCallback<string> OnResources { get; set; }
 
     private List<StackServiceDto> services = new();
     private bool isLoading = true;
@@ -116,6 +168,13 @@ else
             isLoading = false;
             StateHasChanged();
         }
+    }
+
+    private string GetImageShortName(string image)
+    {
+        if (string.IsNullOrEmpty(image)) return "N/A";
+        var parts = image.Split('/');
+        return parts.Length > 0 ? parts[^1] : image;
     }
 
     private string GetReplicaClass(StackServiceDto service)
