@@ -17,7 +17,8 @@ public class TresorerieDbContext : DbContext//, IMenuDbContext
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<CashFlow> CashFlows => Set<CashFlow>();
-    public DbSet<CashFlowHistory> Budgets => Set<CashFlowHistory>();
+    public DbSet<Budget> Budgets => Set<Budget>();
+    public DbSet<BudgetCategory> BudgetCategories => Set<BudgetCategory>();
     public DbSet<RecurringCashFlow> RecurringCashFlows => Set<RecurringCashFlow>();
     public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();
 
