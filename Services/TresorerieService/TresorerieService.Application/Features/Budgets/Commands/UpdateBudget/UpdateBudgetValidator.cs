@@ -32,8 +32,8 @@ public class UpdateBudgetValidator : AbstractValidator<UpdateBudgetCommand>
             .When(x => x.AllocatedAmount.HasValue);
 
         RuleFor(x => x.AlertThreshold)
-            .InclusiveBetween(1, 100)
-            .WithMessage("Le seuil d'alerte doit être compris entre 1 et 100")
+            .InclusiveBetween(0, 100)
+            .WithMessage("Le seuil d'alerte doit être entre 0 et 100")
             .When(x => x.AlertThreshold.HasValue);
     }
 }
