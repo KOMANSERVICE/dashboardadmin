@@ -2,6 +2,8 @@ using Docker.DotNet;
 using Docker.DotNet.Models;
 using Microsoft.Extensions.Logging;
 using BackendAdmin.Application.Features.Swarm.DTOs;
+using System.Net.Sockets;
+using Newtonsoft.Json;
 
 namespace BackendAdmin.Application.Services;
 
@@ -9,6 +11,8 @@ public class DockerSwarmService : IDockerSwarmService
 {
     private readonly ILogger<DockerSwarmService> _logger;
     private readonly DockerClient _client;
+    private readonly HttpClient _httpClient;
+    private const string DockerSocketPath = "/var/run/docker.sock";
 
     public DockerSwarmService(ILogger<DockerSwarmService> logger)
     {
@@ -16,14 +20,36 @@ public class DockerSwarmService : IDockerSwarmService
         _client = new DockerClientConfiguration(
             new Uri("unix:///var/run/docker.sock"))
             .CreateClient();
+
+        // Create HttpClient for direct Docker API calls with status parameter
+        var socketsHandler = new SocketsHttpHandler
+        {
+            ConnectCallback = async (context, cancellationToken) =>
+            {
+                var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+                var endpoint = new UnixDomainSocketEndPoint(DockerSocketPath);
+                await socket.ConnectAsync(endpoint, cancellationToken);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+        };
+        _httpClient = new HttpClient(socketsHandler)
+        {
+            BaseAddress = new Uri("http://localhost")
+        };
     }
 
     public async Task<IList<SwarmService>> GetServicesAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            var services = await _client.Swarm.ListServicesAsync(null, cancellationToken);
-            return services.ToList();
+            // Use direct HTTP call with status=true parameter to get ServiceStatus
+            var response = await _httpClient.GetAsync("/services?status=true", cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            var services = JsonConvert.DeserializeObject<SwarmService[]>(content);
+
+            return services?.ToList() ?? new List<SwarmService>();
         }
         catch (Exception ex)
         {
