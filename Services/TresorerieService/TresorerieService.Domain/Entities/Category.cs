@@ -28,9 +28,6 @@ public class Category : Entity<Guid>
     public string BoutiqueId { get; set; } = string.Empty;
 
     // Navigation properties
-    public virtual ICollection<CashFlow> CashFlows { get; set; }
-    
-    
-    //public virtual ICollection<RecurringCashFlow> RecurringCashFlows { get; set; }
-    //public virtual ICollection<BudgetCategory> BudgetCategories { get; set; }
+    public virtual ICollection<CashFlow> CashFlows { get; set; } = new List<CashFlow>();
+    public virtual ICollection<BudgetCategory> BudgetCategories { get; set; } = new List<BudgetCategory>();
 }
