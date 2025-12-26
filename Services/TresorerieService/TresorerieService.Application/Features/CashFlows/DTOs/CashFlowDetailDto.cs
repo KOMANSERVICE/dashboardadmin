@@ -81,5 +81,11 @@ public record CashFlowDetailDto(
     // Budget (non implemente - toujours null pour l'instant)
     string? BudgetId,
     string? BudgetName,
-    decimal? BudgetImpact
+    decimal? BudgetImpact,
+
+    // Contre-passation
+    Guid? OriginalCashFlowId = null,
+    bool IsReversal = false,
+    bool IsReversed = false,
+    string? ReversalReason = null
 );

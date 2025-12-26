@@ -21,5 +21,8 @@ public record CashFlowListDto(
     DateTime Date,
     string? ThirdPartyName,
     DateTime CreatedAt,
-    string CreatedBy
+    string CreatedBy,
+    // Contre-passation
+    bool IsReversal = false,
+    bool IsReversed = false
 );

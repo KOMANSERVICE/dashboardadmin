@@ -123,7 +123,9 @@ public class GetCashFlowsHandler(
                 Date: cf.Date,
                 ThirdPartyName: cf.ThirdPartyName,
                 CreatedAt: cf.CreatedAt,
-                CreatedBy: cf.CreatedBy
+                CreatedBy: cf.CreatedBy,
+                IsReversal: cf.IsReversal,
+                IsReversed: cf.IsReversed
             ))
             .ToList();
 

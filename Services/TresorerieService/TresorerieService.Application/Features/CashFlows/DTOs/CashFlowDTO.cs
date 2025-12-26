@@ -31,5 +31,9 @@ public record CashFlowDTO(
     string? SubmittedBy,
     DateTime? ValidatedAt,
     string? ValidatedBy,
-    string? RejectionReason
+    string? RejectionReason,
+    // Contre-passation
+    Guid? OriginalCashFlowId = null,
+    bool IsReversal = false,
+    bool IsReversed = false
 );
