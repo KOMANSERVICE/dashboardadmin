@@ -129,6 +129,18 @@ public class CashFlow : Entity<Guid>
     [Column("fld35")]
     public bool AutoApproved { get; set; } = false;
 
+    // Contre-passation
+    [Column("fld36")]
+    public Guid? OriginalCashFlowId { get; set; }
+
+    [Column("fld37")]
+    public bool IsReversal { get; set; } = false;
+
+    [Column("fld38")]
+    public bool IsReversed { get; set; } = false;
+
+    public virtual CashFlow? OriginalCashFlow { get; set; }
+
     public virtual Category Category { get; set; }
 
     public virtual Account Account { get; set; }

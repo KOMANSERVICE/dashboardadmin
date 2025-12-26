@@ -40,5 +40,11 @@ public class CashFlowConfigurations : IEntityTypeConfiguration<CashFlow>
         // La relation avec CashFlowHistory utilise CashFlowId comme string, pas comme FK
         // On ignore la navigation pour eviter la creation d'une colonne shadow
         builder.Ignore(e => e.History);
+
+        // Relation self-referencing pour la contre-passation
+        builder.HasOne(e => e.OriginalCashFlow)
+            .WithMany()
+            .HasForeignKey(e => e.OriginalCashFlowId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
