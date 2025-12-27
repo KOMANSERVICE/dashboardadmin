@@ -8,6 +8,7 @@ on:
 jobs:
   deploy:
     if: >
+      github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       startsWith(github.event.workflow_run.head_branch, 'v')
     uses: ./.github/workflows/reusable-deploy.yml
