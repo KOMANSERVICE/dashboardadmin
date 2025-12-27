@@ -64,7 +64,7 @@ public class CreateBudgetHandler(
             EndDate = command.EndDate,
             AllocatedAmount = command.AllocatedAmount,
             SpentAmount = 0,
-            Currency = "USD",
+            Currency = "XOF",
             Type = command.Type,
             AlertThreshold = command.AlertThreshold,
             IsExceeded = false,
