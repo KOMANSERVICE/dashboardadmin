@@ -12,7 +12,6 @@ public record UpdateRecurringCashFlowCommand(
     Guid Id,
     string ApplicationId,
     string BoutiqueId,
-    string UserId,
     UpdateRecurringCashFlowDto Data
 ) : ICommand<UpdateRecurringCashFlowResult>;
 

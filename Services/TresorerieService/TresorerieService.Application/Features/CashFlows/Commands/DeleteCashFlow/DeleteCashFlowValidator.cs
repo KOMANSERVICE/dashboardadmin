@@ -15,9 +15,5 @@ public class DeleteCashFlowValidator : AbstractValidator<DeleteCashFlowCommand>
         RuleFor(x => x.BoutiqueId)
             .NotEmpty()
             .WithMessage("L'identifiant de la boutique est obligatoire");
-
-        RuleFor(x => x.UserId)
-            .NotEmpty()
-            .WithMessage("L'identifiant de l'utilisateur est obligatoire");
     }
 }

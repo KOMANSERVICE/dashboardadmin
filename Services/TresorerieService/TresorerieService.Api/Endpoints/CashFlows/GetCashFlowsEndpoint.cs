@@ -40,12 +40,6 @@ public class GetCashFlowsEndpoint : ICarterModule
                 return Results.BadRequest(new { error = "L'en-tete X-Boutique-Id est obligatoire" });
             }
 
-            // Extraire le userId du token JWT
-            var userId = httpContext.User.FindFirst("sub")?.Value
-                         ?? httpContext.User.FindFirst("userId")?.Value
-                         ?? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                         ?? "unknown";
-
             // Extraire le role de l'utilisateur du token JWT
             var userRole = httpContext.User.FindFirst("role")?.Value
                            ?? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
@@ -58,7 +52,6 @@ public class GetCashFlowsEndpoint : ICarterModule
             var query = new GetCashFlowsQuery(
                 ApplicationId: applicationId,
                 BoutiqueId: boutiqueId,
-                UserId: userId,
                 IsManager: isManager,
                 Type: type,
                 Status: status,

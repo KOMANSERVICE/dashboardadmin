@@ -16,7 +16,6 @@ public record ExportCashFlowsQuery(
     // Identifiants obligatoires
     string ApplicationId,
     string BoutiqueId,
-    string UserId,
     bool IsManager,
 
     // Format d'export

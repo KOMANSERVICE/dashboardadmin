@@ -9,8 +9,7 @@ namespace TresorerieService.Application.Features.CashFlows.Commands.DeleteCashFl
 public record DeleteCashFlowCommand(
     Guid Id,
     string ApplicationId,
-    string BoutiqueId,
-    string UserId
+    string BoutiqueId
 ) : ICommand<DeleteCashFlowResult>;
 
 public record DeleteCashFlowResult(bool Success);

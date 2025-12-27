@@ -52,12 +52,6 @@ public class UpdateCashFlowEndpoint : ICarterModule
                 return Results.BadRequest(new { error = "X-Boutique-Id est obligatoire" });
             }
 
-            // Extraire le userId du token JWT
-            var userId = httpContext.User.FindFirst("sub")?.Value
-                         ?? httpContext.User.FindFirst("userId")?.Value
-                         ?? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                         ?? "unknown";
-
             var dto = new UpdateCashFlowDto(
                 CategoryId: request.CategoryId,
                 Label: request.Label,
@@ -80,7 +74,6 @@ public class UpdateCashFlowEndpoint : ICarterModule
                 Id: id,
                 ApplicationId: applicationId,
                 BoutiqueId: boutiqueId,
-                UserId: userId,
                 Data: dto
             );
 

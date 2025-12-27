@@ -34,17 +34,10 @@ public class ToggleRecurringCashFlowEndpoint : ICarterModule
                 return Results.BadRequest(new { error = "X-Boutique-Id est obligatoire" });
             }
 
-            // Extraire le userId du token JWT
-            var userId = httpContext.User.FindFirst("sub")?.Value
-                         ?? httpContext.User.FindFirst("userId")?.Value
-                         ?? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                         ?? "unknown";
-
             var command = new ToggleRecurringCashFlowCommand(
                 Id: id,
                 ApplicationId: applicationId,
-                BoutiqueId: boutiqueId,
-                UserId: userId
+                BoutiqueId: boutiqueId
             );
 
             var result = await sender.Send(command, cancellationToken);

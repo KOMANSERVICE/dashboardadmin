@@ -7,7 +7,6 @@ public record GetCashFlowsQuery(
     // Identifiants obligatoires
     string ApplicationId,
     string BoutiqueId,
-    string UserId,
     bool IsManager,
 
     // Filtres optionnels

@@ -7,8 +7,7 @@ namespace TresorerieService.Application.Features.RecurringCashFlows.Commands.Tog
 public record ToggleRecurringCashFlowCommand(
     Guid Id,
     string ApplicationId,
-    string BoutiqueId,
-    string UserId
+    string BoutiqueId
 ) : ICommand<ToggleRecurringCashFlowResult>;
 
 public record ToggleRecurringCashFlowResult(

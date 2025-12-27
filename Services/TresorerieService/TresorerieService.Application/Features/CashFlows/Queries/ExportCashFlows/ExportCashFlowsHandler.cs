@@ -1,3 +1,4 @@
+using IDR.Library.BuildingBlocks.Contexts.Services;
 using TresorerieService.Application.Features.CashFlows.DTOs;
 using TresorerieService.Application.Services;
 
@@ -8,13 +9,15 @@ public class ExportCashFlowsHandler(
     IGenericRepository<Category> categoryRepository,
     IGenericRepository<Account> accountRepository,
     ICsvExportService csvExportService,
-    IExcelExportService excelExportService
+    IExcelExportService excelExportService,
+    IUserContextService userContextService
 ) : IQueryHandler<ExportCashFlowsQuery, ExportCashFlowsResponse>
 {
     public async Task<ExportCashFlowsResponse> Handle(
         ExportCashFlowsQuery query,
         CancellationToken cancellationToken = default)
     {
+        var email = userContextService.GetEmail();
         // Recuperer les categories pour le mapping
         var categories = await categoryRepository.GetByConditionAsync(
             c => c.ApplicationId == query.ApplicationId,
@@ -37,7 +40,7 @@ public class ExportCashFlowsHandler(
         // Filtrer selon le role : employe voit ses propres flux, manager voit tous les flux
         IEnumerable<CashFlow> filteredCashFlows = query.IsManager
             ? cashFlows
-            : cashFlows.Where(cf => cf.CreatedBy == query.UserId);
+            : cashFlows.Where(cf => cf.CreatedBy == email);
 
         // Appliquer les filtres optionnels
         if (query.Type.HasValue)

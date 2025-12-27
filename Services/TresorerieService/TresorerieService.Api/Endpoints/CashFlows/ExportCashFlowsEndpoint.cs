@@ -43,12 +43,6 @@ public class ExportCashFlowsEndpoint : ICarterModule
                 return Results.BadRequest(new { error = "Le format doit etre 'csv' ou 'excel'" });
             }
 
-            // Extraire le userId du token JWT
-            var userId = httpContext.User.FindFirst("sub")?.Value
-                         ?? httpContext.User.FindFirst("userId")?.Value
-                         ?? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                         ?? "unknown";
-
             // Extraire le role de l'utilisateur du token JWT
             var userRole = httpContext.User.FindFirst("role")?.Value
                            ?? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
@@ -73,7 +67,6 @@ public class ExportCashFlowsEndpoint : ICarterModule
             var query = new ExportCashFlowsQuery(
                 ApplicationId: applicationId,
                 BoutiqueId: boutiqueId,
-                UserId: userId,
                 IsManager: isManager,
                 Format: exportFormat,
                 Columns: columnsArray,
