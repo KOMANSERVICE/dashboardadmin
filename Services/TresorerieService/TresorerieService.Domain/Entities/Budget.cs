@@ -50,7 +50,7 @@ public class Budget :Entity<Guid>
 
 [Column("currency")]
     [StringLength(3)]
-    public string Currency { get; set; } = "USD";
+    public string Currency { get; set; } = "XOF";
 
     // Configuration
     [Column("type")]
