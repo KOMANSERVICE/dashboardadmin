@@ -1,4 +1,3 @@
-# .github/workflows/TRESORERIESERVICE - Deploy to PROD.yml
 name: TRESORERIESERVICE - Deploy images to prod
 
 on:
