@@ -2,74 +2,19 @@ name: BACKENDADMIN - Deploy images to prod
 
 on:
   workflow_run:
-    workflows: ["BACKENDADMIN - Build and Push Docker Images"]  # nom exact du workflow précédent
-    types:
-      - completed  # se déclenche quand le workflow précédent est terminé
-
-env:
-  DEPLOY_PATH: /home/komanatse/backendadmin
+    workflows: ["BACKENDADMIN - Build and Push Docker Images"]
+    types: [completed]
 
 jobs:
-  deploy:
+  setup-config:
+    name: Setup config files
+    runs-on: ubuntu-latest
     if: >
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       startsWith(github.event.workflow_run.head_branch, 'v')
-    name: Deploy to VPS PROD (auto-tag)
-    runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # Déterminer le tag Docker à déployer
-      - name: Define image tag
-        id: vars
-        run: |
-          set -e
-
-          BRANCH="${{ github.event.workflow_run.head_branch }}"
-          REF="${{ github.event.workflow_run.head_sha }}"
-
-          echo "🔍 Workflow build triggered on branch/tag: $BRANCH"
-
-          # Si c'est un tag versionné (vX.X.X)
-          if [[ "$BRANCH" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "env=prod" >> $GITHUB_OUTPUT
-            echo "tag=$BRANCH" >> $GITHUB_OUTPUT
-            echo "✅ Déploiement PROD : $BRANCH"
-          else
-            echo "env=nonprod" >> $GITHUB_OUTPUT
-            echo "🧪 Déploiement de la dernière version non-prod"
-
-            # Récupérer le dernier tag 'dev-' pushé sur GHCR pour l'image API
-            IMAGE_NAME="backendadmin"
-            GH_API="https://hub.docker.com/v2/repositories/komanatse/${IMAGE_NAME}/tags?page_size=100"
-
-            echo "🔍 Recherche du dernier tag 'dev-' pour ${IMAGE_NAME} sur GHCR..."
-            TAG=$(curl -s  $GH_API | jq -r '.results[].name' | grep '^dev-' | sort -r | head -n 1)
-
-            if [ -z "$TAG" ]; then
-              echo "❌ Aucun tag 'dev-' trouvé sur GHCR. Abandon."
-              exit 1
-            fi
-
-            echo "tag=$TAG" >> $GITHUB_OUTPUT
-            echo "✅ Dernier tag dev trouvé : $TAG"
-          fi
-
-      - name: Copy docker-compose and .env to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST_PROD }}
-          username: ${{ secrets.SSH_USER_PROD }}
-          key: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE_PROD }}
-          port: 22
-          source: "docker-compose.prod.yml"
-          target: ${{ env.DEPLOY_PATH }}
-
-      - name: SSH to VPS and deploy stack
+      - name: Create appsettings.json on VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST_PROD }}
@@ -78,53 +23,8 @@ jobs:
           passphrase: ${{ secrets.SSH_PASSPHRASE_PROD }}
           port: 22
           script: |
-            TAG="${{ steps.vars.outputs.tag }}"
-            DIR_PATH="${{ env.DEPLOY_PATH }}"
-
-            echo "📦 Déploiement avec le tag Docker : ${TAG}"
-
-            cd $DIR_PATH
-
-            echo "🛑 Arrêt des anciens conteneurs"
-            docker compose -f docker-compose.prod.yml down
-
-            echo "🚀 Sauvegarde des volumes Docker"
-            chmod +x /home/komanatse/savevolume/backup_docker_volumes.sh
-            /home/komanatse/savevolume/backup_docker_volumes.sh
-
-            ENV_PATH="$DIR_PATH/.env"
-            if [ -f "$ENV_PATH" ]; then
-              TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-              mv "$ENV_PATH" "${ENV_PATH}_${TIMESTAMP}.bak"
-              echo "🌀 Fichier .env renommé : ${ENV_PATH}_${TIMESTAMP}.bak"
-            fi
-
-            cat <<EOF > $ENV_PATH
-            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD_PROD }}
-            POSTGRES_DB=${{ secrets.POSTGRES_DB_PROD }}
-            POSTGRES_USER=${{ secrets.POSTGRES_USER_PROD }}
-            VAULT_URI=${{ secrets.VAULT_URI }}
-            VAULT_ROLE_ID=${{ secrets.VAULT_ROLE_ID_PROD }}
-            VAULT_SECRET_ID=${{ secrets.VAULT_SECRET_ID_PROD }}
-            VAULT_MOUNT_POINT=${{ secrets.VAULT_MOUNT_POINT }}
-
-            JWT_VALID_AUDIENCE_API=${{ secrets.JWT_VALID_AUDIENCE_API }}
-            JWT_VALID_ISSUER_API=${{ secrets.JWT_VALID_ISSUER_API }}
-            JWT_SECRET_API=${{ secrets.JWT_SECRET_API }}
-            VAULT_PATH_MOUNT_POINT=${{ secrets.VAULT_PATH_MOUNT_POINT }}
-            VAULT_EMAIL_ADMIN=${{ secrets.VAULT_EMAIL_ADMIN }}
-            VAULT_PASSWORD_ADMIN=${{ secrets.VAULT_PASSWORD_ADMIN }}
-            CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
-            CONNECTION_STRING_API=${{ secrets.CONNECTION_STRING_API }}
-            MENU_SERVICE_URL=${{ secrets.MENU_SERVICE_URL }}
-            API_SETTINGS_URL=${{ vars.API_SETTINGS_URL_PROD }}
-            VAULT_PATH_MOUNT_POINT_MENU=${{ secrets.VAULT_PATH_MOUNT_POINT_MENU }}
-            DOCKER_TAG=$TAG
-            EOF
-
-            chmod 644 $ENV_PATH
-            dos2unix $ENV_PATH
-
+            DIR_PATH="/home/komanatse/backendadmin"
+            
             mkdir -p $DIR_PATH/FrontendAdmin/FrontendAdmin.Web.Client/wwwroot
             mkdir -p $DIR_PATH/FrontendAdmin/FrontendAdmin.Web
             
@@ -157,14 +57,43 @@ jobs:
               }
             }
             EOF
+            
+            echo "✅ appsettings.json créés"
 
-            echo "🔑 Login GHCR"
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            echo "📦 Pull des images version ${TAG}"
-            docker compose -f docker-compose.prod.yml pull
-
-            echo "🚀 Démarrage du stack avec le tag ${TAG}"
-            DOCKER_TAG=$TAG docker compose -f docker-compose.prod.yml --env-file .env up -d --build --remove-orphans
-
-            echo "✅ Déploiement terminé avec succès (tag=${TAG})"
+  deploy:
+    needs: setup-config
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      service_name: backendadmin
+      image_name: backendadmin
+      deploy_path: /home/komanatse/backendadmin
+      compose_file: docker-compose.prod.yml
+      environment: prod
+      ssh_port: 22
+      build_workflow_name: "BACKENDADMIN - Build and Push Docker Images"
+      stack_name: admin
+    secrets:
+      SSH_HOST: ${{ secrets.SSH_HOST_PROD }}
+      SSH_USER: ${{ secrets.SSH_USER_PROD }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY_PROD }}
+      SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE_PROD }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      ENV_CONTENT: |
+        POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD_PROD }}
+        POSTGRES_DB=${{ secrets.POSTGRES_DB_PROD }}
+        POSTGRES_USER=${{ secrets.POSTGRES_USER_PROD }}
+        VAULT_URI=${{ secrets.VAULT_URI }}
+        VAULT_ROLE_ID=${{ secrets.VAULT_ROLE_ID_PROD }}
+        VAULT_SECRET_ID=${{ secrets.VAULT_SECRET_ID_PROD }}
+        VAULT_MOUNT_POINT=${{ secrets.VAULT_MOUNT_POINT }}
+        JWT_VALID_AUDIENCE_API=${{ secrets.JWT_VALID_AUDIENCE_API }}
+        JWT_VALID_ISSUER_API=${{ secrets.JWT_VALID_ISSUER_API }}
+        JWT_SECRET_API=${{ secrets.JWT_SECRET_API }}
+        VAULT_PATH_MOUNT_POINT=${{ secrets.VAULT_PATH_MOUNT_POINT }}
+        VAULT_EMAIL_ADMIN=${{ secrets.VAULT_EMAIL_ADMIN }}
+        VAULT_PASSWORD_ADMIN=${{ secrets.VAULT_PASSWORD_ADMIN }}
+        CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
+        CONNECTION_STRING_API=${{ secrets.CONNECTION_STRING_API }}
+        MENU_SERVICE_URL=${{ secrets.MENU_SERVICE_URL }}
+        API_SETTINGS_URL=${{ vars.API_SETTINGS_URL_PROD }}
+        VAULT_PATH_MOUNT_POINT_MENU=${{ secrets.VAULT_PATH_MOUNT_POINT_MENU }}
