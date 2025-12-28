@@ -25,6 +25,13 @@
       restart_policy:
         condition: on-failure
         delay: 5s
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     
   ef-migrator-dashadmin:
     image: komanatse/frontendadminsql:${DOCKER_TAG}
@@ -73,6 +80,13 @@
         order: start-first
       restart_policy:
         condition: on-failure
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
       
   backendadmin-api:
     image: komanatse/backendadmin:${DOCKER_TAG}
@@ -117,6 +131,13 @@
       placement:
         constraints:
           - node.role == manager
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
             
 networks:
   vault-net:
