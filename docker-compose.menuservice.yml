@@ -7,7 +7,7 @@
       POSTGRES_USER: ${POSTGRES_USER_MENU}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_MENU}
     volumes:
-      - pgdata_menu:/var/lib/postgresql/data  
+      - pgdata_menu:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_MENU} -d ${POSTGRES_DB_MENU}"]
       interval: 10s
@@ -27,12 +27,10 @@
         delay: 5s
       resources:
         limits:
-          cpus: '1.0'
           memory: 512M
         reservations:
-          cpus: '0.25'
           memory: 256M
-      
+
   ef-migrator-menuservice:
     image: komanatse/menuservicesql:${DOCKER_TAG}
     environment:
@@ -51,7 +49,7 @@
         condition: on-failure
         max_attempts: 5
         delay: 10s
- 
+
   menuservice-api:
     image: komanatse/menuservice:${DOCKER_TAG}
     restart: unless-stopped
@@ -88,16 +86,14 @@
         condition: on-failure
       resources:
         limits:
-          cpus: '1.0'
           memory: 512M
         reservations:
-          cpus: '0.25'
           memory: 256M
-      
+
 networks:
   vault-net:
-    external: true 
-      
+    external: true
+
 volumes:
   pgdata_menu:
-    external: true 
+    external: true

@@ -27,10 +27,8 @@ services:
         delay: 5s
       resources:
         limits:
-          cpus: '1.0'
           memory: 2G
         reservations:
-          cpus: '0.25'
           memory: 512M
             
   ef-migrator-tresorerieservice:
@@ -88,10 +86,8 @@ services:
         condition: on-failure
       resources:
         limits:
-          cpus: '1.0'
           memory: 2G
         reservations:
-          cpus: '0.25'
           memory: 512M
       
 networks:
